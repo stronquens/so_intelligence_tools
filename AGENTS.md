@@ -10,6 +10,7 @@ Este repositorio define y desarrolla una suite de herramientas de IA local integ
 - La primera aproximación contempla Gemma 4 corriendo con Ollama.
 - El despliegue de la API debe poder encapsularse en Docker.
 - Las herramientas de usuario vivirán como scripts o servicios Python que consumen la API local.
+- El stack Python del repo debe gestionarse con Poetry y un entorno `.venv` dentro del propio proyecto.
 - La interacción principal del usuario será mediante atajos globales de teclado, overlays y automatizaciones del portapapeles o del texto seleccionado.
 
 ## Working Agreement
@@ -25,6 +26,8 @@ Este repositorio define y desarrolla una suite de herramientas de IA local integ
 ## Repository Layout
 
 - `.codex/skills/`: skills locales disponibles para Codex en este repo.
+- `pyproject.toml`: configuración base del proyecto Python gestionado con Poetry.
+- `poetry.toml`: fuerza el entorno virtual `.venv` dentro del repo.
 - `openspec/config.yaml`: configuración base del workflow spec-driven.
 - `openspec/capabilities-index.md`: índice priorizado de capabilities y metadatos.
 - `openspec/changes/`: cambios activos y archivados.
@@ -70,3 +73,4 @@ Los nombres de capability deben describir la función y mantenerse estables en e
 - Si el repo todavía no tiene código de producto, se puede empezar creando una capability desde el primer change.
 - No guardes evidencia de validación solo en conversación; déjala dentro del change.
 - Linux es el target inicial, pero las decisiones de diseño deben intentar aislar dependencias específicas del sistema operativo.
+- No instales dependencias Python a nivel global para este proyecto. Usa siempre Poetry dentro del `.venv` local del repo.

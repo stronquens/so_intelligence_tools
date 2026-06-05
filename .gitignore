@@ -4,3 +4,10 @@ openspec/tmp/
 # Common local noise
 .DS_Store
 Thumbs.db
+
+# Python local environment
+.venv/
+
+# Local configuration
+.env.local
+.env

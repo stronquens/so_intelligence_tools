@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "so-intelligence-tools"
+version = "0.1.0"
+description = "Base de trabajo para herramientas de IA integradas con el sistema operativo."
+authors = ["Sciling <devnull@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+fastapi = "^0.136.3"
+uvicorn = {extras = ["standard"], version = "^0.49.0"}
+httpx = "^0.28.1"
+python-multipart = "^0.0.32"
+pydantic-settings = "^2.14.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.3"
+ruff = "^0.12.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

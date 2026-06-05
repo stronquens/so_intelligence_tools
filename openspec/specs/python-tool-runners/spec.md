@@ -11,6 +11,14 @@ El sistema SHALL implementar herramientas cliente en Python que consuman la API 
 - **WHEN** una herramienta Python necesita ejecutar una tarea de IA
 - **THEN** esta SHALL comunicarse con la API local mediante una interfaz definida y no mediante llamadas acopladas al proceso del modelo
 
+### Requirement: Tooling Python aislado dentro del proyecto
+El sistema SHALL gestionar dependencias y comandos Python mediante Poetry usando un entorno `.venv` dentro del propio repositorio.
+
+#### Scenario: Instalación de dependencias del proyecto
+- **WHEN** una persona necesite instalar o actualizar dependencias Python del proyecto
+- **THEN** SHALL hacerlo mediante Poetry
+- **AND** el entorno virtual SHALL crearse dentro de `.venv/` en la raíz del repositorio
+
 ### Requirement: Orquestación de acciones de sistema y de inferencia
 Las herramientas Python SHALL encargarse de unir el contexto del sistema operativo con la llamada al backend de IA.
 

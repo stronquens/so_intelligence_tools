@@ -15,6 +15,14 @@ El sistema SHALL exponer un servicio local accesible por API para recibir petici
 - **WHEN** el sistema se despliega en una máquina del usuario
 - **THEN** la API SHALL poder ejecutarse en local sin depender de servicios remotos para la inferencia principal
 
+### Requirement: Backend Python gestionado dentro del repositorio
+El sistema SHALL gestionar el servicio local de inferencia como un proyecto Python con Poetry y un entorno `.venv` dentro del propio repositorio.
+
+#### Scenario: Preparación del entorno del backend
+- **WHEN** una persona necesite instalar dependencias o ejecutar comandos del backend
+- **THEN** SHALL hacerlo mediante Poetry
+- **AND** el entorno virtual SHALL existir dentro de `.venv/` en la raíz del proyecto
+
 ### Requirement: Inferencia multimodal sobre modelo local
 El sistema SHALL soportar un modelo local multimodal que permita procesar al menos texto e imagen dentro del mismo backend de inferencia.
 
@@ -34,6 +42,27 @@ El sistema SHALL soportar un modelo local multimodal que permita procesar al men
 - **WHEN** una herramienta cliente envía audio continuo o fragmentos sucesivos para procesamiento casi en tiempo real
 - **THEN** el backend SHALL poder producir resultados parciales o actualizaciones frecuentes aptas para una interfaz en vivo
 
+### Requirement: Configuración de perfil de razonamiento por petición
+El sistema SHALL permitir que las herramientas cliente expresen si una petición prioriza velocidad o razonamiento más profundo.
+
+#### Scenario: Una herramienta solicita respuesta rápida
+- **WHEN** una herramienta cliente envía una petición con el modo de razonamiento desactivado o enfocado a baja latencia
+- **THEN** el backend SHALL priorizar una respuesta lo más rápida posible
+
+#### Scenario: Una herramienta solicita más deliberación
+- **WHEN** una herramienta cliente envía una petición con un nivel de razonamiento mayor
+- **THEN** el backend SHALL permitir una respuesta más lenta si eso mejora la calidad esperada
+
+#### Scenario: El backend cambia su estrategia interna
+- **WHEN** la implementación necesite resolver estos modos con un solo modelo configurable o con varios perfiles de modelo
+- **THEN** la interfaz pública SHALL mantener un contrato estable a nivel de petición
+
+#### Scenario: Gemma 4 usa un mapeo inicial simplificado de thinking
+- **WHEN** la primera implementación use Gemma 4 sobre Ollama
+- **THEN** `reasoning_mode` SHALL mantenerse como contrato público
+- **AND** el backend MAY resolver inicialmente `off` y `low` como thinking desactivado
+- **AND** el backend MAY resolver inicialmente `medium` y `high` como thinking activado
+
 ### Requirement: Despliegue portable mediante contenedores
 El sistema SHALL poder desplegar el servicio de inferencia dentro de Docker para facilitar instalación, aislamiento y portabilidad.
 
@@ -45,12 +74,24 @@ El sistema SHALL poder desplegar el servicio de inferencia dentro de Docker para
 - **WHEN** se quiera portar el proyecto a otro sistema operativo
 - **THEN** la arquitectura SHALL mantener la capa de inferencia aislada detrás de la misma interfaz de API
 
+#### Scenario: El usuario quiere liberar recursos del sistema
+- **WHEN** el usuario decide apagar temporalmente la infraestructura local de inferencia
+- **THEN** el despliegue SHALL permitir detener los contenedores asociados para liberar recursos del equipo
+
+#### Scenario: El equipo quiere probar otro modelo local
+- **WHEN** el proyecto necesite sustituir el modelo local validado por otro nuevo
+- **THEN** la arquitectura SHALL permitir cambiar el runtime o perfil de modelo con el menor impacto posible sobre la interfaz pública del API
+
 ### Requirement: Compatibilidad inicial con Ollama y Gemma
 El sistema SHALL permitir una primera implementación basada en Ollama y una familia de modelos Gemma multimodales en local.
 
 #### Scenario: Primera iteración técnica del backend
 - **WHEN** el equipo implemente la primera versión del servicio
 - **THEN** esta SHALL poder apoyarse en Ollama como runtime de modelo local
+
+#### Scenario: Runtime inicial validado para portátil CPU-only
+- **WHEN** el equipo necesite elegir un runtime inicial para la primera implementación en un portátil sin GPU dedicada
+- **THEN** el modelo inicial validado SHALL ser `hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
 
 #### Scenario: Evolución futura del proveedor local
 - **WHEN** el proyecto necesite cambiar de modelo o runtime en una iteración posterior
