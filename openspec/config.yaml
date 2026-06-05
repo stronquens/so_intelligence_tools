@@ -1,0 +1,47 @@
+schema: spec-driven
+
+context: |
+  Proyecto: so_intelligence_tools
+  Objetivo: construir una suite de herramientas de inteligencia artificial integradas en el sistema operativo, con foco inicial en Linux y con arquitectura portable a otros sistemas.
+  Estado actual: fase de definición funcional y técnica, sin implementación de producto todavía.
+  Visión de producto:
+    - Ejecutar un modelo multimodal local basado en Gemma 4 servido mediante Ollama.
+    - Exponer ese modelo detrás de una API local desplegable en Docker.
+    - Construir herramientas en Python que consuman esa API local.
+    - Integrar la experiencia con atajos globales de teclado y overlays del sistema.
+    - Mantener portabilidad para reutilizar la arquitectura en otros sistemas operativos más adelante.
+  Capacidades iniciales:
+    - local-inference-api: API local multimodal para inferencia.
+    - python-tool-runners: runners Python para orquestar herramientas del sistema.
+    - keyboard-shortcuts: atajos globales de teclado.
+    - tools-overlay: overlay del sistema para lanzar herramientas.
+    - overlay-settings: configuración de atajos y ajustes desde el overlay.
+    - selected-text-correction: corrección ortográfica sobre texto seleccionado preservando idioma.
+    - screenshot-text-extraction: extracción de texto desde capturas hacia el portapapeles.
+    - push-to-talk-dictation: dictado push-to-talk con transcripción local.
+    - overlay-agent-chat: agente conversacional embebido en el overlay.
+    - system-audio-transcription: transcripción y traducción en tiempo real del audio del sistema.
+    - voice-translation-virtual-microphone: micrófono virtual con traducción de voz mediante streaming remoto.
+  Convenciones:
+    - Todo cambio funcional debe nacer como un change en openspec/changes/<change-name>/.
+    - Las decisiones de alcance viven en proposal.md.
+    - Las decisiones técnicas viven en design.md.
+    - Los criterios de comportamiento viven en specs y delta specs.
+    - La validación debe dejar evidencia duradera dentro del change.
+  Preferencias:
+    - Mantener la estructura simple y fácil de navegar.
+    - Evitar complejidad de tooling salvo que una necesidad concreta la justifique.
+    - Diseñar componentes desacoplados entre inferencia, herramientas y capa de integración con el SO.
+    - Nombrar capabilities por su función, no por prioridad o backend.
+    - Mantener prioridad, modalidad, tiempo real y backend en el índice de capabilities.
+
+rules:
+  proposal:
+    - Describe claramente el problema, el alcance y los non-goals.
+    - Mantén el cambio lo bastante pequeño como para implementarlo y validarlo en una iteración.
+  design:
+    - Documenta decisiones, trade-offs y riesgos antes de tocar código.
+    - Reutiliza patrones existentes del repo cuando los haya.
+  tasks:
+    - Escribe tareas verificables y secuenciales.
+    - Incluye siempre una fase explícita de validación.

@@ -1,0 +1,6 @@
+# OpenSpec scratch and local artifacts
+openspec/tmp/
+
+# Common local noise
+.DS_Store
+Thumbs.db
