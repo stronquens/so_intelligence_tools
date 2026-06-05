@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Base de trabajo para herramientas de IA integradas con el sistema operativo."
 authors = ["Sciling <devnull@example.com>"]
 readme = "README.md"
-package-mode = false
+packages = [
+  { include = "local_inference_api", from = "src" },
+  { include = "so_intelligence_tools", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.14"
@@ -17,6 +20,9 @@ pydantic-settings = "^2.14.1"
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.3"
 ruff = "^0.12.0"
+
+[tool.poetry.scripts]
+so-intelligence-tools = "so_intelligence_tools.cli.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
