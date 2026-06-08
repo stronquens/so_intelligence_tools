@@ -13,5 +13,6 @@ Este índice ordena las capabilities por prioridad de ejecución recomendada y a
 | 7 | `screenshot-text-extraction` | No | `image` | `local` | Captura de una región de pantalla y extracción exacta de texto al portapapeles. |
 | 8 | `push-to-talk-dictation` | Si | `audio` | `local` | Dictado temporal mientras se mantiene un atajo y escritura directa donde está el cursor. |
 | 9 | `overlay-agent-chat` | No | `text` | `local` | Agente conversacional dentro del overlay con acceso a herramientas y búsqueda en archivos. |
-| 10 | `system-audio-transcription` | Si | `audio` | `local` | Transcripción o traducción en vivo del audio de salida del sistema en una ventana dedicada. |
-| 11 | `voice-translation-virtual-microphone` | Si | `audio` | `remote` | Micrófono virtual para traducir la voz del usuario en tiempo real con streaming remoto. |
+| 10 | `system-audio-transcription` | Si | `audio` | `local/remote` | Traducción en vivo del audio de salida del sistema en una ventana dedicada, con primera iteración validada sobre proveedor remoto y apertura futura a rutas locales. |
+| 11 | `realtime-translation-desktop-ui` | Si | `audio/system-ui` | `none` | Interfaz Electron/Vue futura para visualizar y controlar la traducción en vivo del audio del sistema sin reemplazar todavía la capa funcional Python. |
+| 12 | `voice-translation-virtual-microphone` | Si | `audio` | `remote` | Micrófono virtual para traducir la voz del usuario en tiempo real con streaming remoto. |

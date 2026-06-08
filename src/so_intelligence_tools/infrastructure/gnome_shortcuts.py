@@ -16,6 +16,10 @@ SELECTED_TEXT_SHORTCUT_PATH = (
     "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
     "so-intelligence-tools-selected-text-correction/"
 )
+SYSTEM_AUDIO_TRANSLATION_SHORTCUT_PATH = (
+    "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
+    "so-intelligence-tools-system-audio-translation/"
+)
 
 
 class GnomeShortcutManager:
@@ -30,18 +34,22 @@ class GnomeShortcutManager:
 
     def install_selected_text_correction_shortcut(self, *, binding: str, debug: bool = False) -> str:
         command = self._build_selected_text_correction_command(debug=debug)
-        current_paths = self._get_custom_keybindings()
-        if SELECTED_TEXT_SHORTCUT_PATH not in current_paths:
-            current_paths.append(SELECTED_TEXT_SHORTCUT_PATH)
-            self._set_custom_keybindings(current_paths)
-
-        schema_with_path = (
-            "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:"
-            f"{SELECTED_TEXT_SHORTCUT_PATH}"
+        self._install_shortcut(
+            path=SELECTED_TEXT_SHORTCUT_PATH,
+            name="Selected Text Correction",
+            command=command,
+            binding=binding,
         )
-        self._gsettings("set", schema_with_path, "name", "Selected Text Correction")
-        self._gsettings("set", schema_with_path, "command", command)
-        self._gsettings("set", schema_with_path, "binding", binding)
+        return command
+
+    def install_system_audio_translation_shortcut(self, *, binding: str) -> str:
+        command = self._build_system_audio_translation_command()
+        self._install_shortcut(
+            path=SYSTEM_AUDIO_TRANSLATION_SHORTCUT_PATH,
+            name="System Audio Translation",
+            command=command,
+            binding=binding,
+        )
         return command
 
     def _build_selected_text_correction_command(self, *, debug: bool = False) -> str:
@@ -54,6 +62,29 @@ class GnomeShortcutManager:
             return f"{shlex.quote(str(script_candidate))} {command_suffix}"
         python_path = Path(self._python_executable).resolve()
         return f"{shlex.quote(str(python_path))} -m so_intelligence_tools {command_suffix}"
+
+    def _build_system_audio_translation_command(self) -> str:
+        args = ["run-system-audio-translation-toggle"]
+        command_suffix = " ".join(shlex.quote(arg) for arg in args)
+        script_candidate = Path(sys.prefix) / "bin" / "so-intelligence-tools"
+        if script_candidate.exists():
+            return f"{shlex.quote(str(script_candidate))} {command_suffix}"
+        python_path = Path(self._python_executable).resolve()
+        return f"{shlex.quote(str(python_path))} -m so_intelligence_tools {command_suffix}"
+
+    def _install_shortcut(self, *, path: str, name: str, command: str, binding: str) -> None:
+        current_paths = self._get_custom_keybindings()
+        if path not in current_paths:
+            current_paths.append(path)
+            self._set_custom_keybindings(current_paths)
+
+        schema_with_path = (
+            "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:"
+            f"{path}"
+        )
+        self._gsettings("set", schema_with_path, "name", name)
+        self._gsettings("set", schema_with_path, "command", command)
+        self._gsettings("set", schema_with_path, "binding", binding)
 
     def _get_custom_keybindings(self) -> list[str]:
         raw = self._gsettings("get", MEDIA_KEYS_SCHEMA, "custom-keybindings")

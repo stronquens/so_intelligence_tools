@@ -1,5 +1,6 @@
 # OpenSpec scratch and local artifacts
 openspec/tmp/
+.tmp/
 
 # Common local noise
 .DS_Store

@@ -34,6 +34,9 @@ from so_intelligence_tools.infrastructure.shortcut_listener import LinuxShortcut
 from so_intelligence_tools.infrastructure.user_services import (
     LocalApiUserServiceInstaller,
 )
+from so_intelligence_tools.system_audio_translation import (
+    run_system_audio_translation_toggle,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,10 +54,15 @@ def build_parser() -> argparse.ArgumentParser:
     selected_parser = subparsers.add_parser("run-selected-text-correction")
     selected_parser.add_argument("--debug", action="store_true")
     selected_parser.add_argument("--debug-log-path", default=None)
+    subparsers.add_parser("run-system-audio-translation-toggle")
     subparsers.add_parser("listen-shortcuts")
     install_parser = subparsers.add_parser("install-gnome-selected-text-shortcut")
     install_parser.add_argument("--binding", default=None)
     install_parser.add_argument("--debug", action="store_true")
+    translation_shortcut_parser = subparsers.add_parser(
+        "install-gnome-system-audio-translation-shortcut"
+    )
+    translation_shortcut_parser.add_argument("--binding", default=None)
     desktop_parser = subparsers.add_parser("install-linux-desktop-integration")
     desktop_parser.add_argument("--binding", default=None)
     desktop_parser.add_argument("--debug-shortcut", action="store_true")
@@ -110,6 +118,11 @@ def main(argv: list[str] | None = None) -> int:
             print(result)
             return 0
 
+        if args.command == "run-system-audio-translation-toggle":
+            result = run_system_audio_translation_toggle(settings)
+            print(result)
+            return 0
+
         if args.command == "listen-shortcuts":
             runtime = build_linux_runtime(settings)
             registry = build_default_shortcut_registry(runtime)
@@ -129,6 +142,14 @@ def main(argv: list[str] | None = None) -> int:
                 binding=binding,
                 debug=args.debug,
             )
+            print(f"Shortcut installed: {binding}")
+            print(f"Command: {command}")
+            return 0
+
+        if args.command == "install-gnome-system-audio-translation-shortcut":
+            manager = GnomeShortcutManager()
+            binding = args.binding or settings.gnome_system_audio_translation_binding
+            command = manager.install_system_audio_translation_shortcut(binding=binding)
             print(f"Shortcut installed: {binding}")
             print(f"Command: {command}")
             return 0

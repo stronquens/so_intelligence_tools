@@ -6,6 +6,7 @@ import sys
 from so_intelligence_tools.infrastructure.gnome_shortcuts import (
     GnomeShortcutManager,
     SELECTED_TEXT_SHORTCUT_PATH,
+    SYSTEM_AUDIO_TRANSLATION_SHORTCUT_PATH,
 )
 
 
@@ -47,3 +48,33 @@ def test_install_selected_text_shortcut_can_enable_debug(monkeypatch):
     )
 
     assert command.endswith("run-selected-text-correction --debug")
+
+
+def test_install_system_audio_translation_shortcut_adds_path(monkeypatch):
+    calls: list[tuple[str, str, str, str | None]] = []
+
+    def fake_gsettings(action: str, schema: str, key: str, value: str | None = None) -> str:
+        calls.append((action, schema, key, value))
+        if action == "get":
+            return "@as []"
+        return ""
+
+    monkeypatch.setattr(GnomeShortcutManager, "_gsettings", staticmethod(fake_gsettings))
+    manager = GnomeShortcutManager(python_executable="/tmp/project/.venv/bin/python")
+
+    command = manager.install_system_audio_translation_shortcut(binding="<Super><Alt>t")
+
+    expected_script = Path(sys.prefix) / "bin" / "so-intelligence-tools"
+    if expected_script.exists():
+        assert command == f"{expected_script} run-system-audio-translation-toggle"
+    else:
+        assert (
+            command
+            == "/tmp/project/.venv/bin/python -m so_intelligence_tools run-system-audio-translation-toggle"
+        )
+    assert (
+        "set",
+        "org.gnome.settings-daemon.plugins.media-keys",
+        "custom-keybindings",
+        f"['{SYSTEM_AUDIO_TRANSLATION_SHORTCUT_PATH}']",
+    ) in calls

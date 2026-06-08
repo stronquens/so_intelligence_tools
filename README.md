@@ -156,7 +156,7 @@ Los nombres de las capabilities priorizan claridad y estabilidad. La prioridad y
 - `screenshot-text-extraction`: extracción exacta de texto desde una región capturada de pantalla.
 - `push-to-talk-dictation`: dictado push-to-talk con transcripción local e inserción automática.
 - `overlay-agent-chat`: barra conversacional para hablar con un agente con herramientas del sistema.
-- `system-audio-transcription`: transcripción o traducción en vivo del audio que suena en el sistema.
+- `system-audio-transcription`: traducción en vivo del audio que suena en el sistema, con ventana dedicada, modo inicial fijo de traducción al español y espacio para futuros modos seleccionables.
 - `voice-translation-virtual-microphone`: micrófono virtual para traducir tu voz en tiempo real usando API remota.
 
 ## Probar atajo de corrección en Linux
@@ -183,6 +183,61 @@ poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 -
 2. Abre una aplicación cualquiera donde puedas escribir texto.
 3. Escribe y selecciona un texto con errores.
 4. Pulsa `Ctrl+Espacio`.
+
+## Probar traducción en vivo del audio del sistema
+
+La primera fase de `system-audio-transcription` ya tiene una implementación Linux-first dentro del proyecto:
+
+- ventana normal del sistema
+- captura del audio de salida por monitor source
+- selector de modo dentro de la ventana
+- panel en vivo con original y traducción lado a lado
+- historial agrupado donde cada bloque muestra original y traducción juntos
+- modo `OpenAI realtime` para baja latencia
+- modo `chunked` de fallback con transcripción remota por bloques
+- toggle del mismo comando para abrir o cerrar la herramienta
+
+Configura primero el bloque de variables `SYSTEM_AUDIO_TRANSLATION_*` en `.env`.
+
+Modos disponibles:
+
+- `translate_es_openai_realtime`: usa `OpenAI realtime` y es el camino recomendado para menor latencia
+- `translate_es_chunked`: mantiene el pipeline anterior `whisper-1 + traducción de texto`
+
+Con `OPENAI_API_KEY` configurada, el proyecto puede abrir la ventana directamente en `translate_es_openai_realtime`. Desde el desplegable de la propia ventana puedes cambiar de modo sin cerrar la herramienta.
+
+Lanzar manualmente:
+
+```bash
+poetry run so-intelligence-tools run-system-audio-translation-toggle
+```
+
+Si el comando se ejecuta una segunda vez mientras la ventana está activa, la sesión se cierra.
+
+Instalar el atajo GNOME para esta tool:
+
+```bash
+poetry run so-intelligence-tools install-gnome-system-audio-translation-shortcut
+```
+
+Atajo por defecto:
+
+```text
+Super + Alt + T
+```
+
+Notas de esta fase:
+
+- la salida principal muestra solo la traducción al español
+- en modo realtime, la parte superior muestra original y traducción en paralelo, y el historial las agrupa en un mismo bloque para que la correspondencia visual sea más clara
+- la ventana tiene un desplegable de modo para alternar entre `OpenAI realtime` y el fallback `chunked`
+- el modo realtime usa idioma de entrada `auto` por defecto: si el audio ya está en español, intenta transcribirlo en español en vez de ocultarlo
+- el modo realtime mantiene una conexión abierta mientras la sesión está activa; pausa o cierra la ventana para cortar consumo remoto
+- el historial se guarda al cerrar en `~/.cache/so_intelligence_tools/system_audio_logs/`
+- la diarización de speakers todavía no está implementada; queda como mejora posterior
+- `OpenAI realtime` necesita `OPENAI_API_KEY` o `SYSTEM_AUDIO_TRANSLATION_OPENAI_REALTIME_API_KEY`
+- la integración directa con OpenAI ya quedó validada con `session.created` y `session.updated` usando la API GA de Realtime
+- la ruta `chunked` sigue reutilizando LiteLLM Proxy para transcripción y traducción
 
 Notas:
 

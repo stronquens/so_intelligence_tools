@@ -19,6 +19,14 @@ El sistema SHALL permitir que herramientas de IA concretas se ejecuten mediante 
 - **WHEN** una herramienta requiere mantener una combinación de teclas pulsada durante una interacción temporal
 - **THEN** el sistema SHALL distinguir entre inicio de pulsación y liberación para controlar el ciclo de vida de esa acción
 
+#### Scenario: Atajo toggle para una herramienta persistente
+- **WHEN** una herramienta persistente necesita abrir, mantener y cerrar una sesión con el mismo atajo
+- **THEN** el sistema SHALL permitir que la misma combinación inicie o detenga esa herramienta según su estado actual
+
+#### Scenario: Atajo inicial sin colisión evidente
+- **WHEN** se asigne un atajo por defecto a una nueva herramienta persistente
+- **THEN** el sistema SHALL preferir una combinación con bajo riesgo de conflicto con accesos comunes del escritorio o de aplicaciones frecuentes
+
 ### Requirement: Integración inicial orientada a Linux
 El sistema SHALL priorizar una integración operativa en Linux sin cerrar la puerta a adaptadores para otros sistemas operativos.
 

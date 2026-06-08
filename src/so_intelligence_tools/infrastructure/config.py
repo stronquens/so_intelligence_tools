@@ -15,6 +15,43 @@ class ToolRunnerSettings(BaseSettings):
     shortcut_listener_platform: str = "linux-x11"
     gnome_selected_text_correction_binding: str = "<Primary>space"
     shortcut_action_start_delay_seconds: float = 0.35
+    gnome_system_audio_translation_binding: str = "<Super><Alt>t"
+    system_audio_translation_source_language: str = "auto"
+    system_audio_translation_target_language: str = "es"
+    system_audio_translation_mode: str = "translate_es_chunked"
+    system_audio_translation_transcription_base_url: str | None = None
+    system_audio_translation_transcription_api_key: str | None = None
+    system_audio_translation_transcription_model: str = "whisper-1"
+    system_audio_translation_sample_rate_hz: int = 16000
+    system_audio_translation_chunk_ms: int = 250
+    system_audio_translation_segment_seconds: float = 2.5
+    system_audio_translation_overlap_seconds: float = 0.5
+    system_audio_translation_pending_segment_limit: int = 16
+    system_audio_translation_control_socket_path: str = (
+        "~/.cache/so_intelligence_tools/system_audio_translation.sock"
+    )
+    system_audio_translation_logs_dir: str = "~/.cache/so_intelligence_tools/system_audio_logs"
+    system_audio_translation_reconnect_backoff_seconds: float = 2.0
+    system_audio_translation_window_title: str = "System Audio Translation"
+    system_audio_translation_openai_realtime_api_key: str | None = None
+    system_audio_translation_openai_realtime_base_url: str | None = None
+    system_audio_translation_openai_realtime_model: str = "gpt-realtime"
+    system_audio_translation_openai_realtime_sample_rate_hz: int = 24000
+    system_audio_translation_openai_realtime_chunk_ms: int = 80
+    system_audio_translation_openai_realtime_silence_duration_ms: int = 280
+    system_audio_translation_openai_realtime_prefix_padding_ms: int = 180
+    system_audio_translation_openai_realtime_vad_threshold: float = 0.4
+    system_audio_translation_openai_realtime_turn_detection_type: str = "server_vad"
+    system_audio_translation_openai_realtime_semantic_vad_eagerness: str = "medium"
+    system_audio_translation_openai_realtime_interrupt_response: bool = False
+    system_audio_translation_openai_realtime_max_output_tokens: int = 1024
+    system_audio_translation_openai_realtime_translate_completed_transcripts: bool = False
+    system_audio_translation_openai_realtime_text_translation_model: str = "gpt-4o-mini"
+    openai_api_key: str | None = None
+    openai_base_url: str | None = None
+    litellm_proxy_url: str | None = None
+    litellm_virtual_key: str | None = None
+    litellm_model: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -20,3 +20,11 @@ class UnsupportedEnvironmentError(ToolRunnerError):
 
 class ToolRunnerConfigurationError(ToolRunnerError):
     """Raised when a runner dependency is misconfigured."""
+
+
+class AudioCaptureError(ToolRunnerError):
+    """Raised when system audio capture cannot start or continue."""
+
+
+class StreamingSessionError(ToolRunnerError):
+    """Raised when a live streaming session cannot proceed."""
