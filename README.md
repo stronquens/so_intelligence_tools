@@ -157,6 +157,7 @@ Los nombres de las capabilities priorizan claridad y estabilidad. La prioridad y
 - `push-to-talk-dictation`: dictado push-to-talk con transcripción local e inserción automática.
 - `overlay-agent-chat`: barra conversacional para hablar con un agente con herramientas del sistema.
 - `system-audio-transcription`: traducción en vivo del audio que suena en el sistema, con ventana dedicada, modo inicial fijo de traducción al español y espacio para futuros modos seleccionables.
+- `realtime-translation-desktop-ui`: interfaz Electron/Vue alternativa para visualizar la traducción en vivo con una experiencia visual avanzada.
 - `voice-translation-virtual-microphone`: micrófono virtual para traducir tu voz en tiempo real usando API remota.
 
 ## Probar atajo de corrección en Linux
@@ -238,6 +239,43 @@ Notas de esta fase:
 - `OpenAI realtime` necesita `OPENAI_API_KEY` o `SYSTEM_AUDIO_TRANSLATION_OPENAI_REALTIME_API_KEY`
 - la integración directa con OpenAI ya quedó validada con `session.created` y `session.updated` usando la API GA de Realtime
 - la ruta `chunked` sigue reutilizando LiteLLM Proxy para transcripción y traducción
+
+## Probar la nueva UI Electron/Vue
+
+La capability `realtime-translation-desktop-ui` vive en `desktop/` y es una interfaz visual separada. No reemplaza todavía la ventana actual de traducción en tiempo real ni captura audio por su cuenta.
+
+Instalar dependencias frontend:
+
+```bash
+npm --prefix desktop install
+```
+
+Arrancar en modo desarrollo web:
+
+```bash
+npm --prefix desktop run dev -- --port 5173
+```
+
+Abrir como ventana Electron usando el servidor de desarrollo:
+
+```bash
+SO_AI_DESKTOP_DEV_SERVER_URL=http://127.0.0.1:5173 npm --prefix desktop run electron:dev
+```
+
+Validar la UI:
+
+```bash
+npm --prefix desktop run test
+npm --prefix desktop run build
+```
+
+Estado actual:
+
+- renderiza una interfaz moderna tipo desktop app con topbar, sidebar, timeline EN/ES agrupado y controles inferiores
+- usa datos mock para validar la experiencia visual sin tocar el pipeline realtime actual
+- expone tipos `UiEvent` y `UiCommand` como contrato futuro con Python
+- el bridge Electron actual acepta comandos desde Vue, pero todavía no controla la sesión Python real
+- la ventana `tkinter` de `system-audio-transcription` sigue siendo la implementación funcional de producción
 
 Notas:
 

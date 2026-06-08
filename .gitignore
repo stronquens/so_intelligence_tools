@@ -2,6 +2,11 @@
 openspec/tmp/
 .tmp/
 
+# Node/Electron local artifacts
+node_modules/
+desktop/dist/
+desktop/dist-electron/
+
 # Common local noise
 .DS_Store
 Thumbs.db

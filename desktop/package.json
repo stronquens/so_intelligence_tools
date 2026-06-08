@@ -1,0 +1,30 @@
+{
+  "name": "so-intelligence-tools-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build && tsc -p tsconfig.electron.json",
+    "preview": "vite preview --host 127.0.0.1",
+    "electron:dev": "SO_AI_DESKTOP_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.17.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.10.5",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/test-utils": "^2.4.6",
+    "electron": "^33.4.11",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.11",
+    "vitest": "^2.1.8",
+    "vue-tsc": "^2.2.0"
+  }
+}
