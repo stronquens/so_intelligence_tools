@@ -4,12 +4,12 @@ Este índice ordena las capabilities por prioridad de ejecución recomendada y a
 
 | Priority | Capability | Realtime | Modality | Model | Summary |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `local-inference-api` | No | `multimodal` | `local` | Servicio de inferencia local sobre Ollama y Gemma expuesto por API para el resto del sistema. |
+| 1 | `local-inference-api` | No | `multimodal` | `local/remote` | Servicio de inferencia expuesto por API para el resto del sistema, con soporte para Ollama local o proveedores remotos OpenAI-compatible como LiteLLM Proxy. |
 | 2 | `python-tool-runners` | No | `system` | `none` | Capa Python que conecta eventos del sistema, contexto de usuario y llamadas a herramientas o modelos. |
 | 3 | `keyboard-shortcuts` | No | `system` | `none` | Registro y gestión de atajos globales para disparar herramientas desde cualquier aplicación. |
 | 4 | `tools-overlay` | No | `multimodal` | `none` | Overlay principal del sistema con accesos rápidos a herramientas y entrada unificada. |
 | 5 | `overlay-settings` | No | `system` | `none` | Ajustes del overlay para atajos, preferencias y configuración futura. |
-| 6 | `selected-text-correction` | No | `text` | `local` | Corrección de texto seleccionado preservando idioma y reemplazando el contenido original. |
+| 6 | `selected-text-correction` | No | `text` | `local/remote` | Corrección de texto seleccionado preservando idioma y reemplazando el contenido original, independientemente de si la inferencia viene de un proveedor local o remoto. |
 | 7 | `screenshot-text-extraction` | No | `image` | `local` | Captura de una región de pantalla y extracción exacta de texto al portapapeles. |
 | 8 | `push-to-talk-dictation` | Si | `audio` | `local` | Dictado temporal mientras se mantiene un atajo y escritura directa donde está el cursor. |
 | 9 | `overlay-agent-chat` | No | `text` | `local` | Agente conversacional dentro del overlay con acceso a herramientas y búsqueda en archivos. |

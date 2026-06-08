@@ -12,9 +12,9 @@ Base de trabajo para una suite de herramientas de IA local integradas con el sis
 - Guía operativa en `AGENTS.md`.
 - Specs semilla para las capacidades principales del producto.
 
-## Visión
+## Vision
 
-El proyecto busca ofrecer herramientas de IA que se sientan nativas dentro del flujo diario del sistema operativo. La arquitectura parte de un modelo multimodal local servido por API, sobre el que se apoyan herramientas Python activadas por atajos de teclado, overlays y automatizaciones sobre selección de texto, capturas y portapapeles.
+El proyecto busca ofrecer herramientas de IA que se sientan nativas dentro del flujo diario del sistema operativo. La arquitectura parte de una API de inferencia local al sistema, sobre la que se apoyan herramientas Python activadas por atajos de teclado, overlays y automatizaciones sobre selección de texto, capturas y portapapeles. Ese backend puede ejecutarse sobre un runtime local como Ollama o actuar como pasarela a un proveedor remoto OpenAI-compatible como LiteLLM Proxy.
 
 ## Entorno Python
 
@@ -60,9 +60,34 @@ Documentacion ampliada:
 
 ## Backend local-inference-api
 
-La primera implementación del backend se ejecuta como un servicio FastAPI y usa Ollama como runtime local. El modelo recomendado actualmente para portátiles sin GPU dedicada es `gemma4:e2b-it-qat`, que mejora la relación calidad/tamaño frente al quant anterior.
+La primera implementación del backend se ejecuta como un servicio FastAPI y hoy soporta dos proveedores:
+
+- `ollama`: runtime local, con `gemma4:e2b-it-qat` como modelo recomendado actual para portátiles sin GPU dedicada
+- `litellm_proxy`: proveedor remoto OpenAI-compatible vía API key
 
 En peticiones interactivas de baja latencia, el backend fuerza `think: false` cuando `reasoning_mode` es `off` o `low`. Con Gemma 4 QAT en Ollama esto evita respuestas centradas en thinking o salidas finales vacías cuando la herramienta necesita texto utilizable de inmediato.
+
+El proveedor activo se controla desde `.env` con `INFERENCE_PROVIDER`.
+
+Ejemplo para `ollama`:
+
+```env
+INFERENCE_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=gemma4:e2b-it-qat
+OLLAMA_TIMEOUT_SECONDS=180
+OLLAMA_KEEP_ALIVE=10m
+```
+
+Ejemplo para `litellm_proxy`:
+
+```env
+INFERENCE_PROVIDER=litellm_proxy
+LITELLM_PROXY_URL=https://litellm-proxy.core.sciling.com
+LITELLM_VIRTUAL_KEY=...
+LITELLM_MODEL=eu/tensorix/deepseek/deepseek-v4-flash
+OLLAMA_TIMEOUT_SECONDS=180
+```
 
 Arranque local esperado:
 
@@ -122,7 +147,7 @@ docker compose down -v
 
 Los nombres de las capabilities priorizan claridad y estabilidad. La prioridad y el resto de metadatos viven en `openspec/capabilities-index.md`.
 
-- `local-inference-api`: API local multimodal sobre Ollama y Docker.
+- `local-inference-api`: API multimodal con proveedor intercambiable entre runtime local y backend remoto OpenAI-compatible.
 - `python-tool-runners`: scripts y servicios Python para orquestar flujos.
 - `keyboard-shortcuts`: integración global mediante combinaciones de teclado.
 - `tools-overlay`: overlay del sistema con acciones de escritura asistida.

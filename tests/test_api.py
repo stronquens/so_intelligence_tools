@@ -88,7 +88,7 @@ def test_status_endpoint_reports_ready_runtime(monkeypatch):
     monkeypatch.setattr("local_inference_api.main.get_settings", make_settings)
 
     with TestClient(app) as client:
-        client.app.state.ollama = fake_adapter
+        client.app.state.runtime = fake_adapter
         response = client.get("/status")
 
     body = response.json()
@@ -106,7 +106,7 @@ def test_status_endpoint_reports_degraded_when_runtime_is_unreachable(monkeypatc
     monkeypatch.setattr("local_inference_api.main.get_settings", make_settings)
 
     with TestClient(app) as client:
-        client.app.state.ollama = fake_adapter
+        client.app.state.runtime = fake_adapter
         response = client.get("/status")
 
     body = response.json()
@@ -138,7 +138,7 @@ def test_text_generation_returns_openai_compatible_envelope(monkeypatch):
     }
 
     with TestClient(app) as client:
-        client.app.state.ollama = fake_adapter
+        client.app.state.runtime = fake_adapter
         response = client.post("/v1/text/generate", json=payload)
 
     body = response.json()
@@ -162,7 +162,7 @@ def test_text_generation_returns_503_when_runtime_fails(monkeypatch):
     monkeypatch.setattr("local_inference_api.main.get_settings", make_settings)
 
     with TestClient(app) as client:
-        client.app.state.ollama = fake_adapter
+        client.app.state.runtime = fake_adapter
         response = client.post("/v1/text/generate", json={"prompt": "hola"})
 
     assert response.status_code == 503
@@ -182,7 +182,7 @@ def test_image_extraction_reads_uploaded_file_and_returns_openai_envelope(monkey
     monkeypatch.setattr("local_inference_api.main.get_settings", make_settings)
 
     with TestClient(app) as client:
-        client.app.state.ollama = fake_adapter
+        client.app.state.runtime = fake_adapter
         response = client.post(
             "/v1/image/extract-text",
             data={

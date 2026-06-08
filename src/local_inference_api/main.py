@@ -12,14 +12,16 @@ from local_inference_api.models import (
     TextGenerateRequest,
     build_chat_completion,
 )
-from local_inference_api.ollama_adapter import OllamaAdapter, OllamaRuntimeError
+from local_inference_api.ollama_adapter import OllamaRuntimeError
+from local_inference_api.runtime_factory import build_runtime_adapter
+from local_inference_api.runtime_protocol import RuntimeAdapter
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.settings = settings
-    app.state.ollama = OllamaAdapter(settings)
+    app.state.runtime = build_runtime_adapter(settings)
     yield
 
 
@@ -38,7 +40,7 @@ async def health() -> HealthResponse:
 @app.get("/status", response_model=RuntimeStatusResponse)
 async def status() -> RuntimeStatusResponse:
     settings = get_settings()
-    adapter: OllamaAdapter = app.state.ollama
+    adapter: RuntimeAdapter = app.state.runtime
     try:
         runtime = await adapter.status()
     except OllamaRuntimeError as exc:
@@ -46,17 +48,17 @@ async def status() -> RuntimeStatusResponse:
             status="degraded",
             service="local-inference-api",
             ollama_reachable=False,
-            configured_model=settings.ollama_model,
+            configured_model=settings.litellm_model or settings.ollama_model,
             configured_model_available=False,
-            reasoning_mode_strategy="Gemma4 maps off|low -> thinking off, medium|high -> thinking on",
+            reasoning_mode_strategy="off|low -> fast path, medium|high -> more deliberative path",
             message=str(exc),
         )
 
     available = runtime["configured_model_available"]
     message = (
-        "Ollama está disponible y el modelo configurado está listo."
+        "El proveedor de inferencia está disponible y el modelo configurado está listo."
         if available
-        else "Ollama responde, pero el modelo configurado no aparece instalado."
+        else "El proveedor responde, pero el modelo configurado no aparece disponible."
     )
     return RuntimeStatusResponse(
         status="ok" if available else "degraded",
@@ -65,14 +67,14 @@ async def status() -> RuntimeStatusResponse:
         ollama_version=runtime["ollama_version"],
         configured_model=runtime["configured_model"],
         configured_model_available=available,
-        reasoning_mode_strategy="Gemma4 maps off|low -> thinking off, medium|high -> thinking on",
+        reasoning_mode_strategy="off|low -> fast path, medium|high -> more deliberative path",
         message=message,
     )
 
 
 @app.post("/v1/text/generate")
 async def generate_text(request: TextGenerateRequest):
-    adapter: OllamaAdapter = app.state.ollama
+    adapter: RuntimeAdapter = app.state.runtime
     try:
         result = await adapter.generate_text(
             prompt=request.prompt,
@@ -106,7 +108,7 @@ async def extract_text_from_image(
     max_output_tokens: int = Form(default=256),
     temperature: float = Form(default=0.0),
 ):
-    adapter: OllamaAdapter = app.state.ollama
+    adapter: RuntimeAdapter = app.state.runtime
     try:
         image_bytes = await image.read()
         result = await adapter.extract_text_from_image(

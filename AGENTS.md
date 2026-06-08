@@ -6,8 +6,8 @@ Este repositorio define y desarrolla una suite de herramientas de IA local integ
 
 ## Product Direction
 
-- El motor de inferencia será local, multimodal y servirá peticiones mediante una API.
-- La primera aproximación contempla Gemma 4 corriendo con Ollama.
+- El motor de inferencia servirá peticiones mediante una API local al sistema y podrá apoyarse en runtimes locales o remotos.
+- La primera aproximación contempla Gemma 4 corriendo con Ollama y soporte opcional a LiteLLM Proxy como proveedor OpenAI-compatible remoto.
 - El despliegue de la API debe poder encapsularse en Docker.
 - Las herramientas de usuario vivirán como scripts o servicios Python que consumen la API local.
 - El stack Python del repo debe gestionarse con Poetry y un entorno `.venv` dentro del propio proyecto.
@@ -40,7 +40,7 @@ Este repositorio define y desarrolla una suite de herramientas de IA local integ
 
 Los nombres de capability deben describir la función y mantenerse estables en el tiempo. La prioridad y los metadatos operativos viven en `openspec/capabilities-index.md`.
 
-- `local-inference-api`: servicio local de inferencia multimodal detrás de una API.
+- `local-inference-api`: servicio de inferencia multimodal detrás de una API, con proveedor intercambiable local o remoto.
 - `python-tool-runners`: runners Python que orquestan herramientas, contexto del sistema e inferencia.
 - `keyboard-shortcuts`: capa de integración con atajos globales del sistema.
 - `tools-overlay`: overlay lanzador con botones de herramientas y entrada conversacional.

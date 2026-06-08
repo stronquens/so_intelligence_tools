@@ -37,6 +37,13 @@ El sistema SHALL mantener el idioma original del texto de entrada durante la cor
 - **WHEN** el usuario corrige un texto escrito en otro idioma soportado por el modelo
 - **THEN** la salida SHALL mantenerse en ese idioma en lugar de traducirse
 
+### Requirement: Independencia respecto al proveedor de inferencia
+La herramienta SHALL conservar el mismo comportamiento funcional tanto si la inferencia se resuelve con un runtime local como con un proveedor remoto compatible.
+
+#### Scenario: La corrección usa un proveedor remoto
+- **WHEN** el backend esté configurado para usar un proveedor remoto OpenAI-compatible
+- **THEN** la herramienta SHALL seguir corrigiendo texto seleccionado con el mismo contrato visible para el usuario
+
 ### Requirement: Conservación de intención y alcance mínimo
 El sistema SHALL corregir el texto sin reescribirlo de forma innecesaria ni alterar su intención principal.
 

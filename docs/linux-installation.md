@@ -28,6 +28,8 @@ Este flujo:
 - registra el atajo nativo de GNOME
 - deja un servicio `systemd --user` preparado para arrancar la API local al iniciar sesion
 
+El servicio puede arrancar con proveedor local `ollama` o con proveedor remoto `litellm_proxy`, segun el `.env` activo.
+
 ## Dependencias de sistema
 
 El instalador `scripts/install-linux-deps.sh` instala:
@@ -52,6 +54,20 @@ ollama pull gemma4:e2b-it-qat
 ```
 
 El backend mantiene el modelo cargado con `OLLAMA_KEEP_ALIVE=10m`. Para flujos interactivos como `selected-text-correction`, las peticiones con `reasoning_mode=off|low` fuerzan `think: false` en Ollama para obtener texto final inmediato.
+
+## LiteLLM Proxy
+
+Si vas a usar un proveedor remoto OpenAI-compatible, configura estas variables en `.env`:
+
+```env
+INFERENCE_PROVIDER=litellm_proxy
+LITELLM_PROXY_URL=...
+LITELLM_VIRTUAL_KEY=...
+LITELLM_MODEL=eu/tensorix/deepseek/deepseek-v4-flash
+OLLAMA_TIMEOUT_SECONDS=180
+```
+
+En la validacion actual del proyecto, `eu/tensorix/deepseek/deepseek-v4-flash` ha respondido correctamente a traves del proxy y ha dado una latencia comparable o mejor que la configuracion local para la correccion de texto seleccionado.
 
 ## Sesion recomendada
 

@@ -1,19 +1,19 @@
 # Purpose
 
-Definir el comportamiento esperado del servicio local de inferencia multimodal que alimentará las herramientas de IA del sistema.
+Definir el comportamiento esperado del servicio de inferencia multimodal que alimentará las herramientas de IA del sistema.
 
 ## Requirements
 
-### Requirement: Servicio local de inferencia accesible por API
-El sistema SHALL exponer un servicio local accesible por API para recibir peticiones de inferencia desde las herramientas cliente del sistema operativo.
+### Requirement: Servicio de inferencia accesible por API
+El sistema SHALL exponer un servicio accesible por API local al sistema para recibir peticiones de inferencia desde las herramientas cliente del sistema operativo.
 
 #### Scenario: El cliente invoca una tarea textual
 - **WHEN** un script cliente envía una petición válida de texto al servicio local
 - **THEN** la API SHALL devolver una respuesta estructurada utilizable por la herramienta solicitante
 
-#### Scenario: El servicio está pensado para uso local
+#### Scenario: El servicio está pensado para uso local al sistema
 - **WHEN** el sistema se despliega en una máquina del usuario
-- **THEN** la API SHALL poder ejecutarse en local sin depender de servicios remotos para la inferencia principal
+- **THEN** la API SHALL poder ejecutarse en local al sistema operativo del usuario aunque el proveedor efectivo de inferencia sea local o remoto
 
 ### Requirement: Backend Python gestionado dentro del repositorio
 El sistema SHALL gestionar el servicio local de inferencia como un proyecto Python con Poetry y un entorno `.venv` dentro del propio repositorio.
@@ -102,3 +102,15 @@ El sistema SHALL permitir una primera implementación basada en Ollama y una fam
 #### Scenario: Evolución futura del proveedor local
 - **WHEN** el proyecto necesite cambiar de modelo o runtime en una iteración posterior
 - **THEN** la interfaz consumida por las herramientas cliente SHALL minimizar el acoplamiento a ese proveedor
+
+### Requirement: Soporte de proveedor remoto OpenAI-compatible
+El sistema SHALL poder enrutar peticiones de inferencia a un proveedor remoto OpenAI-compatible sin romper el contrato HTTP consumido por las herramientas cliente.
+
+#### Scenario: El backend usa LiteLLM Proxy
+- **WHEN** el sistema se configure con un proveedor remoto compatible con el formato OpenAI Chat Completions
+- **THEN** la API SHALL seguir exponiendo los mismos endpoints del proyecto para las herramientas cliente
+- **AND** SHALL autenticarse contra el proveedor remoto mediante variables de entorno
+
+#### Scenario: El operador cambia entre proveedor local y remoto
+- **WHEN** una persona cambie la configuración del proveedor en `.env`
+- **THEN** el backend SHALL poder alternar entre `ollama` y `litellm_proxy` sin exigir cambios en los atajos, runners o herramientas cliente

@@ -5,11 +5,11 @@ Definir el comportamiento esperado de los scripts o servicios Python que orquest
 ## Requirements
 
 ### Requirement: Herramientas cliente desacopladas del backend concreto
-El sistema SHALL implementar herramientas cliente en Python que consuman la API local sin depender directamente del runtime interno del modelo.
+El sistema SHALL implementar herramientas cliente en Python que consuman la API local sin depender directamente del runtime interno del modelo ni del proveedor efectivo de inferencia.
 
 #### Scenario: Una herramienta invoca la API
 - **WHEN** una herramienta Python necesita ejecutar una tarea de IA
-- **THEN** esta SHALL comunicarse con la API local mediante una interfaz definida y no mediante llamadas acopladas al proceso del modelo
+- **THEN** esta SHALL comunicarse con la API local mediante una interfaz definida y no mediante llamadas acopladas al proceso del modelo o al proveedor remoto
 
 ### Requirement: Tooling Python aislado dentro del proyecto
 El sistema SHALL gestionar dependencias y comandos Python mediante Poetry usando un entorno `.venv` dentro del propio repositorio.
