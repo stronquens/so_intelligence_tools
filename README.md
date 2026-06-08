@@ -20,6 +20,44 @@ El proyecto busca ofrecer herramientas de IA que se sientan nativas dentro del f
 
 El proyecto debe usar Python gestionado con Poetry. El entorno virtual debe vivir dentro del propio repositorio en `.venv/`, de modo que cualquier dependencia o herramienta instalada para el proyecto quede aislada del sistema.
 
+## Instalacion en Linux
+
+La forma recomendada de dejar la primera versión integrada en tu escritorio Linux es instalar:
+
+- un servicio `systemd --user` para arrancar `local-inference-api` al iniciar sesión
+- el atajo nativo de GNOME para lanzar la corrección de texto seleccionado
+
+### Instalacion rapida
+
+```bash
+make install-system-deps
+poetry install
+poetry run so-intelligence-tools install-linux-desktop-integration
+ollama pull hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
+```
+
+### Bootstrap en un solo target
+
+```bash
+make bootstrap-linux
+ollama pull hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
+```
+
+El target de bootstrap instala dependencias de sistema, instala dependencias Python y registra la integracion de escritorio.
+
+Con el entorno ya preparado con `poetry install`, el comando de integración es:
+
+```bash
+poetry run so-intelligence-tools install-linux-desktop-integration
+```
+
+Eso deja el backend activo tras reiniciar y reaplica el atajo de GNOME sobre el ejecutable del `.venv` del proyecto.
+
+Documentacion ampliada:
+
+- [Instalacion Linux](docs/linux-installation.md)
+- [Problemas y soluciones Linux](docs/linux-problems-and-solutions.md)
+
 ## Backend local-inference-api
 
 La primera implementación del backend se ejecuta como un servicio FastAPI y usa Ollama como runtime local. El modelo inicial validado para portátiles sin GPU dedicada es `hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`.
@@ -93,6 +131,48 @@ Los nombres de las capabilities priorizan claridad y estabilidad. La prioridad y
 - `overlay-agent-chat`: barra conversacional para hablar con un agente con herramientas del sistema.
 - `system-audio-transcription`: transcripción o traducción en vivo del audio que suena en el sistema.
 - `voice-translation-virtual-microphone`: micrófono virtual para traducir tu voz en tiempo real usando API remota.
+
+## Probar atajo de corrección en Linux
+
+La primera integración real de `keyboard-shortcuts` + `selected-text-correction` ya se puede probar en Linux.
+
+En GNOME Wayland, el camino soportado es instalar un atajo nativo del sistema:
+
+```bash
+poetry install
+poetry run so-intelligence-tools install-gnome-selected-text-shortcut
+```
+
+Eso registra `Ctrl+Espacio` como atajo para ejecutar la corrección del texto seleccionado usando el ejecutable del `.venv` del proyecto.
+
+Para probarlo:
+
+1. Arranca el backend local:
+
+```bash
+poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8000
+```
+
+2. Abre una aplicación cualquiera donde puedas escribir texto.
+3. Escribe y selecciona un texto con errores.
+4. Pulsa `Ctrl+Espacio`.
+
+Notas:
+
+- En X11, esta primera versión Linux se apoya en `xclip` y `xdotool`.
+- En Ubuntu 22.04 con GNOME, la forma más fiable de probar esta capability es iniciar sesión con `Ubuntu on Xorg` desde la pantalla de login. Este equipo ya tiene esa sesión instalada.
+- En GNOME Wayland, para que la corrección de texto seleccionado funcione de verdad, instala estas utilidades del sistema:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y wl-clipboard ydotool ydotoold
+scripts/start-wayland-keyboard-backend.sh
+```
+
+- `wl-clipboard` aporta `wl-copy` y `wl-paste` para el portapapeles Wayland.
+- `ydotool` y `ydotoold` permiten simular entrada de teclado en GNOME Wayland, donde `xdotool` y `wtype` no son fiables.
+- En Ubuntu 22.04, `ydotoold` usa `/tmp/.ydotool_socket`; el script del proyecto lo reinicia y ajusta permisos para el usuario actual.
+- El listener Python `listen-shortcuts` sigue siendo útil para X11, pero en Wayland se rechaza explícitamente y debe usarse el atajo nativo de GNOME.
 
 ## Estructura
 

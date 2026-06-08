@@ -26,6 +26,10 @@ El sistema SHALL priorizar una integración operativa en Linux sin cerrar la pue
 - **WHEN** se construya la primera capa de integración con el sistema
 - **THEN** esta SHALL funcionar en Linux como plataforma inicial soportada
 
+#### Scenario: Entorno Linux recomendado para automatización completa
+- **WHEN** la primera integración necesite automatización fiable de copiar y pegar sobre aplicaciones de terceros
+- **THEN** el sistema SHALL considerar `X11` como el entorno Linux recomendado para esa primera iteración
+
 #### Scenario: Portabilidad futura
 - **WHEN** sea necesario soportar otro sistema operativo
 - **THEN** la lógica de negocio de las herramientas SHALL permanecer separada del mecanismo específico de captura de atajos
@@ -36,3 +40,7 @@ El sistema SHALL informar al usuario cuando un atajo se active pero no existan l
 #### Scenario: Falta una precondición
 - **WHEN** el usuario dispara una herramienta sin contexto suficiente, como texto seleccionado o una captura válida
 - **THEN** el sistema SHALL mostrar una notificación o feedback equivalente indicando que la acción no pudo completarse
+
+#### Scenario: El entorno no permite la automatización completa
+- **WHEN** el usuario dispara una herramienta en un entorno Linux donde la automatización de teclado o pegado no sea completamente fiable
+- **THEN** el sistema SHALL degradar con feedback claro y conservar el resultado por un canal alternativo cuando sea posible

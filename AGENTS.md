@@ -28,6 +28,9 @@ Este repositorio define y desarrolla una suite de herramientas de IA local integ
 - `.codex/skills/`: skills locales disponibles para Codex en este repo.
 - `pyproject.toml`: configuración base del proyecto Python gestionado con Poetry.
 - `poetry.toml`: fuerza el entorno virtual `.venv` dentro del repo.
+- `Makefile`: comandos operativos de bootstrap para Linux.
+- `scripts/`: utilidades de integración y bootstrap del sistema operativo.
+- `docs/`: documentación operativa, instalación y troubleshooting.
 - `openspec/config.yaml`: configuración base del workflow spec-driven.
 - `openspec/capabilities-index.md`: índice priorizado de capabilities y metadatos.
 - `openspec/changes/`: cambios activos y archivados.
@@ -74,3 +77,4 @@ Los nombres de capability deben describir la función y mantenerse estables en e
 - No guardes evidencia de validación solo en conversación; déjala dentro del change.
 - Linux es el target inicial, pero las decisiones de diseño deben intentar aislar dependencias específicas del sistema operativo.
 - No instales dependencias Python a nivel global para este proyecto. Usa siempre Poetry dentro del `.venv` local del repo.
+- Para dependencias del sistema operativo, usa los scripts del repo o los targets de `make` antes de crear instrucciones manuales nuevas.

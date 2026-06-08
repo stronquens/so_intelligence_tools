@@ -16,6 +16,7 @@ uvicorn = {extras = ["standard"], version = "^0.49.0"}
 httpx = "^0.28.1"
 python-multipart = "^0.0.32"
 pydantic-settings = "^2.14.1"
+pynput = "^1.8.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.3"

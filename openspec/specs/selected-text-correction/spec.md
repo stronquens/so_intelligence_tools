@@ -22,6 +22,10 @@ El sistema SHALL reemplazar el contenido seleccionado por la versión corregida 
 - **WHEN** la herramienta recibe una respuesta válida del backend de inferencia
 - **THEN** el texto original seleccionado SHALL ser sustituido por el texto corregido en la misma aplicación
 
+#### Scenario: El entorno impide la sustitución automática
+- **WHEN** la herramienta recibe una respuesta válida pero el entorno del escritorio no permite completar la inserción automática
+- **THEN** el sistema SHALL dejar el texto corregido en el portapapeles y notificar al usuario para que pueda pegarlo manualmente
+
 ### Requirement: Preservación del idioma original
 El sistema SHALL mantener el idioma original del texto de entrada durante la corrección ortográfica y de estilo básico.
 
@@ -39,3 +43,14 @@ El sistema SHALL corregir el texto sin reescribirlo de forma innecesaria ni alte
 #### Scenario: Texto con errores simples
 - **WHEN** el texto contiene faltas ortográficas o pequeños errores de puntuación
 - **THEN** la herramienta SHALL priorizar una corrección mínima sobre una reescritura extensa
+
+### Requirement: Compatibilidad operativa con Linux real
+La herramienta SHALL adaptarse al entorno Linux disponible y documentar su camino operativo recomendado.
+
+#### Scenario: Sesión X11 disponible
+- **WHEN** el sistema se ejecute en una sesión Linux `X11`
+- **THEN** la herramienta SHALL usar ese entorno como camino recomendado para la sustitución automática completa
+
+#### Scenario: Sesión Wayland con limitaciones de inyección
+- **WHEN** el sistema se ejecute en Wayland y la automatización de teclado no sea totalmente fiable
+- **THEN** la herramienta SHALL mantener la corrección del texto como capability usable aunque deba degradar a portapapeles

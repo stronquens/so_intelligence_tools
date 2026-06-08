@@ -84,6 +84,18 @@ files = [
 markers = {main = "platform_system == \"Windows\" or sys_platform == \"win32\"", dev = "sys_platform == \"win32\""}
 
 [[package]]
+name = "evdev"
+version = "1.9.3"
+description = "Bindings to the Linux input handling subsystem"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+markers = "\"linux\" in sys_platform"
+files = [
+    {file = "evdev-1.9.3.tar.gz", hash = "sha256:2c140e01ac8437758fa23fe5c871397412461f42d421aa20241dc8fe8cfccbc9"},
+]
+
+[[package]]
 name = "fastapi"
 version = "0.136.3"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
@@ -476,6 +488,148 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pynput"
+version = "1.8.2"
+description = "Monitor and control user input devices"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "pynput-1.8.2-py2.py3-none-any.whl", hash = "sha256:8cc38cf13a6ab2749cb375678be8a0fd705d7ce49c8001ff5db4007a723bbef1"},
+    {file = "pynput-1.8.2.tar.gz", hash = "sha256:f493c87157cd3861b4468f7f896857051762f44ed26f1b641e7cc5840a457087"},
+]
+
+[package.dependencies]
+evdev = {version = ">=1.3", markers = "\"linux\" in sys_platform"}
+pyobjc-framework-ApplicationServices = {version = ">=8.0", markers = "sys_platform == \"darwin\""}
+pyobjc-framework-Quartz = {version = ">=8.0", markers = "sys_platform == \"darwin\""}
+python-xlib = {version = ">=0.17", markers = "\"linux\" in sys_platform"}
+six = "*"
+
+[[package]]
+name = "pyobjc-core"
+version = "12.2"
+description = "Python<->ObjC Interoperability Module"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "sys_platform == \"darwin\""
+files = [
+    {file = "pyobjc_core-12.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:45fffb2b8dc0ae4480386429bd1e7fa8aabeb2eec81816d6971b33936dfcfff8"},
+    {file = "pyobjc_core-12.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:17b4e003af384d3086c2f39989a0b282c5755dd1066f331cf7c9fa65febe22ce"},
+    {file = "pyobjc_core-12.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:7677ed758a367bbbb5589d6f5276fb360a45c89168276c26162f61840b0fa03d"},
+    {file = "pyobjc_core-12.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:9287c7c46d6ae8676b4c6c0389a8f4b5381f42ae53a47151900c08b157e5a992"},
+    {file = "pyobjc_core-12.2-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:515ecf2afe168301feb66a7230d700584ce2e4b8a0ac178e19450b8898384139"},
+    {file = "pyobjc_core-12.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:a51352e478785cd7fce1604b9902125a286139caea0759cb340e59d75b594992"},
+    {file = "pyobjc_core-12.2-cp314-cp314t-macosx_10_15_universal2.whl", hash = "sha256:3137b2d14f9f2154fb5b1c092c38d15e164f68ab190c18335d76e4e7e1583f79"},
+    {file = "pyobjc_core-12.2-cp315-cp315-macosx_10_15_universal2.whl", hash = "sha256:1e4216f2ec962dc13cf7f31b9bc3a7190337a0f401e7dc9de6b2d8c08b9dbb7a"},
+    {file = "pyobjc_core-12.2-cp315-cp315t-macosx_10_15_universal2.whl", hash = "sha256:ac952bac8057dd0b97ee7b311c39f97cad7430b7cfbd67ca0a30135a7d17d2ab"},
+    {file = "pyobjc_core-12.2.tar.gz", hash = "sha256:51d7de4cfa32f508c6a7aac31f131b12d5e196a8dcf588e6e8d7e6337224f66d"},
+]
+
+[[package]]
+name = "pyobjc-framework-applicationservices"
+version = "12.2"
+description = "Wrappers for the framework ApplicationServices on macOS"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "sys_platform == \"darwin\""
+files = [
+    {file = "pyobjc_framework_applicationservices-12.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:07433804aa59d2a870cf62e6556cb63bef6ef9dade51dbaef3580a1a0e276460"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:9eaa9fa92d4fa35b08c7612af321615cccdcf0dec26b04a92521153730144f5e"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:36a03ae7168657379e3ad96397f3ebb15e6c617b96901a919c7610ce2de0007a"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:7119c75ad2c0e21b0bd44865641944e691e80abce0d5805fa344730238b16b15"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:0492c478b175005f38c887523f895382a9ed47c0810ab786c6712d3fda245832"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:d157ace1d768665f180cf9711fb31ddb29006e5df545e7e3ebf2be5054c6170d"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp314-cp314t-macosx_10_15_universal2.whl", hash = "sha256:9be6f6866f532fca35f7d62f27f43df6a95c8b195030d44b9d68ed63ecb1e1f0"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp315-cp315-macosx_10_15_universal2.whl", hash = "sha256:01afa4ef373edc58cd3fa55f5fe5d7db5dda22b8e6ff65f743a509180149dab7"},
+    {file = "pyobjc_framework_applicationservices-12.2-cp315-cp315t-macosx_10_15_universal2.whl", hash = "sha256:8e14e97fc6bbedc95479f7b408f00e3b4aaaafafc23f9e2a955210beca15b474"},
+    {file = "pyobjc_framework_applicationservices-12.2.tar.gz", hash = "sha256:4f6c4027405f709872e5b098f3cd86961bdf262fb80679a548725a02171bb0cf"},
+]
+
+[package.dependencies]
+pyobjc-core = ">=12.2"
+pyobjc-framework-Cocoa = ">=12.2"
+pyobjc-framework-CoreText = ">=12.2"
+pyobjc-framework-Quartz = ">=12.2"
+
+[[package]]
+name = "pyobjc-framework-cocoa"
+version = "12.2"
+description = "Wrappers for the Cocoa frameworks on macOS"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "sys_platform == \"darwin\""
+files = [
+    {file = "pyobjc_framework_cocoa-12.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:a2efad455ded551d1a033fd22245d57b71b6c065e8b52158dceed1611b5ae033"},
+    {file = "pyobjc_framework_cocoa-12.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:0bb7cd468ca89bbc2d1d8acb930b4f4fdce8826de30a66608fc28f8880c1f6a6"},
+    {file = "pyobjc_framework_cocoa-12.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:06cb92d97d1af9d1f459ae6cf1d1a7b824c12d3aff1b709885966acd6b7208c2"},
+    {file = "pyobjc_framework_cocoa-12.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:f0bbe0abedfb24b11ff6c71e26cdefb0df001c6482f95591fad40c2688c16498"},
+    {file = "pyobjc_framework_cocoa-12.2-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:46b6681e2b21b099ed095339c140f2c8137d6ac5658653166ee90722f9e3c621"},
+    {file = "pyobjc_framework_cocoa-12.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:aecfd44908fa12a9291fb6ca2458ebbc611102de6784f2202a35fd5ed9f56c60"},
+    {file = "pyobjc_framework_cocoa-12.2-cp314-cp314t-macosx_10_15_universal2.whl", hash = "sha256:ef679740f541c52118149b558b757d1f11d9dcf30c2a23344b13a6af6a99a1ab"},
+    {file = "pyobjc_framework_cocoa-12.2-cp315-cp315-macosx_10_15_universal2.whl", hash = "sha256:290e544a8c2d0786a34a359d825eaad44ebaaa3b30cdd765b2755422ca39a0d2"},
+    {file = "pyobjc_framework_cocoa-12.2-cp315-cp315t-macosx_10_15_universal2.whl", hash = "sha256:5a0bed77b0b56074cc2b4564aae3e6e9d5da5fdf93252f50b6dbced0f7fece3a"},
+    {file = "pyobjc_framework_cocoa-12.2.tar.gz", hash = "sha256:20b392e2b7241caad0538dfde12143343e5dfe48f72e7df660a7548e635903dc"},
+]
+
+[package.dependencies]
+pyobjc-core = ">=12.2"
+
+[[package]]
+name = "pyobjc-framework-coretext"
+version = "12.2"
+description = "Wrappers for the framework CoreText on macOS"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "sys_platform == \"darwin\""
+files = [
+    {file = "pyobjc_framework_coretext-12.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:b81b1e7cd9256c5832af98ced9810b3680015a7b015db54276340152cfe7a065"},
+    {file = "pyobjc_framework_coretext-12.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:19caa22d623c73bb3e158b8807577926e3e8f85bc83e4e111e74fd019e07ad57"},
+    {file = "pyobjc_framework_coretext-12.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:c1845fbdb96f605c7146c478c5d562961d77aadba6cc40e166fade08e11a730f"},
+    {file = "pyobjc_framework_coretext-12.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:09daa6b6befea7c0d673a037d02ed13bb4443ed65d8948329ba6c8a08e06c763"},
+    {file = "pyobjc_framework_coretext-12.2-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:867e6f56c1c7703f27a7328d42d37cd184151657a3026cf46c0de207cc90a46c"},
+    {file = "pyobjc_framework_coretext-12.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:88b9e705d47a663f079f6ebbca54f5b57f305bb639d5a9d943231596653520d7"},
+    {file = "pyobjc_framework_coretext-12.2-cp314-cp314t-macosx_10_15_universal2.whl", hash = "sha256:dec9a67529615fbcc7c11a9a655e8d17a6095d94807e5df11e0bda55b37f0190"},
+    {file = "pyobjc_framework_coretext-12.2-cp315-cp315-macosx_10_15_universal2.whl", hash = "sha256:639ba39b119f24198184abf878bc1633355fecb36f8eab57f32956252df30d40"},
+    {file = "pyobjc_framework_coretext-12.2-cp315-cp315t-macosx_10_15_universal2.whl", hash = "sha256:06bcb4e7de281423c212a39b3dc9873f09d9fd69da0abe93d987a59761bf265a"},
+    {file = "pyobjc_framework_coretext-12.2.tar.gz", hash = "sha256:82def2c281347e0677866315675124c84c36e9bc21651d62870cfdcecb7da34e"},
+]
+
+[package.dependencies]
+pyobjc-core = ">=12.2"
+pyobjc-framework-Cocoa = ">=12.2"
+pyobjc-framework-Quartz = ">=12.2"
+
+[[package]]
+name = "pyobjc-framework-quartz"
+version = "12.2"
+description = "Wrappers for the Quartz frameworks on macOS"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "sys_platform == \"darwin\""
+files = [
+    {file = "pyobjc_framework_quartz-12.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:96201eb37192fde3abac348adacfc2d4e8af4e76d42752664d1e515f1db5d929"},
+    {file = "pyobjc_framework_quartz-12.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:2dec68f8d5b42030fb0f44bf1169a208318393f216a68048b4336649d877293a"},
+    {file = "pyobjc_framework_quartz-12.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:8b238979d62b6e0b90d466477eee968d8f2f6720e850af2472e01cef349293b4"},
+    {file = "pyobjc_framework_quartz-12.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:214c19aadfd100d9202994a22fbced804f7d60f8473de6f292111cc1668f9373"},
+    {file = "pyobjc_framework_quartz-12.2-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:4e0634ee9782e480587a074d1d08867fa7ef0d845c2f6cbaef6a48b7d2c3899f"},
+    {file = "pyobjc_framework_quartz-12.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:08f7c7b42de70875cee15f4d0e217471e382ffac44d0a5bcfd30f583b9b41adb"},
+    {file = "pyobjc_framework_quartz-12.2-cp314-cp314t-macosx_10_15_universal2.whl", hash = "sha256:57553e7085191f9421ec78fe57a8a0c8462e39d675014ac1e4b389381f04535a"},
+    {file = "pyobjc_framework_quartz-12.2-cp315-cp315-macosx_10_15_universal2.whl", hash = "sha256:6fbd127d864108103d4980292ffca32bd9c1e5f643e0abd5773fdde2918afaca"},
+    {file = "pyobjc_framework_quartz-12.2-cp315-cp315t-macosx_10_15_universal2.whl", hash = "sha256:359738c88b12427a30d73a3d202002ab910e31eebf6bee4550495ec8aa64a004"},
+    {file = "pyobjc_framework_quartz-12.2.tar.gz", hash = "sha256:b343395d4790323b0376fe20c83ac468510ba19f65429323ca211708c939d107"},
+]
+
+[package.dependencies]
+pyobjc-core = ">=12.2"
+pyobjc-framework-Cocoa = ">=12.2"
+
+[[package]]
 name = "pytest"
 version = "9.0.3"
 description = "pytest: simple powerful testing with Python"
@@ -523,6 +677,22 @@ files = [
     {file = "python_multipart-0.0.32-py3-none-any.whl", hash = "sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23"},
     {file = "python_multipart-0.0.32.tar.gz", hash = "sha256:be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e"},
 ]
+
+[[package]]
+name = "python-xlib"
+version = "0.33"
+description = "Python X Library"
+optional = false
+python-versions = "*"
+groups = ["main"]
+markers = "\"linux\" in sys_platform"
+files = [
+    {file = "python-xlib-0.33.tar.gz", hash = "sha256:55af7906a2c75ce6cb280a584776080602444f75815a7aff4d287bb2d7018b32"},
+    {file = "python_xlib-0.33-py2.py3-none-any.whl", hash = "sha256:c3534038d42e0df2f1392a1b30a15a4ff5fdc2b86cfa94f072bf11b10a164398"},
+]
+
+[package.dependencies]
+six = ">=1.10.0"
 
 [[package]]
 name = "pyyaml"
@@ -634,6 +804,18 @@ files = [
     {file = "ruff-0.12.12-py3-none-win_amd64.whl", hash = "sha256:e99620bf01884e5f38611934c09dd194eb665b0109104acae3ba6102b600fd0d"},
     {file = "ruff-0.12.12-py3-none-win_arm64.whl", hash = "sha256:2a8199cab4ce4d72d158319b63370abf60991495fb733db96cd923a34c52d093"},
     {file = "ruff-0.12.12.tar.gz", hash = "sha256:b86cd3415dbe31b3b46a71c598f4c4b2f550346d1ccf6326b347cc0c8fd063d6"},
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+description = "Python 2 and 3 compatibility utilities"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+groups = ["main"]
+files = [
+    {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
+    {file = "six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"},
 ]
 
 [[package]]
@@ -967,4 +1149,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "0cf901837c40550629e38b09486f258c2d9c6de37214689e2804d59254a76739"
+content-hash = "0e0f90b2c7f8fbc01300c412fe3097af9d1f70849c78d70be74ff84a8df46eb0"

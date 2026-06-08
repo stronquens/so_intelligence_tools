@@ -25,6 +25,9 @@ class MemoryClipboardAdapter:
     def __init__(self) -> None:
         self.last_text: str | None = None
 
+    def get_text(self) -> str | None:
+        return self.last_text
+
     def set_text(self, text: str) -> None:
         self.last_text = text
 
