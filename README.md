@@ -33,14 +33,14 @@ La forma recomendada de dejar la primera versión integrada en tu escritorio Lin
 make install-system-deps
 poetry install
 poetry run so-intelligence-tools install-linux-desktop-integration
-ollama pull hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
+ollama pull gemma4:e2b-it-qat
 ```
 
 ### Bootstrap en un solo target
 
 ```bash
 make bootstrap-linux
-ollama pull hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
+ollama pull gemma4:e2b-it-qat
 ```
 
 El target de bootstrap instala dependencias de sistema, instala dependencias Python y registra la integracion de escritorio.
@@ -60,7 +60,9 @@ Documentacion ampliada:
 
 ## Backend local-inference-api
 
-La primera implementación del backend se ejecuta como un servicio FastAPI y usa Ollama como runtime local. El modelo inicial validado para portátiles sin GPU dedicada es `hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`.
+La primera implementación del backend se ejecuta como un servicio FastAPI y usa Ollama como runtime local. El modelo recomendado actualmente para portátiles sin GPU dedicada es `gemma4:e2b-it-qat`, que mejora la relación calidad/tamaño frente al quant anterior.
+
+En peticiones interactivas de baja latencia, el backend fuerza `think: false` cuando `reasoning_mode` es `off` o `low`. Con Gemma 4 QAT en Ollama esto evita respuestas centradas en thinking o salidas finales vacías cuando la herramienta necesita texto utilizable de inmediato.
 
 Arranque local esperado:
 
@@ -94,7 +96,7 @@ docker compose up -d --build
 Preparación del modelo dentro del runtime contenedorizado:
 
 ```bash
-docker compose exec ollama ollama pull hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
+docker compose exec ollama ollama pull gemma4:e2b-it-qat
 ```
 
 Comprobación rápida:
@@ -159,7 +161,7 @@ poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 -
 
 Notas:
 
-- En X11, esta primera versión Linux se apoya en `xclip` y `xdotool`.
+- En X11, esta primera versión Linux lee la selección desde `PRIMARY` y reemplaza el texto pegando el resultado corregido desde el portapapeles.
 - En Ubuntu 22.04 con GNOME, la forma más fiable de probar esta capability es iniciar sesión con `Ubuntu on Xorg` desde la pantalla de login. Este equipo ya tiene esa sesión instalada.
 - En GNOME Wayland, para que la corrección de texto seleccionado funcione de verdad, instala estas utilidades del sistema:
 

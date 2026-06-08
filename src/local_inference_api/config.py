@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     local_inference_api_host: str = "127.0.0.1"
     local_inference_api_port: int = 8000
     ollama_base_url: str = "http://127.0.0.1:11434"
-    ollama_model: str = "hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL"
+    ollama_model: str = "gemma4:e2b-it-qat"
     ollama_timeout_seconds: int = 180
     ollama_keep_alive: str = "10m"
 

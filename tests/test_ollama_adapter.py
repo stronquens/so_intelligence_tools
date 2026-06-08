@@ -12,7 +12,7 @@ def make_adapter() -> OllamaAdapter:
     return OllamaAdapter(
         Settings(
             ollama_base_url="http://ollama.test:11434",
-            ollama_model="hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL",
+            ollama_model="gemma4:e2b-it-qat",
             ollama_keep_alive="10m",
             ollama_timeout_seconds=30,
         )
@@ -34,6 +34,15 @@ def test_build_system_prompt_enables_thinking_for_medium_and_high():
         adapter._build_system_prompt("Responde en español", "high")
         == "<|think|>\nResponde en español"
     )
+
+
+def test_build_think_option_maps_reasoning_mode_to_ollama_flag():
+    adapter = make_adapter()
+
+    assert adapter._build_think_option("off") is False
+    assert adapter._build_think_option("low") is False
+    assert adapter._build_think_option("medium") is True
+    assert adapter._build_think_option("high") is True
 
 
 def test_build_generate_result_maps_reasoning_mode_to_strategy():

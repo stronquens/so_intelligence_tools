@@ -51,6 +51,11 @@ La herramienta SHALL adaptarse al entorno Linux disponible y documentar su camin
 - **WHEN** el sistema se ejecute en una sesión Linux `X11`
 - **THEN** la herramienta SHALL usar ese entorno como camino recomendado para la sustitución automática completa
 
+#### Scenario: Sustitución automática en X11
+- **WHEN** el sistema se ejecute en una sesión Linux `X11`
+- **THEN** la herramienta MAY leer la selección activa desde la selección primaria `PRIMARY`
+- **AND** MAY realizar la inserción final usando el portapapeles como mecanismo de pegado estable
+
 #### Scenario: Sesión Wayland con limitaciones de inyección
 - **WHEN** el sistema se ejecute en Wayland y la automatización de teclado no sea totalmente fiable
 - **THEN** la herramienta SHALL mantener la corrección del texto como capability usable aunque deba degradar a portapapeles

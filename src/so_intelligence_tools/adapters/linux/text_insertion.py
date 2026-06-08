@@ -42,13 +42,8 @@ class LinuxCommandTextInsertionAdapter:
             self._keyboard.trigger_paste()
             return
 
-        previous_clipboard = self._clipboard.get_text()
-        try:
-            self._clipboard.set_text(text)
-            self._keyboard.trigger_paste()
-        finally:
-            if previous_clipboard is not None:
-                self._clipboard.set_text(previous_clipboard)
+        self._clipboard.set_text(text)
+        self._keyboard.trigger_paste()
 
     @staticmethod
     def _is_wayland_session() -> bool:

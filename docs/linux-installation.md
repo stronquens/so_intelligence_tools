@@ -48,8 +48,10 @@ Si Ollama no esta instalado, el script usa el instalador oficial.
 Despues de instalarlo, descarga el modelo inicial validado:
 
 ```bash
-ollama pull hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL
+ollama pull gemma4:e2b-it-qat
 ```
+
+El backend mantiene el modelo cargado con `OLLAMA_KEEP_ALIVE=10m`. Para flujos interactivos como `selected-text-correction`, las peticiones con `reasoning_mode=off|low` fuerzan `think: false` en Ollama para obtener texto final inmediato.
 
 ## Sesion recomendada
 
@@ -68,6 +70,11 @@ Debe devolver:
 ```bash
 x11
 ```
+
+En esta sesion `X11`, la implementacion estable usa:
+
+- lectura del texto seleccionado desde la seleccion primaria `PRIMARY`
+- pegado del texto corregido desde el portapapeles
 
 ## Servicio de usuario
 

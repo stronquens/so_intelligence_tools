@@ -56,6 +56,7 @@ class OllamaAdapter:
             "prompt": prompt,
             "system": self._build_system_prompt(system_prompt, reasoning_mode),
             "stream": False,
+            "think": self._build_think_option(reasoning_mode),
             "keep_alive": self._settings.ollama_keep_alive,
             "options": {
                 "temperature": temperature,
@@ -81,6 +82,7 @@ class OllamaAdapter:
             "system": self._build_system_prompt(system_prompt, reasoning_mode),
             "images": [base64.b64encode(image_bytes).decode("utf-8")],
             "stream": False,
+            "think": self._build_think_option(reasoning_mode),
             "keep_alive": self._settings.ollama_keep_alive,
             "options": {
                 "temperature": temperature,
@@ -97,6 +99,10 @@ class OllamaAdapter:
         if reasoning_mode in {"medium", "high"}:
             return f"<|think|>\n{base}" if base else "<|think|>"
         return base or None
+
+    @staticmethod
+    def _build_think_option(reasoning_mode: ReasoningMode) -> bool:
+        return reasoning_mode in {"medium", "high"}
 
     async def _post_generate(self, payload: dict[str, Any]) -> dict[str, Any]:
         try:

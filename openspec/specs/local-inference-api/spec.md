@@ -63,6 +63,11 @@ El sistema SHALL permitir que las herramientas cliente expresen si una petición
 - **AND** el backend MAY resolver inicialmente `off` y `low` como thinking desactivado
 - **AND** el backend MAY resolver inicialmente `medium` y `high` como thinking activado
 
+#### Scenario: El runtime requiere una señal explícita para desactivar thinking
+- **WHEN** el runtime local basado en Ollama necesite una configuración explícita para evitar thinking en peticiones instantáneas
+- **THEN** el backend SHALL poder enviar la configuración equivalente a `think: false` para `reasoning_mode=off|low`
+- **AND** SHALL poder enviar la configuración equivalente a `think: true` para `reasoning_mode=medium|high`
+
 ### Requirement: Despliegue portable mediante contenedores
 El sistema SHALL poder desplegar el servicio de inferencia dentro de Docker para facilitar instalación, aislamiento y portabilidad.
 
@@ -89,9 +94,10 @@ El sistema SHALL permitir una primera implementación basada en Ollama y una fam
 - **WHEN** el equipo implemente la primera versión del servicio
 - **THEN** esta SHALL poder apoyarse en Ollama como runtime de modelo local
 
-#### Scenario: Runtime inicial validado para portátil CPU-only
-- **WHEN** el equipo necesite elegir un runtime inicial para la primera implementación en un portátil sin GPU dedicada
-- **THEN** el modelo inicial validado SHALL ser `hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL`
+#### Scenario: Runtime recomendado actual para portátil CPU-only
+- **WHEN** el equipo necesite elegir el runtime recomendado actual para una instalación en un portátil sin GPU dedicada
+- **THEN** el modelo recomendado SHALL ser `gemma4:e2b-it-qat`
+- **AND** el proyecto MAY mantener evidencia histórica de benchmarks de modelos anteriores en los changes archivados
 
 #### Scenario: Evolución futura del proveedor local
 - **WHEN** el proyecto necesite cambiar de modelo o runtime en una iteración posterior

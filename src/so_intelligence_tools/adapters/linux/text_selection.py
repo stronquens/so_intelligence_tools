@@ -41,7 +41,7 @@ class LinuxCommandTextSelectionAdapter:
             return selected_text or None
 
         previous_clipboard = self._clipboard.get_text()
-        if self._is_wayland_session() and hasattr(self._clipboard, "get_primary_text"):
+        if hasattr(self._clipboard, "get_primary_text"):
             selected_text = (self._clipboard.get_primary_text() or "").strip()
             if selected_text:
                 return selected_text

@@ -55,7 +55,23 @@ def make_settings() -> ToolRunnerSettings:
     )
 
 
-def test_text_selection_adapter_uses_clipboard_roundtrip_when_no_command():
+def test_text_selection_adapter_prefers_primary_selection_before_clipboard_roundtrip():
+    clipboard = FakeClipboard("clipboard original")
+    clipboard.primary = "texto primario x11"
+    keyboard = FakeKeyboard(clipboard, copied_text="texto desde foco")
+    adapter = LinuxCommandTextSelectionAdapter(
+        make_settings(),
+        clipboard=clipboard,
+        keyboard=keyboard,
+    )
+
+    result = adapter.get_selected_text()
+
+    assert result == "texto primario x11"
+    assert keyboard.copy_calls == 0
+
+
+def test_text_selection_adapter_uses_clipboard_roundtrip_when_primary_is_empty():
     clipboard = FakeClipboard("clipboard original")
     keyboard = FakeKeyboard(clipboard, copied_text="texto desde foco")
     adapter = LinuxCommandTextSelectionAdapter(
@@ -109,7 +125,7 @@ def test_text_selection_adapter_reads_wayland_primary_selection(monkeypatch):
     assert keyboard.copy_calls == 0
 
 
-def test_text_insertion_adapter_restores_previous_clipboard():
+def test_text_insertion_adapter_leaves_corrected_text_in_clipboard_on_x11():
     os_session = __import__("os").environ.get("XDG_SESSION_TYPE")
     clipboard = FakeClipboard("clipboard original")
     keyboard = FakeKeyboard(clipboard)
@@ -128,8 +144,8 @@ def test_text_insertion_adapter_restores_previous_clipboard():
             __import__("os").environ["XDG_SESSION_TYPE"] = os_session
 
     assert keyboard.paste_calls == 1
-    assert clipboard.history[0] == "texto nuevo"
-    assert clipboard.current == "clipboard original"
+    assert clipboard.history == ["texto nuevo"]
+    assert clipboard.current == "texto nuevo"
 
 
 def test_text_insertion_adapter_pastes_clipboard_text_on_wayland(monkeypatch):

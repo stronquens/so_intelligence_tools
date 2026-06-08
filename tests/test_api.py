@@ -64,7 +64,7 @@ class FakeAdapter:
 
 def make_settings() -> Settings:
     return Settings(
-        ollama_model="hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL",
+        ollama_model="gemma4:e2b-it-qat",
         ollama_base_url="http://ollama.test:11434",
     )
 
@@ -81,7 +81,7 @@ def test_status_endpoint_reports_ready_runtime(monkeypatch):
     fake_adapter = FakeAdapter(
         status_result={
             "ollama_version": "0.30.5",
-            "configured_model": "hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL",
+            "configured_model": "gemma4:e2b-it-qat",
             "configured_model_available": True,
         }
     )
@@ -96,7 +96,7 @@ def test_status_endpoint_reports_ready_runtime(monkeypatch):
     assert body["status"] == "ok"
     assert body["ollama_reachable"] is True
     assert body["configured_model_available"] is True
-    assert body["configured_model"] == "hf.co/unsloth/gemma-4-E2B-it-GGUF:UD-Q4_K_XL"
+    assert body["configured_model"] == "gemma4:e2b-it-qat"
 
 
 def test_status_endpoint_reports_degraded_when_runtime_is_unreachable(monkeypatch):

@@ -144,6 +144,39 @@ El backend ya estaba levantado manualmente en `127.0.0.1:8000`.
 - mejorar el instalador para detectar si el puerto `8000` ya esta ocupado
 - si lo esta, habilitar el servicio para el siguiente login sin arrancarlo en ese momento
 
+## 9. Gemma 4 QAT podia devolver thinking en vez de texto final
+
+### Sintoma
+
+La API recibia la peticion y Ollama mostraba actividad, pero la herramienta podia terminar sin texto util para insertar.
+
+### Causa
+
+Con `gemma4:e2b-it-qat`, Ollama puede entrar en modo thinking si no se le marca lo contrario de forma explicita en peticiones instantaneas.
+
+### Solucion aplicada
+
+- mantener `reasoning_mode` como contrato publico
+- enviar `think: false` cuando `reasoning_mode` es `off` o `low`
+- enviar `think: true` cuando `reasoning_mode` es `medium` o `high`
+- mantener `OLLAMA_KEEP_ALIVE=10m` para que el modelo siga caliente entre atajos
+
+## 10. Restaurar el portapapeles demasiado pronto rompia el pegado en X11
+
+### Sintoma
+
+El texto seleccionado desaparecia, la inferencia se completaba, pero el resultado no llegaba a verse pegado.
+
+### Causa
+
+La aplicacion activa podia recibir `Ctrl+V` antes de haber consumido realmente el contenido nuevo del portapapeles si este se restauraba inmediatamente.
+
+### Solucion aplicada
+
+- en `X11`, dejar el texto corregido en el portapapeles despues del pegado
+- leer la seleccion desde `PRIMARY`
+- usar el portapapeles como via estable de reemplazo
+
 ## Recomendacion actual
 
 Para Ubuntu 22.04 con GNOME:

@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from shutil import which
 
 from so_intelligence_tools.domain.errors import ToolRunnerConfigurationError
 
@@ -18,8 +19,14 @@ SELECTED_TEXT_SHORTCUT_PATH = (
 
 
 class GnomeShortcutManager:
-    def __init__(self, *, python_executable: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        python_executable: str | None = None,
+        gsettings_bin: str | None = None,
+    ) -> None:
         self._python_executable = python_executable or sys.executable
+        self._gsettings_bin = gsettings_bin or self._detect_gsettings_bin()
 
     def install_selected_text_correction_shortcut(self, *, binding: str, debug: bool = False) -> str:
         command = self._build_selected_text_correction_command(debug=debug)
@@ -69,9 +76,8 @@ class GnomeShortcutManager:
         serialized = "[" + ", ".join(repr(path) for path in paths) + "]"
         self._gsettings("set", MEDIA_KEYS_SCHEMA, "custom-keybindings", serialized)
 
-    @staticmethod
-    def _gsettings(action: str, schema: str, key: str, value: str | None = None) -> str:
-        command = ["gsettings", action, schema, key]
+    def _gsettings(self, action: str, schema: str, key: str, value: str | None = None) -> str:
+        command = [self._gsettings_bin, action, schema, key]
         if value is not None:
             if action == "set" and not value.startswith("[") and not value.startswith("'"):
                 value = repr(value)
@@ -88,3 +94,14 @@ class GnomeShortcutManager:
                 f"No se pudo completar la operación de atajos GNOME: {result.stderr.strip() or result.stdout.strip()}"
             )
         return result.stdout.strip()
+
+    @staticmethod
+    def _detect_gsettings_bin() -> str:
+        # Prefer the system gsettings binary explicitly because some sandboxed
+        # environments expose wrappers that report success inconsistently.
+        if Path("/usr/bin/gsettings").exists():
+            return "/usr/bin/gsettings"
+        detected = which("gsettings")
+        if detected:
+            return detected
+        raise ToolRunnerConfigurationError("No se encontró `gsettings` en el sistema.")
