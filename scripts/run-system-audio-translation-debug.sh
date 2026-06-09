@@ -2,25 +2,18 @@
 set -u
 
 LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/so_intelligence_tools"
-LOG_FILE="$LOG_DIR/selected_text_correction.log"
+LOG_FILE="$LOG_DIR/system_audio_shortcut.log"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI="$PROJECT_DIR/.venv/bin/so-intelligence-tools"
-export YDOTOOL_SOCKET="/tmp/.ydotool_socket"
 
 mkdir -p "$LOG_DIR"
 
 cd "$PROJECT_DIR"
 
-API_BASE_URL="$(
-  awk -F= '/^LOCAL_INFERENCE_API_BASE_URL=/{print $2; exit}' "$PROJECT_DIR/.env" 2>/dev/null
+BINDING="$(
+  awk -F= '/^GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING=/{print $2; exit}' "$PROJECT_DIR/.env" 2>/dev/null
 )"
-if [[ -z "$API_BASE_URL" ]]; then
-  API_PORT="$(
-    awk -F= '/^LOCAL_INFERENCE_API_PORT=/{print $2; exit}' "$PROJECT_DIR/.env" 2>/dev/null
-  )"
-  API_BASE_URL="http://127.0.0.1:${API_PORT:-8000}"
-fi
 
 {
   printf '\n[%s] gnome-shortcut-wrapper invoked\n' "$(date -Is)"
@@ -30,10 +23,7 @@ fi
   printf 'XDG_SESSION_TYPE=%s\n' "${XDG_SESSION_TYPE:-}"
   printf 'WAYLAND_DISPLAY=%s\n' "${WAYLAND_DISPLAY:-}"
   printf 'DISPLAY=%s\n' "${DISPLAY:-}"
-  printf 'YDOTOOL_SOCKET=%s\n' "${YDOTOOL_SOCKET:-}"
-  printf 'api_health='
-  curl -fsS --max-time 2 "$API_BASE_URL/health" 2>&1 || true
-  printf '\n'
+  printf 'binding=%s\n' "${BINDING:-}"
 } >> "$LOG_FILE" 2>&1
 
 if [[ ! -x "$CLI" ]]; then
@@ -44,7 +34,7 @@ if [[ ! -x "$CLI" ]]; then
   exit 1
 fi
 
-"$CLI" run-selected-text-correction --debug >> "$LOG_FILE" 2>&1
+"$CLI" run-system-audio-translation-toggle >> "$LOG_FILE" 2>&1
 STATUS=$?
 
 {

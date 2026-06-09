@@ -15,6 +15,11 @@ El sistema SHALL exponer un servicio accesible por API local al sistema para rec
 - **WHEN** el sistema se despliega en una máquina del usuario
 - **THEN** la API SHALL poder ejecutarse en local al sistema operativo del usuario aunque el proveedor efectivo de inferencia sea local o remoto
 
+#### Scenario: Puerto local configurable
+- **WHEN** otro proceso local ya use el puerto por defecto del backend
+- **THEN** el servicio SHALL poder moverse a otro puerto local mediante configuración
+- **AND** las herramientas cliente SHALL poder apuntar a la nueva base URL sin cambios de código
+
 ### Requirement: Backend Python gestionado dentro del repositorio
 El sistema SHALL gestionar el servicio local de inferencia como un proyecto Python con Poetry y un entorno `.venv` dentro del propio repositorio.
 

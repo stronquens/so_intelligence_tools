@@ -4,7 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ToolRunnerSettings(BaseSettings):
-    local_inference_api_base_url: str = "http://127.0.0.1:8000"
+    local_inference_api_host: str = "127.0.0.1"
+    local_inference_api_port: int = 8010
+    local_inference_api_base_url: str = "http://127.0.0.1:8010"
     local_inference_api_timeout_seconds: int = 30
     default_text_reasoning_mode: str = "off"
     default_image_reasoning_mode: str = "off"
@@ -13,9 +15,9 @@ class ToolRunnerSettings(BaseSettings):
     linux_notify_send_binary: str = "notify-send"
     selected_text_correction_shortcut: str = "<ctrl>+<space>"
     shortcut_listener_platform: str = "linux-x11"
-    gnome_selected_text_correction_binding: str = "<Primary>space"
+    gnome_selected_text_correction_binding: str = "<Primary><Alt>c"
     shortcut_action_start_delay_seconds: float = 0.35
-    gnome_system_audio_translation_binding: str = "<Super><Alt>t"
+    gnome_system_audio_translation_binding: str = "<Primary><Alt>y"
     system_audio_translation_source_language: str = "auto"
     system_audio_translation_target_language: str = "es"
     system_audio_translation_mode: str = "translate_es_chunked"

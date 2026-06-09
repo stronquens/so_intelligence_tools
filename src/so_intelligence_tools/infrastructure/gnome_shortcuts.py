@@ -28,9 +28,11 @@ class GnomeShortcutManager:
         *,
         python_executable: str | None = None,
         gsettings_bin: str | None = None,
+        project_dir: Path | None = None,
     ) -> None:
         self._python_executable = python_executable or sys.executable
         self._gsettings_bin = gsettings_bin or self._detect_gsettings_bin()
+        self._project_dir = project_dir
 
     def install_selected_text_correction_shortcut(self, *, binding: str, debug: bool = False) -> str:
         command = self._build_selected_text_correction_command(debug=debug)
@@ -53,6 +55,10 @@ class GnomeShortcutManager:
         return command
 
     def _build_selected_text_correction_command(self, *, debug: bool = False) -> str:
+        if debug:
+            wrapper = self._wrapper_path("run-selected-text-correction-debug.sh")
+            if wrapper is not None:
+                return shlex.quote(str(wrapper))
         args = ["run-selected-text-correction"]
         if debug:
             args.append("--debug")
@@ -64,6 +70,9 @@ class GnomeShortcutManager:
         return f"{shlex.quote(str(python_path))} -m so_intelligence_tools {command_suffix}"
 
     def _build_system_audio_translation_command(self) -> str:
+        wrapper = self._wrapper_path("run-system-audio-translation-debug.sh")
+        if wrapper is not None:
+            return shlex.quote(str(wrapper))
         args = ["run-system-audio-translation-toggle"]
         command_suffix = " ".join(shlex.quote(arg) for arg in args)
         script_candidate = Path(sys.prefix) / "bin" / "so-intelligence-tools"
@@ -136,3 +145,11 @@ class GnomeShortcutManager:
         if detected:
             return detected
         raise ToolRunnerConfigurationError("No se encontró `gsettings` en el sistema.")
+
+    def _wrapper_path(self, name: str) -> Path | None:
+        if self._project_dir is None:
+            return None
+        wrapper = self._project_dir / "scripts" / name
+        if wrapper.exists():
+            return wrapper
+        return None

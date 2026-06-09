@@ -136,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "install-gnome-selected-text-shortcut":
-            manager = GnomeShortcutManager()
+            manager = GnomeShortcutManager(project_dir=Path.cwd())
             binding = args.binding or settings.gnome_selected_text_correction_binding
             command = manager.install_selected_text_correction_shortcut(
                 binding=binding,
@@ -147,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "install-gnome-system-audio-translation-shortcut":
-            manager = GnomeShortcutManager()
+            manager = GnomeShortcutManager(project_dir=Path.cwd())
             binding = args.binding or settings.gnome_system_audio_translation_binding
             command = manager.install_system_audio_translation_shortcut(binding=binding)
             print(f"Shortcut installed: {binding}")
@@ -155,25 +155,42 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "install-linux-desktop-integration":
-            installer = LocalApiUserServiceInstaller(project_dir=Path.cwd())
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
             service_path, service_started_now = installer.install_api_service(enable_now=True)
-            manager = GnomeShortcutManager()
+            autostart_path = installer.install_desktop_health_autostart()
+            manager = GnomeShortcutManager(project_dir=Path.cwd())
             binding = args.binding or settings.gnome_selected_text_correction_binding
             shortcut_command = manager.install_selected_text_correction_shortcut(
                 binding=binding,
                 debug=args.debug_shortcut,
             )
+            audio_shortcut_command = manager.install_system_audio_translation_shortcut(
+                binding=settings.gnome_system_audio_translation_binding,
+            )
             print(f"User service installed: {service_path}")
+            print(f"Desktop health autostart installed: {autostart_path}")
             print(
                 "User service state: "
                 + (
                     "enabled and started now"
                     if service_started_now
-                    else "enabled for next login because port 8000 is already in use"
+                    else (
+                        "enabled for next login because port "
+                        f"{settings.local_inference_api_port} is already in use"
+                    )
                 )
             )
             print(f"Shortcut installed: {binding}")
             print(f"Shortcut command: {shortcut_command}")
+            print(
+                "System audio shortcut installed: "
+                f"{settings.gnome_system_audio_translation_binding}"
+            )
+            print(f"System audio shortcut command: {audio_shortcut_command}")
             return 0
     except ToolRunnerError as exc:
         print(str(exc), file=sys.stderr)

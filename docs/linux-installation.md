@@ -25,8 +25,9 @@ Este flujo:
 - instala dependencias de sistema para Ubuntu/Debian
 - instala Ollama si no esta presente
 - instala dependencias Python en `.venv`
-- registra el atajo nativo de GNOME
+- registra los atajos nativos de GNOME
 - deja un servicio `systemd --user` preparado para arrancar la API local al iniciar sesion
+- crea un autostart de GNOME para refrescar `MediaKeys` y reaplicar atajos tras login
 
 El servicio puede arrancar con proveedor local `ollama` o con proveedor remoto `litellm_proxy`, segun el `.env` activo.
 
@@ -92,6 +93,27 @@ En esta sesion `X11`, la implementacion estable usa:
 - lectura del texto seleccionado desde la seleccion primaria `PRIMARY`
 - pegado del texto corregido desde el portapapeles
 
+## Configuracion recomendada actual
+
+Para uso diario en escritorio, el proyecto usa `8010` en vez de `8000` para evitar conflictos con otros backends locales.
+
+Variables recomendadas:
+
+```env
+LOCAL_INFERENCE_API_HOST=127.0.0.1
+LOCAL_INFERENCE_API_PORT=8010
+LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010
+GNOME_SELECTED_TEXT_CORRECTION_BINDING=<Primary><Alt>c
+GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING=<Primary><Alt>y
+```
+
+Atajos actuales:
+
+| Herramienta | Atajo |
+| --- | --- |
+| Correccion de texto seleccionado | `Ctrl + Alt + C` |
+| Traduccion del audio del sistema | `Ctrl + Alt + Y` |
+
 ## Servicio de usuario
 
 El comando:
@@ -106,7 +128,54 @@ crea este servicio:
 
 Y lo habilita para `default.target`.
 
-Si ya tienes un `uvicorn` manual ocupando `127.0.0.1:8000`, el instalador no intenta arrancar el servicio en ese momento para evitar conflicto, pero lo deja habilitado para el siguiente login.
+El servicio queda apuntando al puerto configurado en `.env`, actualmente `127.0.0.1:8010`.
+
+Si ya tienes un proceso ocupando ese puerto, el instalador no intenta arrancar el servicio en ese momento para evitar conflicto, pero lo deja habilitado para el siguiente login.
+
+El unit no usa `EnvironmentFile=.env` deliberadamente. `systemd` no acepta bien algunos valores de `.env` con caracteres de atajos como `<Primary><Alt>c`; en su lugar, el proceso Python lee `.env` desde el `WorkingDirectory`.
+
+## Autostart de salud de escritorio
+
+El mismo comando crea:
+
+- `~/.config/autostart/so-intelligence-tools-desktop-health.desktop`
+
+Este autostart ejecuta:
+
+- `scripts/ensure-linux-desktop-integration.sh`
+
+Al iniciar sesion, el script:
+
+- arranca `so-intelligence-tools-api.service` si no esta activo
+- refresca `org.gnome.SettingsDaemon.MediaKeys.target`
+- reinstala los atajos de GNOME usando wrappers de diagnostico
+
+Log:
+
+```bash
+tail -n 120 ~/.cache/so_intelligence_tools/desktop_health.log
+```
+
+## Wrappers de atajos
+
+Los atajos de GNOME no ejecutan directamente la CLI, sino wrappers dentro del repo:
+
+- `scripts/run-selected-text-correction-debug.sh`
+- `scripts/run-system-audio-translation-debug.sh`
+
+Esto permite:
+
+- ejecutar desde el directorio correcto del proyecto
+- cargar `.env` correctamente a traves de Pydantic
+- escribir logs antes de entrar en Python
+- diagnosticar si GNOME invoco o no el atajo
+
+Logs:
+
+```bash
+tail -n 120 ~/.cache/so_intelligence_tools/selected_text_correction.log
+tail -n 120 ~/.cache/so_intelligence_tools/system_audio_shortcut.log
+```
 
 ## Desarrollo vs uso diario
 
@@ -115,7 +184,7 @@ Si ya tienes un `uvicorn` manual ocupando `127.0.0.1:8000`, el instalador no int
 Usa:
 
 ```bash
-poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8000
+poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8010
 ```
 
 ### Uso diario
@@ -134,10 +203,19 @@ Ver estado:
 
 ```bash
 systemctl --user status so-intelligence-tools-api.service
+systemctl --user status org.gnome.SettingsDaemon.MediaKeys.service
+curl http://127.0.0.1:8010/health
 ```
 
 Parar servicio:
 
 ```bash
 systemctl --user stop so-intelligence-tools-api.service
+```
+
+Reparar atajos GNOME sin reiniciar:
+
+```bash
+systemctl --user restart org.gnome.SettingsDaemon.MediaKeys.target
+poetry run so-intelligence-tools install-linux-desktop-integration --debug-shortcut
 ```

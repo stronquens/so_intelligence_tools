@@ -143,6 +143,8 @@ El backend ya estaba levantado manualmente en `127.0.0.1:8000`.
 
 - mejorar el instalador para detectar si el puerto `8000` ya esta ocupado
 - si lo esta, habilitar el servicio para el siguiente login sin arrancarlo en ese momento
+- mover la instalacion de escritorio diaria a `127.0.0.1:8010` para evitar colisiones con otros proyectos locales
+- mantener Docker en `8000` porque `docker-compose.yml` publica ese puerto explicitamente
 
 ## 9. Gemma 4 QAT podia devolver thinking en vez de texto final
 
@@ -177,9 +179,97 @@ La aplicacion activa podia recibir `Ctrl+V` antes de haber consumido realmente e
 - leer la seleccion desde `PRIMARY`
 - usar el portapapeles como via estable de reemplazo
 
+## 11. Otro proyecto ocupaba `127.0.0.1:8000`
+
+### Sintoma
+
+`Ctrl + Alt + C` capturaba texto pero no completaba la correccion. La llamada a `/v1/text/generate` devolvia `404`.
+
+### Causa
+
+El puerto `8000` estaba ocupado por otro backend local de otro proyecto. `/health` respondia, pero no era `local-inference-api` de `so_intelligence_tools`.
+
+### Solucion aplicada
+
+- configurar el backend de escritorio en `127.0.0.1:8010`
+- configurar `LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010`
+- hacer que el instalador `systemd --user` use `LOCAL_INFERENCE_API_HOST` y `LOCAL_INFERENCE_API_PORT`
+- actualizar wrappers y documentacion para usar `8010`
+
+Comprobacion:
+
+```bash
+ss -ltnp '( sport = :8000 or sport = :8010 )'
+curl http://127.0.0.1:8010/status
+```
+
+## 12. GNOME dejo de ejecutar todos los atajos
+
+### Sintoma
+
+Al pulsar fisicamente los atajos no ocurria nada y los logs de wrappers no crecian.
+
+### Causa
+
+El proceso `gsd-media-keys` estaba muerto. Ese proceso pertenece a `org.gnome.SettingsDaemon.MediaKeys.service` y es quien ejecuta los custom shortcuts de GNOME.
+
+### Solucion aplicada
+
+- reiniciar el target correcto:
+
+```bash
+systemctl --user restart org.gnome.SettingsDaemon.MediaKeys.target
+```
+
+- anadir autostart de salud:
+
+```text
+~/.config/autostart/so-intelligence-tools-desktop-health.desktop
+```
+
+- el autostart ejecuta `scripts/ensure-linux-desktop-integration.sh`, que refresca `MediaKeys` y reinstala los atajos tras login
+
+Comprobacion:
+
+```bash
+systemctl --user status org.gnome.SettingsDaemon.MediaKeys.service
+tail -n 120 ~/.cache/so_intelligence_tools/desktop_health.log
+```
+
+## 13. Los wrappers se ejecutaban desde `$HOME` y no cargaban `.env`
+
+### Sintoma
+
+El atajo de audio si invocaba el wrapper, pero el comando caia al modo `chunked` y mostraba:
+
+```text
+Falta configurar el backend remoto de transcripcion de audio. Revisa `.env`.
+```
+
+### Causa
+
+GNOME ejecuta los custom shortcuts con `pwd=/home/sciling`. Como Pydantic lee `.env` desde el directorio actual, la CLI arrancaba con defaults en vez de la configuracion del proyecto.
+
+### Solucion aplicada
+
+- los wrappers hacen `cd "$PROJECT_DIR"` antes de ejecutar la CLI
+- los wrappers escriben logs inmediatos para confirmar si GNOME invoco el atajo
+- se evito `source .env` en bash porque valores como `<Primary><Alt>c` no son shell-valid sin comillas
+
+Logs:
+
+```bash
+tail -n 120 ~/.cache/so_intelligence_tools/selected_text_correction.log
+tail -n 120 ~/.cache/so_intelligence_tools/system_audio_shortcut.log
+```
+
 ## Recomendacion actual
 
 Para Ubuntu 22.04 con GNOME:
 
 - usar `Ubuntu on Xorg` para la experiencia mas estable
 - usar Wayland con fallback a portapapeles solo como compatibilidad parcial
+- usar `Ctrl + Alt + C` para correccion de texto seleccionado
+- usar `Ctrl + Alt + Y` para traduccion de audio del sistema
+- mantener la API de escritorio en `127.0.0.1:8010`
+- si los atajos dejan de responder, reiniciar `org.gnome.SettingsDaemon.MediaKeys.target`

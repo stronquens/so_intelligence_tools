@@ -24,8 +24,9 @@ El proyecto debe usar Python gestionado con Poetry. El entorno virtual debe vivi
 
 La forma recomendada de dejar la primera versión integrada en tu escritorio Linux es instalar:
 
-- un servicio `systemd --user` para arrancar `local-inference-api` al iniciar sesión
-- el atajo nativo de GNOME para lanzar la corrección de texto seleccionado
+- un servicio `systemd --user` para arrancar `local-inference-api` al iniciar sesión en `127.0.0.1:8010`
+- atajos nativos de GNOME para corrección de texto y traducción de audio
+- un autostart de sesión que refresca `org.gnome.SettingsDaemon.MediaKeys.target` y reaplica los atajos tras login
 
 ### Instalacion rapida
 
@@ -51,7 +52,19 @@ Con el entorno ya preparado con `poetry install`, el comando de integración es:
 poetry run so-intelligence-tools install-linux-desktop-integration
 ```
 
-Eso deja el backend activo tras reiniciar y reaplica el atajo de GNOME sobre el ejecutable del `.venv` del proyecto.
+Eso deja el backend activo tras reiniciar, registra los atajos de GNOME sobre wrappers de diagnóstico del proyecto y crea:
+
+- `~/.config/systemd/user/so-intelligence-tools-api.service`
+- `~/.config/autostart/so-intelligence-tools-desktop-health.desktop`
+
+Atajos actuales recomendados:
+
+| Herramienta | Atajo |
+| --- | --- |
+| Corrección de texto seleccionado | `Ctrl + Alt + C` |
+| Traducción del audio del sistema | `Ctrl + Alt + Y` |
+
+El puerto de escritorio por defecto es `8010` para evitar conflictos con otros proyectos locales que usen `8000`.
 
 Documentacion ampliada:
 
@@ -72,6 +85,9 @@ El proveedor activo se controla desde `.env` con `INFERENCE_PROVIDER`.
 Ejemplo para `ollama`:
 
 ```env
+LOCAL_INFERENCE_API_HOST=127.0.0.1
+LOCAL_INFERENCE_API_PORT=8010
+LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010
 INFERENCE_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=gemma4:e2b-it-qat
@@ -82,6 +98,9 @@ OLLAMA_KEEP_ALIVE=10m
 Ejemplo para `litellm_proxy`:
 
 ```env
+LOCAL_INFERENCE_API_HOST=127.0.0.1
+LOCAL_INFERENCE_API_PORT=8010
+LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010
 INFERENCE_PROVIDER=litellm_proxy
 LITELLM_PROXY_URL=https://litellm-proxy.core.sciling.com
 LITELLM_VIRTUAL_KEY=...
@@ -93,7 +112,7 @@ Arranque local esperado:
 
 ```bash
 poetry install
-poetry run uvicorn --app-dir src local_inference_api.main:app --reload
+poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8010 --reload
 ```
 
 Validación automática:
@@ -131,6 +150,8 @@ curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/status
 ```
 
+Nota: Docker sigue publicando `8000:8000` por diseño. La instalación de escritorio usa `8010` para convivir mejor con otros backends locales.
+
 Parada del stack:
 
 ```bash
@@ -162,28 +183,34 @@ Los nombres de las capabilities priorizan claridad y estabilidad. La prioridad y
 
 ## Probar atajo de corrección en Linux
 
-La primera integración real de `keyboard-shortcuts` + `selected-text-correction` ya se puede probar en Linux.
+La integración real de `keyboard-shortcuts` + `selected-text-correction` ya se puede probar en Linux.
 
-En GNOME Wayland, el camino soportado es instalar un atajo nativo del sistema:
+En GNOME, el camino soportado es instalar un atajo nativo del sistema:
 
 ```bash
 poetry install
-poetry run so-intelligence-tools install-gnome-selected-text-shortcut
+poetry run so-intelligence-tools install-gnome-selected-text-shortcut --debug
 ```
 
-Eso registra `Ctrl+Espacio` como atajo para ejecutar la corrección del texto seleccionado usando el ejecutable del `.venv` del proyecto.
+Eso registra `Ctrl + Alt + C` como atajo para ejecutar la corrección del texto seleccionado usando un wrapper de diagnóstico del proyecto.
 
 Para probarlo:
 
 1. Arranca el backend local:
 
 ```bash
-poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8000
+poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8010
 ```
 
 2. Abre una aplicación cualquiera donde puedas escribir texto.
 3. Escribe y selecciona un texto con errores.
-4. Pulsa `Ctrl+Espacio`.
+4. Pulsa `Ctrl + Alt + C`.
+
+Log de diagnóstico:
+
+```bash
+tail -n 120 ~/.cache/so_intelligence_tools/selected_text_correction.log
+```
 
 ## Probar traducción en vivo del audio del sistema
 
@@ -224,7 +251,7 @@ poetry run so-intelligence-tools install-gnome-system-audio-translation-shortcut
 Atajo por defecto:
 
 ```text
-Super + Alt + T
+Ctrl + Alt + Y
 ```
 
 Notas de esta fase:
@@ -235,6 +262,7 @@ Notas de esta fase:
 - el modo realtime usa idioma de entrada `auto` por defecto: si el audio ya está en español, intenta transcribirlo en español en vez de ocultarlo
 - el modo realtime mantiene una conexión abierta mientras la sesión está activa; pausa o cierra la ventana para cortar consumo remoto
 - el historial se guarda al cerrar en `~/.cache/so_intelligence_tools/system_audio_logs/`
+- el wrapper del atajo escribe en `~/.cache/so_intelligence_tools/system_audio_shortcut.log`
 - la diarización de speakers todavía no está implementada; queda como mejora posterior
 - `OpenAI realtime` necesita `OPENAI_API_KEY` o `SYSTEM_AUDIO_TRANSLATION_OPENAI_REALTIME_API_KEY`
 - la integración directa con OpenAI ya quedó validada con `session.created` y `session.updated` usando la API GA de Realtime
@@ -281,6 +309,24 @@ Notas:
 
 - En X11, esta primera versión Linux lee la selección desde `PRIMARY` y reemplaza el texto pegando el resultado corregido desde el portapapeles.
 - En Ubuntu 22.04 con GNOME, la forma más fiable de probar esta capability es iniciar sesión con `Ubuntu on Xorg` desde la pantalla de login. Este equipo ya tiene esa sesión instalada.
+- Si los atajos de GNOME no hacen nada, comprueba que el servicio de atajos de GNOME está activo:
+
+```bash
+systemctl --user status org.gnome.SettingsDaemon.MediaKeys.service
+```
+
+- Para repararlo sin reiniciar sesión:
+
+```bash
+systemctl --user restart org.gnome.SettingsDaemon.MediaKeys.target
+```
+
+- El autostart `so-intelligence-tools-desktop-health.desktop` ejecuta esa reparación al iniciar sesión y escribe en:
+
+```bash
+tail -n 120 ~/.cache/so_intelligence_tools/desktop_health.log
+```
+
 - En GNOME Wayland, para que la corrección de texto seleccionado funcione de verdad, instala estas utilidades del sistema:
 
 ```bash
