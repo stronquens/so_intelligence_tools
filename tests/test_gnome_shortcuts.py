@@ -7,6 +7,7 @@ from so_intelligence_tools.infrastructure.gnome_shortcuts import (
     GnomeShortcutManager,
     SELECTED_TEXT_SHORTCUT_PATH,
     SYSTEM_AUDIO_TRANSLATION_SHORTCUT_PATH,
+    VOICE_TRANSLATION_SHORTCUT_PATH,
 )
 
 
@@ -77,4 +78,34 @@ def test_install_system_audio_translation_shortcut_adds_path(monkeypatch):
         "org.gnome.settings-daemon.plugins.media-keys",
         "custom-keybindings",
         f"['{SYSTEM_AUDIO_TRANSLATION_SHORTCUT_PATH}']",
+    ) in calls
+
+
+def test_install_voice_translation_shortcut_adds_path(monkeypatch):
+    calls: list[tuple[str, str, str, str | None]] = []
+
+    def fake_gsettings(action: str, schema: str, key: str, value: str | None = None) -> str:
+        calls.append((action, schema, key, value))
+        if action == "get":
+            return "@as []"
+        return ""
+
+    monkeypatch.setattr(GnomeShortcutManager, "_gsettings", staticmethod(fake_gsettings))
+    manager = GnomeShortcutManager(python_executable="/tmp/project/.venv/bin/python")
+
+    command = manager.install_voice_translation_shortcut(binding="<Primary><Alt>u")
+
+    expected_script = Path(sys.prefix) / "bin" / "so-intelligence-tools"
+    if expected_script.exists():
+        assert command == f"{expected_script} run-voice-translation-virtual-mic-toggle"
+    else:
+        assert (
+            command
+            == "/tmp/project/.venv/bin/python -m so_intelligence_tools run-voice-translation-virtual-mic-toggle"
+        )
+    assert (
+        "set",
+        "org.gnome.settings-daemon.plugins.media-keys",
+        "custom-keybindings",
+        f"['{VOICE_TRANSLATION_SHORTCUT_PATH}']",
     ) in calls

@@ -21,12 +21,14 @@ class SystemAudioTranslationWindow:
         on_reset: Callable[[], None],
         on_close: Callable[[], None],
         on_mode_changed: Callable[[SystemAudioSessionMode], None],
+        on_voice_translation_toggle: Callable[[], None],
     ) -> None:
         self._on_pause = on_pause
         self._on_resume = on_resume
         self._on_reset = on_reset
         self._on_close = on_close
         self._on_mode_changed = on_mode_changed
+        self._on_voice_translation_toggle = on_voice_translation_toggle
         self._ui_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self._closed = False
         self._mode_value_to_label = dict(SYSTEM_AUDIO_MODE_LABELS)
@@ -42,6 +44,9 @@ class SystemAudioTranslationWindow:
 
         self.status_var = tk.StringVar(value="Preparando sesión…")
         self.state_var = tk.StringVar(value="inactive")
+        self.voice_translation_status_var = tk.StringVar(
+            value="Micrófono traducido: apagado"
+        )
 
         top = ttk.Frame(self.root, padding=8)
         top.pack(fill=tk.X)
@@ -64,11 +69,23 @@ class SystemAudioTranslationWindow:
         self.pause_button = ttk.Button(controls, text="Pausar", command=self._on_pause)
         self.resume_button = ttk.Button(controls, text="Reanudar", command=self._on_resume)
         self.reset_button = ttk.Button(controls, text="Reset", command=self._on_reset)
+        self.voice_translation_button = ttk.Button(
+            controls,
+            text="Activar mi voz traducida",
+            command=self._on_voice_translation_toggle,
+        )
         self.close_button = ttk.Button(controls, text="Cerrar", command=self._handle_close)
         self.pause_button.pack(side=tk.LEFT)
         self.resume_button.pack(side=tk.LEFT, padx=(8, 0))
         self.reset_button.pack(side=tk.LEFT, padx=(8, 0))
+        self.voice_translation_button.pack(side=tk.LEFT, padx=(8, 0))
         self.close_button.pack(side=tk.RIGHT)
+
+        voice_status = ttk.Frame(self.root, padding=(8, 0, 8, 8))
+        voice_status.pack(fill=tk.X)
+        ttk.Label(voice_status, textvariable=self.voice_translation_status_var).pack(
+            side=tk.LEFT
+        )
 
         live_frame = ttk.LabelFrame(self.root, text="En vivo", padding=8)
         live_frame.pack(fill=tk.X, padx=8, pady=(0, 8))
@@ -154,6 +171,9 @@ class SystemAudioTranslationWindow:
     def set_mode(self, mode: SystemAudioSessionMode) -> None:
         self._ui_queue.put(("mode", mode))
 
+    def set_voice_translation_state(self, active: bool, message: str) -> None:
+        self._ui_queue.put(("voice_translation", (active, message)))
+
     def close_from_controller(self) -> None:
         self._ui_queue.put(("close", None))
 
@@ -174,6 +194,9 @@ class SystemAudioTranslationWindow:
                 self._render_partial_text(payload)  # type: ignore[arg-type]
             elif kind == "mode":
                 self._apply_mode(payload)  # type: ignore[arg-type]
+            elif kind == "voice_translation":
+                active, message = payload  # type: ignore[misc]
+                self._apply_voice_translation_state(active=active, message=message)
             elif kind == "close":
                 self._destroy_window()
         if not self._closed:
@@ -284,6 +307,12 @@ class SystemAudioTranslationWindow:
             self.mode_var.set(label)
         finally:
             self._mode_change_suspended = False
+
+    def _apply_voice_translation_state(self, *, active: bool, message: str) -> None:
+        self.voice_translation_status_var.set(message)
+        self.voice_translation_button.configure(
+            text="Desactivar mi voz traducida" if active else "Activar mi voz traducida"
+        )
 
     def _handle_close(self) -> None:
         self._on_close()

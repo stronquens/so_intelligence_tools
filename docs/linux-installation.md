@@ -37,6 +37,7 @@ El instalador `scripts/install-linux-deps.sh` instala:
 
 - `curl`
 - `libnotify-bin`
+- `pulseaudio-utils`
 - `wl-clipboard`
 - `wtype`
 - `xclip`
@@ -105,6 +106,7 @@ LOCAL_INFERENCE_API_PORT=8010
 LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010
 GNOME_SELECTED_TEXT_CORRECTION_BINDING=<Primary><Alt>c
 GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING=<Primary><Alt>y
+GNOME_VOICE_TRANSLATION_BINDING=<Primary><Alt>u
 ```
 
 Atajos actuales:
@@ -113,6 +115,7 @@ Atajos actuales:
 | --- | --- |
 | Correccion de texto seleccionado | `Ctrl + Alt + C` |
 | Traduccion del audio del sistema | `Ctrl + Alt + Y` |
+| Traduccion de tu voz con microfono virtual | `Ctrl + Alt + U` |
 
 ## Servicio de usuario
 
@@ -163,6 +166,8 @@ Los atajos de GNOME no ejecutan directamente la CLI, sino wrappers dentro del re
 - `scripts/run-selected-text-correction-debug.sh`
 - `scripts/run-system-audio-translation-debug.sh`
 
+La traduccion de voz usa de momento el comando directo de la CLI y no un wrapper de diagnostico dedicado.
+
 Esto permite:
 
 - ejecutar desde el directorio correcto del proyecto
@@ -175,6 +180,52 @@ Logs:
 ```bash
 tail -n 120 ~/.cache/so_intelligence_tools/selected_text_correction.log
 tail -n 120 ~/.cache/so_intelligence_tools/system_audio_shortcut.log
+tail -n 120 ~/.cache/so_intelligence_tools/voice_translation_logs/*.log
+```
+
+## Microfono virtual con traduccion de voz
+
+Para probar la traduccion de tu voz en castellano hacia audio hablado en ingles:
+
+```bash
+poetry run so-intelligence-tools run-voice-translation-virtual-mic-toggle
+```
+
+Tambien puedes abrir la app de traduccion del audio del sistema y usar el boton `Activar mi voz traducida`:
+
+```bash
+poetry run so-intelligence-tools run-system-audio-translation-toggle
+```
+
+Ese boton arranca y detiene el microfono virtual sin cerrar la traduccion de altavoces.
+
+La herramienta crea un sink virtual de PulseAudio llamado `so_ai_translated_mic`; su monitor source aparece como:
+
+```text
+so_ai_translated_mic.monitor
+```
+
+Selecciona esa fuente como microfono en la aplicacion de llamada. Para detener la sesion, ejecuta el mismo comando otra vez o pulsa `Ctrl+C` en el terminal que mantiene viva la sesion.
+
+Variables principales:
+
+```env
+OPENAI_API_KEY=...
+VOICE_TRANSLATION_SOURCE_LANGUAGE=Spanish
+VOICE_TRANSLATION_TARGET_LANGUAGE=English
+VOICE_TRANSLATION_OPENAI_MODEL=gpt-realtime-translate
+VOICE_TRANSLATION_VOICE=marin
+VOICE_TRANSLATION_PHYSICAL_SOURCE=alsa_input.usb-046d_C922_Pro_Stream_Webcam_719B22BF-02.analog-stereo
+VOICE_TRANSLATION_PASSTHROUGH_VOLUME=1.0
+VOICE_TRANSLATION_DUCKED_PASSTHROUGH_VOLUME=0.18
+VOICE_TRANSLATION_OUTPUT_VOLUME=1.25
+VOICE_TRANSLATION_VIRTUAL_SINK_NAME=so_ai_translated_mic
+```
+
+Instalar atajo:
+
+```bash
+poetry run so-intelligence-tools install-gnome-voice-translation-shortcut
 ```
 
 ## Desarrollo vs uso diario

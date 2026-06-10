@@ -49,6 +49,33 @@ class ToolRunnerSettings(BaseSettings):
     system_audio_translation_openai_realtime_max_output_tokens: int = 1024
     system_audio_translation_openai_realtime_translate_completed_transcripts: bool = False
     system_audio_translation_openai_realtime_text_translation_model: str = "gpt-4o-mini"
+    gnome_voice_translation_binding: str = "<Primary><Alt>u"
+    voice_translation_source_language: str = "Spanish"
+    voice_translation_target_language: str = "English"
+    voice_translation_openai_api_key: str | None = None
+    voice_translation_openai_base_url: str | None = None
+    voice_translation_openai_model: str = "gpt-realtime-translate"
+    voice_translation_voice: str = "marin"
+    voice_translation_sample_rate_hz: int = 24000
+    voice_translation_chunk_ms: int = 80
+    voice_translation_silence_duration_ms: int = 260
+    voice_translation_prefix_padding_ms: int = 160
+    voice_translation_vad_threshold: float = 0.4
+    voice_translation_reconnect_backoff_seconds: float = 2.0
+    voice_translation_pending_audio_chunks: int = 64
+    voice_translation_physical_source: str | None = None
+    voice_translation_passthrough_volume: float = 1.0
+    voice_translation_ducked_passthrough_volume: float = 0.18
+    voice_translation_output_volume: float = 1.25
+    voice_translation_virtual_sink_name: str = "so_ai_translated_mic"
+    voice_translation_control_socket_path: str = (
+        "~/.cache/so_intelligence_tools/voice_translation_virtual_microphone.sock"
+    )
+    voice_translation_logs_dir: str = "~/.cache/so_intelligence_tools/voice_translation_logs"
+    voice_translation_debug_recording_enabled: bool = False
+    voice_translation_debug_recordings_dir: str = (
+        "~/.cache/so_intelligence_tools/voice_translation_debug_audio"
+    )
     openai_api_key: str | None = None
     openai_base_url: str | None = None
     litellm_proxy_url: str | None = None

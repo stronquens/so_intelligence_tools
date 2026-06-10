@@ -20,6 +20,7 @@ printf 'Instalando dependencias de escritorio Linux...\n'
 apt-get install -y \
   curl \
   libnotify-bin \
+  pulseaudio-utils \
   wl-clipboard \
   wtype \
   xclip \

@@ -1,0 +1,14 @@
+- [x] Add Linux virtual microphone backend using PulseAudio-compatible tools.
+- [x] Add microphone capture and virtual sink playback abstractions.
+- [x] Add OpenAI realtime speech-to-speech translation controller.
+- [x] Add CLI toggle command and local stop socket.
+- [x] Add GNOME shortcut installer for the voice translation toggle.
+- [x] Add configuration variables and `.env.example` comments.
+- [x] Add logs under `~/.cache/so_intelligence_tools/voice_translation_logs/`.
+- [x] Add a control button in the current realtime translation window.
+- [x] Keep the virtual microphone in local passthrough while the translation window is open.
+- [x] Add configurable ducking for the original voice and boosted translated output volume.
+- [x] Add unit tests for virtual audio command construction and cleanup.
+- [x] Add unit tests for realtime audio delta handling.
+- [x] Update README with setup, usage, cost warning, and manual testing steps.
+- [x] Run test suite and record validation results.

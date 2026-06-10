@@ -20,6 +20,12 @@ from so_intelligence_tools.system_audio_translation.session import (
     send_toggle_command,
 )
 from so_intelligence_tools.system_audio_translation.window import SystemAudioTranslationWindow
+from so_intelligence_tools.voice_translation_virtual_microphone.app import (
+    build_voice_translation_pipeline,
+)
+from so_intelligence_tools.voice_translation_virtual_microphone.pipeline import (
+    VoiceTranslationVirtualMicrophonePipeline,
+)
 
 
 class SessionController(Protocol):
@@ -47,6 +53,7 @@ class ModeAwareSystemAudioTranslationApp:
             on_reset=self.reset,
             on_close=self.stop,
             on_mode_changed=self.change_mode,
+            on_voice_translation_toggle=self.toggle_voice_translation,
         )
         self._socket_path = Path(settings.system_audio_translation_control_socket_path).expanduser()
         self._toggle_server = ToggleSocketServer(
@@ -54,10 +61,12 @@ class ModeAwareSystemAudioTranslationApp:
             on_toggle=lambda: (self.stop(), self.window.close_from_controller()),
         )
         self._controller: SessionController | None = None
+        self._voice_translation_pipeline: VoiceTranslationVirtualMicrophonePipeline | None = None
 
     def run(self) -> str:
         self._toggle_server.start()
         try:
+            self.start_voice_passthrough()
             self._start_mode(self.mode)
             self.window.run()
         finally:
@@ -78,10 +87,79 @@ class ModeAwareSystemAudioTranslationApp:
             self._controller.reset()
 
     def stop(self) -> None:
+        self.stop_voice_passthrough()
         controller = self._controller
         if controller is not None:
             controller.stop()
             self._controller = None
+
+    def toggle_voice_translation(self) -> None:
+        pipeline = self._voice_translation_pipeline
+        if pipeline is None or not pipeline.translation_active:
+            self.start_voice_translation()
+            return
+        self.stop_voice_translation()
+
+    def start_voice_passthrough(self) -> None:
+        if self._voice_translation_pipeline is not None:
+            return
+        try:
+            pipeline = build_voice_translation_pipeline(self.settings)
+            pipeline.start()
+        except Exception as exc:
+            self.window.set_voice_translation_state(
+                False,
+                f"Micrófono virtual: error - {exc}",
+            )
+            return
+        self._voice_translation_pipeline = pipeline
+        self.window.set_voice_translation_state(
+            False,
+            (
+                "Micrófono virtual activo en passthrough: selecciona "
+                f"{pipeline.monitor_source_name} como micrófono"
+            ),
+        )
+
+    def start_voice_translation(self) -> None:
+        self.start_voice_passthrough()
+        pipeline = self._voice_translation_pipeline
+        if pipeline is None:
+            return
+        try:
+            pipeline.start_translation()
+        except Exception as exc:
+            self.window.set_voice_translation_state(
+                False,
+                f"Micrófono traducido: error - {exc}",
+            )
+            return
+        self.window.set_voice_translation_state(
+            True,
+            (
+                "Traducción activa: voz original bajada y voz inglesa superpuesta en "
+                f"{pipeline.monitor_source_name}"
+            ),
+        )
+
+    def stop_voice_translation(self) -> None:
+        pipeline = self._voice_translation_pipeline
+        if pipeline is not None:
+            pipeline.stop_translation()
+            self.window.set_voice_translation_state(
+                False,
+                (
+                    "Micrófono virtual activo en passthrough: selecciona "
+                    f"{pipeline.monitor_source_name} como micrófono"
+                ),
+            )
+
+    def stop_voice_passthrough(self) -> None:
+        pipeline = self._voice_translation_pipeline
+        if pipeline is not None:
+            pipeline.stop()
+            self._voice_translation_pipeline = None
+        self.window.set_voice_translation_state(False, "Micrófono virtual: apagado")
 
     def change_mode(self, mode: SystemAudioSessionMode) -> None:
         canonical = normalize_system_audio_mode(mode)

@@ -20,6 +20,10 @@ SYSTEM_AUDIO_TRANSLATION_SHORTCUT_PATH = (
     "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
     "so-intelligence-tools-system-audio-translation/"
 )
+VOICE_TRANSLATION_SHORTCUT_PATH = (
+    "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
+    "so-intelligence-tools-voice-translation/"
+)
 
 
 class GnomeShortcutManager:
@@ -54,6 +58,16 @@ class GnomeShortcutManager:
         )
         return command
 
+    def install_voice_translation_shortcut(self, *, binding: str) -> str:
+        command = self._build_voice_translation_command()
+        self._install_shortcut(
+            path=VOICE_TRANSLATION_SHORTCUT_PATH,
+            name="Voice Translation Virtual Microphone",
+            command=command,
+            binding=binding,
+        )
+        return command
+
     def _build_selected_text_correction_command(self, *, debug: bool = False) -> str:
         if debug:
             wrapper = self._wrapper_path("run-selected-text-correction-debug.sh")
@@ -74,6 +88,15 @@ class GnomeShortcutManager:
         if wrapper is not None:
             return shlex.quote(str(wrapper))
         args = ["run-system-audio-translation-toggle"]
+        command_suffix = " ".join(shlex.quote(arg) for arg in args)
+        script_candidate = Path(sys.prefix) / "bin" / "so-intelligence-tools"
+        if script_candidate.exists():
+            return f"{shlex.quote(str(script_candidate))} {command_suffix}"
+        python_path = Path(self._python_executable).resolve()
+        return f"{shlex.quote(str(python_path))} -m so_intelligence_tools {command_suffix}"
+
+    def _build_voice_translation_command(self) -> str:
+        args = ["run-voice-translation-virtual-mic-toggle"]
         command_suffix = " ".join(shlex.quote(arg) for arg in args)
         script_candidate = Path(sys.prefix) / "bin" / "so-intelligence-tools"
         if script_candidate.exists():

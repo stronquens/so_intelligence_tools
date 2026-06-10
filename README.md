@@ -63,6 +63,7 @@ Atajos actuales recomendados:
 | --- | --- |
 | Corrección de texto seleccionado | `Ctrl + Alt + C` |
 | Traducción del audio del sistema | `Ctrl + Alt + Y` |
+| Traducción de tu voz con micrófono virtual | `Ctrl + Alt + U` |
 
 El puerto de escritorio por defecto es `8010` para evitar conflictos con otros proyectos locales que usen `8000`.
 
@@ -180,6 +181,81 @@ Los nombres de las capabilities priorizan claridad y estabilidad. La prioridad y
 - `system-audio-transcription`: traducción en vivo del audio que suena en el sistema, con ventana dedicada, modo inicial fijo de traducción al español y espacio para futuros modos seleccionables.
 - `realtime-translation-desktop-ui`: interfaz Electron/Vue alternativa para visualizar la traducción en vivo con una experiencia visual avanzada.
 - `voice-translation-virtual-microphone`: micrófono virtual para traducir tu voz en tiempo real usando API remota.
+
+## Probar micrófono virtual con passthrough y traducción de tu voz
+
+La primera fase de `voice-translation-virtual-microphone` crea un micrófono virtual Linux usando PulseAudio. Al abrir la app de traducción, ese micrófono virtual queda disponible en modo passthrough y retransmite tu Logitech como un micrófono normal. Al activar la traducción, baja la voz original y superpone la voz traducida al inglés.
+
+```text
+Logitech C922 -> passthrough -> so_ai_translated_mic.monitor
+Logitech C922 -> OpenAI Realtime Translate -> voz inglesa superpuesta -> so_ai_translated_mic.monitor
+```
+
+Configura `OPENAI_API_KEY` en `.env`. Por defecto se asume que hablas en castellano y quieres que las aplicaciones reciban audio hablado en inglés:
+
+```env
+VOICE_TRANSLATION_SOURCE_LANGUAGE=Spanish
+VOICE_TRANSLATION_TARGET_LANGUAGE=English
+VOICE_TRANSLATION_OPENAI_MODEL=gpt-realtime-translate
+VOICE_TRANSLATION_VOICE=marin
+VOICE_TRANSLATION_PHYSICAL_SOURCE=alsa_input.usb-046d_C922_Pro_Stream_Webcam_719B22BF-02.analog-stereo
+VOICE_TRANSLATION_PASSTHROUGH_VOLUME=1.0
+VOICE_TRANSLATION_DUCKED_PASSTHROUGH_VOLUME=0.18
+VOICE_TRANSLATION_OUTPUT_VOLUME=1.25
+VOICE_TRANSLATION_DEBUG_RECORDING_ENABLED=false
+VOICE_TRANSLATION_DEBUG_RECORDINGS_DIR=~/.cache/so_intelligence_tools/voice_translation_debug_audio
+GNOME_VOICE_TRANSLATION_BINDING=<Primary><Alt>u
+```
+
+Lanzar manualmente:
+
+```bash
+poetry run so-intelligence-tools run-voice-translation-virtual-mic-toggle
+```
+
+Tambien se puede activar desde la ventana actual de traduccion del audio del sistema. Abre la app:
+
+```bash
+poetry run so-intelligence-tools run-system-audio-translation-toggle
+```
+
+La ventana crea el micrófono virtual y lo deja en passthrough. Selecciona `so_ai_translated_mic.monitor` como micrófono en Zoom, Meet o Slack. Pulsa `Activar mi voz traducida` para bajar tu voz original y superponer la traducción inglesa. Al pulsarlo de nuevo vuelve el passthrough normal; al cerrar la ventana se limpia el dispositivo virtual.
+
+Para depurar lo que realmente reciben las aplicaciones externas, activa temporalmente:
+
+```env
+VOICE_TRANSLATION_DEBUG_RECORDING_ENABLED=true
+```
+
+Con ese modo se graba un WAV por sesión desde el monitor del micrófono virtual, incluyendo passthrough, ducking y audio traducido. Los archivos quedan en `~/.cache/so_intelligence_tools/voice_translation_debug_audio/` y el log de sesión incluye eventos `debug_recording_started` y `debug_recording_stopped` con la ruta exacta del WAV.
+
+Cuando esté activo, selecciona como micrófono en Zoom, Meet, Slack o una grabadora de audio la fuente:
+
+```text
+so_ai_translated_mic.monitor
+```
+
+Ejecutar el mismo comando una segunda vez detiene la sesión, cierra la conexión realtime, para la captura del micrófono físico y descarga el módulo virtual de PulseAudio.
+
+Instalar el atajo GNOME:
+
+```bash
+poetry run so-intelligence-tools install-gnome-voice-translation-shortcut
+```
+
+Atajo por defecto:
+
+```text
+Ctrl + Alt + U
+```
+
+Notas de esta fase:
+
+- usa `gpt-realtime-translate`, no un pipeline Whisper + traducción + TTS
+- mantiene una conexión remota abierta mientras esté activa, así que detén la sesión cuando no la uses para cortar consumo
+- el micrófono virtual se implementa como `module-null-sink`; algunas apps pueden necesitar reabrir ajustes de audio para refrescar la lista de micros
+- los logs se escriben en `~/.cache/so_intelligence_tools/voice_translation_logs/`
+- la UI/tray persistente queda para una iteración posterior
 
 ## Probar atajo de corrección en Linux
 

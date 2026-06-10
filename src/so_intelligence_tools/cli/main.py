@@ -37,6 +37,9 @@ from so_intelligence_tools.infrastructure.user_services import (
 from so_intelligence_tools.system_audio_translation import (
     run_system_audio_translation_toggle,
 )
+from so_intelligence_tools.voice_translation_virtual_microphone import (
+    run_voice_translation_virtual_microphone_toggle,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -55,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     selected_parser.add_argument("--debug", action="store_true")
     selected_parser.add_argument("--debug-log-path", default=None)
     subparsers.add_parser("run-system-audio-translation-toggle")
+    subparsers.add_parser("run-voice-translation-virtual-mic-toggle")
     subparsers.add_parser("listen-shortcuts")
     install_parser = subparsers.add_parser("install-gnome-selected-text-shortcut")
     install_parser.add_argument("--binding", default=None)
@@ -63,6 +67,10 @@ def build_parser() -> argparse.ArgumentParser:
         "install-gnome-system-audio-translation-shortcut"
     )
     translation_shortcut_parser.add_argument("--binding", default=None)
+    voice_shortcut_parser = subparsers.add_parser(
+        "install-gnome-voice-translation-shortcut"
+    )
+    voice_shortcut_parser.add_argument("--binding", default=None)
     desktop_parser = subparsers.add_parser("install-linux-desktop-integration")
     desktop_parser.add_argument("--binding", default=None)
     desktop_parser.add_argument("--debug-shortcut", action="store_true")
@@ -123,6 +131,11 @@ def main(argv: list[str] | None = None) -> int:
             print(result)
             return 0
 
+        if args.command == "run-voice-translation-virtual-mic-toggle":
+            result = run_voice_translation_virtual_microphone_toggle(settings)
+            print(result)
+            return 0
+
         if args.command == "listen-shortcuts":
             runtime = build_linux_runtime(settings)
             registry = build_default_shortcut_registry(runtime)
@@ -154,6 +167,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Command: {command}")
             return 0
 
+        if args.command == "install-gnome-voice-translation-shortcut":
+            manager = GnomeShortcutManager(project_dir=Path.cwd())
+            binding = args.binding or settings.gnome_voice_translation_binding
+            command = manager.install_voice_translation_shortcut(binding=binding)
+            print(f"Shortcut installed: {binding}")
+            print(f"Command: {command}")
+            return 0
+
         if args.command == "install-linux-desktop-integration":
             installer = LocalApiUserServiceInstaller(
                 project_dir=Path.cwd(),
@@ -170,6 +191,9 @@ def main(argv: list[str] | None = None) -> int:
             )
             audio_shortcut_command = manager.install_system_audio_translation_shortcut(
                 binding=settings.gnome_system_audio_translation_binding,
+            )
+            voice_shortcut_command = manager.install_voice_translation_shortcut(
+                binding=settings.gnome_voice_translation_binding,
             )
             print(f"User service installed: {service_path}")
             print(f"Desktop health autostart installed: {autostart_path}")
@@ -191,6 +215,11 @@ def main(argv: list[str] | None = None) -> int:
                 f"{settings.gnome_system_audio_translation_binding}"
             )
             print(f"System audio shortcut command: {audio_shortcut_command}")
+            print(
+                "Voice translation shortcut installed: "
+                f"{settings.gnome_voice_translation_binding}"
+            )
+            print(f"Voice translation shortcut command: {voice_shortcut_command}")
             return 0
     except ToolRunnerError as exc:
         print(str(exc), file=sys.stderr)

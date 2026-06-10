@@ -1,13 +1,5 @@
 from __future__ import annotations
 
-from so_intelligence_tools.adapters.testing.fakes import (
-    CollectingNotificationAdapter,
-    FakeInferenceAdapter,
-    InlineTextSelectionAdapter,
-    MemoryClipboardAdapter,
-    MemoryTextInsertionAdapter,
-    StaticImageScreenshotAdapter,
-)
 from so_intelligence_tools.infrastructure.shortcut_actions import ShortcutActionRegistry
 
 
