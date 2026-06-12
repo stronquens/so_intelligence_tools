@@ -21,11 +21,17 @@ La herramienta SHALL mostrar un indicador representativo en la notificación per
 - **THEN** el usuario SHALL poder identificar en el sistema que el micrófono virtual especial está activo
 
 ### Requirement: Micrófono virtual seleccionable por aplicaciones externas
-El sistema SHALL exponer una entrada de audio virtual que pueda elegirse como micrófono en aplicaciones como Zoom, Slack, Meet u otras similares.
+El sistema SHALL exponer una entrada de audio virtual explícita que pueda elegirse como micrófono en aplicaciones como Zoom, Slack, Meet u otras similares. El nombre que se muestra al usuario SHALL corresponder a una fuente de entrada seleccionable y no al monitor de un altavoz virtual.
 
 #### Scenario: Selección desde una app de videollamada
 - **WHEN** una aplicación enumera los micrófonos disponibles del sistema
 - **THEN** el micrófono virtual SHALL aparecer como una opción utilizable
+- **AND** el usuario SHALL poder seleccionarlo como entrada de micrófono sin cambiar su altavoz de salida
+
+#### Scenario: Slack enumera entradas y salidas por separado
+- **WHEN** Slack u otra aplicación muestre listas separadas de micrófono y altavoz
+- **THEN** `so_ai_translated_mic` SHALL aparecer en la lista de micrófonos
+- **AND** el usuario SHALL mantener su altavoz normal para escuchar la llamada
 
 ### Requirement: Modo passthrough cuando no hay traducción activa
 El micrófono virtual SHALL poder reenviar la voz del usuario sin transformarla cuando la herramienta no esté traduciendo.
@@ -74,11 +80,12 @@ El sistema SHALL manejar fallos del servicio externo, del micrófono físico o d
 - **THEN** el sistema SHALL mostrar un error claro y no simular que la herramienta está funcionando correctamente
 
 ### Requirement: Implementación inicial Linux PulseAudio
-La primera implementación SHALL soportar Linux mediante herramientas compatibles con PulseAudio.
+La primera implementación SHALL soportar Linux mediante herramientas compatibles con PulseAudio, creando un sink interno para mezcla y una fuente de entrada virtual remapeada para aplicaciones externas.
 
 #### Scenario: Dependencias de audio disponibles
 - **WHEN** `pactl`, `parec` y `pacat` estén disponibles
-- **THEN** la herramienta SHALL poder crear el dispositivo virtual, capturar el micrófono físico y escribir audio traducido en el sink virtual
+- **THEN** la herramienta SHALL crear el sink interno, crear la fuente virtual de micrófono, capturar el micrófono físico y escribir audio traducido en el sink interno
+- **AND** la fuente virtual SHALL publicar la mezcla final como entrada de micrófono seleccionable
 
 #### Scenario: Dependencias de audio ausentes
 - **WHEN** falte una dependencia requerida
@@ -128,7 +135,7 @@ La herramienta SHALL poder activarse desde la aplicación existente de traducci�
 - **WHEN** la ventana de traducción de audio del sistema esté abierta
 - **AND** el usuario pulse el botón para activar su voz traducida
 - **THEN** el sistema SHALL iniciar el micrófono virtual traducido en paralelo
-- **AND** SHALL mostrar en la ventana el nombre del micrófono virtual que debe seleccionarse en aplicaciones externas
+- **AND** SHALL mostrar en la ventana el nombre de la fuente de micrófono virtual que debe seleccionarse en aplicaciones externas
 
 #### Scenario: Desactivación desde la ventana
 - **WHEN** el micrófono virtual traducido esté activo desde la ventana
@@ -168,3 +175,33 @@ La herramienta SHALL poder grabar el audio final del micrófono virtual en un ar
 - **WHEN** `VOICE_TRANSLATION_DEBUG_RECORDING_ENABLED` no esté activado
 - **THEN** el sistema SHALL no guardar audio WAV de la sesión
 
+### Requirement: Niveles seguros de mezcla de voz traducida
+El sistema SHALL usar valores por defecto conservadores para que la voz original en passthrough no compita con la voz traducida durante una llamada.
+
+#### Scenario: Traducción activa con valores por defecto
+- **WHEN** el usuario active la traducción de voz sin ajustar volúmenes avanzados
+- **THEN** el passthrough original SHALL quedar muy reducido
+- **AND** la salida traducida SHALL mantener headroom para reducir clipping
+
+#### Scenario: Ducking configurado accidentalmente alto
+- **WHEN** el entorno configure un volumen ducked superior al techo de seguridad
+- **THEN** el pipeline SHALL usar el techo de seguridad durante traducción
+- **AND** SHALL registrar el valor solicitado y el valor aplicado
+
+### Requirement: Protección básica contra clipping de salida
+El sistema SHALL limitar la salida PCM traducida antes de escribirla al micrófono virtual para evitar muestras fuera de rango o saturación por ganancia.
+
+#### Scenario: Audio traducido con ganancia alta
+- **WHEN** el proveedor realtime entregue PCM y el volumen de salida lo amplifique
+- **THEN** el sistema SHALL limitar las muestras a un techo seguro antes de escribirlas
+
+### Requirement: Rechazo de fuentes de captura peligrosas
+El sistema SHALL rechazar fuentes físicas que sean monitores de salida o dispositivos virtuales propios del proyecto.
+
+#### Scenario: Fuente configurada como monitor de salida
+- **WHEN** `VOICE_TRANSLATION_PHYSICAL_SOURCE` termine en `.monitor`
+- **THEN** la herramienta SHALL fallar con un mensaje claro antes de iniciar captura
+
+#### Scenario: Fuente configurada como micro virtual propio
+- **WHEN** `VOICE_TRANSLATION_PHYSICAL_SOURCE` apunte a `so_ai_translated_mic` o su sink interno
+- **THEN** la herramienta SHALL fallar con un mensaje claro para evitar realimentación

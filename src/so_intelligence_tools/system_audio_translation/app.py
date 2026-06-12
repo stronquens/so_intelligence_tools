@@ -117,7 +117,7 @@ class ModeAwareSystemAudioTranslationApp:
             False,
             (
                 "Micrófono virtual activo en passthrough: selecciona "
-                f"{pipeline.monitor_source_name} como micrófono"
+                f"{pipeline.virtual_source_name} como micrófono"
             ),
         )
 
@@ -138,7 +138,7 @@ class ModeAwareSystemAudioTranslationApp:
             True,
             (
                 "Traducción activa: voz original bajada y voz inglesa superpuesta en "
-                f"{pipeline.monitor_source_name}"
+                f"{pipeline.virtual_source_name}"
             ),
         )
 
@@ -150,7 +150,7 @@ class ModeAwareSystemAudioTranslationApp:
                 False,
                 (
                     "Micrófono virtual activo en passthrough: selecciona "
-                    f"{pipeline.monitor_source_name} como micrófono"
+                    f"{pipeline.virtual_source_name} como micrófono"
                 ),
             )
 

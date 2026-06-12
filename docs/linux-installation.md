@@ -199,13 +199,13 @@ poetry run so-intelligence-tools run-system-audio-translation-toggle
 
 Ese boton arranca y detiene el microfono virtual sin cerrar la traduccion de altavoces.
 
-La herramienta crea un sink virtual de PulseAudio llamado `so_ai_translated_mic`; su monitor source aparece como:
+La herramienta crea una fuente de entrada virtual de PulseAudio llamada:
 
 ```text
-so_ai_translated_mic.monitor
+so_ai_translated_mic
 ```
 
-Selecciona esa fuente como microfono en la aplicacion de llamada. Para detener la sesion, ejecuta el mismo comando otra vez o pulsa `Ctrl+C` en el terminal que mantiene viva la sesion.
+Selecciona esa fuente como microfono en la aplicacion de llamada y deja tu altavoz normal como salida. Para detener la sesion, ejecuta el mismo comando otra vez o pulsa `Ctrl+C` en el terminal que mantiene viva la sesion.
 
 Variables principales:
 
@@ -217,10 +217,14 @@ VOICE_TRANSLATION_OPENAI_MODEL=gpt-realtime-translate
 VOICE_TRANSLATION_VOICE=marin
 VOICE_TRANSLATION_PHYSICAL_SOURCE=alsa_input.usb-046d_C922_Pro_Stream_Webcam_719B22BF-02.analog-stereo
 VOICE_TRANSLATION_PASSTHROUGH_VOLUME=1.0
-VOICE_TRANSLATION_DUCKED_PASSTHROUGH_VOLUME=0.18
-VOICE_TRANSLATION_OUTPUT_VOLUME=1.25
+VOICE_TRANSLATION_DUCKED_PASSTHROUGH_VOLUME=0.03
+VOICE_TRANSLATION_MAX_DUCKED_PASSTHROUGH_VOLUME=0.12
+VOICE_TRANSLATION_OUTPUT_VOLUME=0.75
 VOICE_TRANSLATION_VIRTUAL_SINK_NAME=so_ai_translated_mic
 ```
+
+Aunque la variable conserva el nombre `VIRTUAL_SINK` por compatibilidad, este valor es el nombre del microfono que debes seleccionar. El sink interno de mezcla se deriva automaticamente.
+El volumen ducked queda limitado por `VOICE_TRANSLATION_MAX_DUCKED_PASSTHROUGH_VOLUME` para evitar que la voz original se cuele demasiado alta durante la traduccion.
 
 Instalar atajo:
 

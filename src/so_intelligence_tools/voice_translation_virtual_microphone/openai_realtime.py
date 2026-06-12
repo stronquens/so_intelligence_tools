@@ -16,6 +16,7 @@ from so_intelligence_tools.system_audio_translation.session import TranscriptSes
 from so_intelligence_tools.voice_translation_virtual_microphone.audio import (
     LinuxMicrophoneAudioCapture,
     PulseAudioVirtualMicrophone,
+    limit_pcm_s16le,
     scale_pcm_s16le,
 )
 
@@ -37,7 +38,8 @@ class OpenAIRealtimeVoiceTranslationController:
     prefix_padding_ms: int = 160
     vad_threshold: float = 0.4
     close_drain_timeout_seconds: float = 8.0
-    output_volume: float = 1.25
+    output_volume: float = 0.75
+    output_limiter_ceiling: float = 0.92
     owns_virtual_microphone: bool = True
     write_session_log_on_stop: bool = True
     state: str = field(init=False, default="inactive")
@@ -70,7 +72,8 @@ class OpenAIRealtimeVoiceTranslationController:
             source_language=self.source_language,
             target_language=self.target_language,
             voice=self.voice,
-            virtual_microphone=self.virtual_microphone.monitor_source_name,
+            virtual_microphone=self.virtual_microphone.virtual_source_name,
+            monitor_source=self.virtual_microphone.monitor_source_name,
             physical_source=self.capture.source or "default",
             sample_rate_hz=self.capture.sample_rate_hz,
             chunk_ms=self.capture.chunk_ms,
@@ -80,7 +83,7 @@ class OpenAIRealtimeVoiceTranslationController:
             self.virtual_microphone.start()
         self._set_state(
             "starting",
-            f"Micrófono virtual listo: {self.virtual_microphone.monitor_source_name}",
+            f"Micrófono virtual listo: {self.virtual_microphone.virtual_source_name}",
         )
         self._worker_thread = threading.Thread(
             target=self._worker_main,
@@ -213,7 +216,10 @@ class OpenAIRealtimeVoiceTranslationController:
             }:
                 audio = _decode_audio_delta(event)
                 if audio:
-                    output_audio = scale_pcm_s16le(audio, self.output_volume)
+                    output_audio = limit_pcm_s16le(
+                        scale_pcm_s16le(audio, self.output_volume),
+                        ceiling=self.output_limiter_ceiling,
+                    )
                     await asyncio.to_thread(self.virtual_microphone.write, output_audio)
                     self._record_output_audio_chunk(len(audio))
             elif event_type in {
@@ -292,7 +298,8 @@ class OpenAIRealtimeVoiceTranslationController:
                 "output_audio_written",
                 chunks=self._output_audio_chunks,
                 bytes=self._output_audio_bytes,
-                virtual_microphone=self.virtual_microphone.monitor_source_name,
+                virtual_microphone=self.virtual_microphone.virtual_source_name,
+                monitor_source=self.virtual_microphone.monitor_source_name,
             )
 
     def _record_event_type(self, event_type: str) -> None:

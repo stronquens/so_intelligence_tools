@@ -137,7 +137,7 @@ def build_voice_translation_pipeline(
             source=settings.voice_translation_physical_source,
         ),
         playback=PulseAudioPcmPlayback(
-            sink_name=settings.voice_translation_virtual_sink_name,
+            sink_name=virtual_microphone.playback_sink_name,
             sample_rate_hz=sample_rate_hz,
         ),
         volume=settings.voice_translation_passthrough_volume,
@@ -161,6 +161,9 @@ def build_voice_translation_pipeline(
         ),
         passthrough_volume=settings.voice_translation_passthrough_volume,
         ducked_passthrough_volume=settings.voice_translation_ducked_passthrough_volume,
+        max_ducked_passthrough_volume=(
+            settings.voice_translation_max_ducked_passthrough_volume
+        ),
         session_logger=session_logger,
         debug_recorder=debug_recorder,
     )

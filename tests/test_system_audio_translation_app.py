@@ -32,6 +32,7 @@ class FakeVoiceTranslationPipeline:
         self.translation_started = False
         self.translation_stopped = False
         self.monitor_source_name = "so_ai_test.monitor"
+        self.virtual_source_name = "so_ai_test"
 
     def start(self) -> None:
         self.started = True
@@ -69,21 +70,21 @@ def test_system_audio_app_toggles_voice_translation_button(monkeypatch):
     assert fake_pipeline.started is True
     assert app.window.voice_states[-1] == (
         False,
-        "Micrófono virtual activo en passthrough: selecciona so_ai_test.monitor como micrófono",
+        "Micrófono virtual activo en passthrough: selecciona so_ai_test como micrófono",
     )
 
     app.toggle_voice_translation()
     assert fake_pipeline.translation_started is True
     assert app.window.voice_states[-1] == (
         True,
-        "Traducción activa: voz original bajada y voz inglesa superpuesta en so_ai_test.monitor",
+        "Traducción activa: voz original bajada y voz inglesa superpuesta en so_ai_test",
     )
 
     app.toggle_voice_translation()
     assert fake_pipeline.translation_stopped is True
     assert app.window.voice_states[-1] == (
         False,
-        "Micrófono virtual activo en passthrough: selecciona so_ai_test.monitor como micrófono",
+        "Micrófono virtual activo en passthrough: selecciona so_ai_test como micrófono",
     )
 
 

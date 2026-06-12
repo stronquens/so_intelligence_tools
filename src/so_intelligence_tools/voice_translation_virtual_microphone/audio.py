@@ -11,6 +11,12 @@ from shutil import which
 from so_intelligence_tools.domain.errors import AudioCaptureError, UnsupportedEnvironmentError
 
 
+PROJECT_VIRTUAL_SOURCE_PREFIXES = (
+    "so_ai_translated_mic",
+    "so_ai_test_mic",
+)
+
+
 def detect_default_source(*, pactl_bin: str = "pactl") -> str:
     if which(pactl_bin) is None:
         raise UnsupportedEnvironmentError("No se encontró `pactl` para inspeccionar el micrófono.")
@@ -68,9 +74,32 @@ def _parse_first_physical_source_from_short_list(output: str) -> str | None:
         if len(parts) < 2:
             continue
         source = parts[1].strip()
-        if source and not source.endswith(".monitor"):
+        if source and _is_safe_physical_source(source):
             return source
     return None
+
+
+def _is_safe_physical_source(source: str) -> bool:
+    return _unsafe_physical_source_reason(source) is None
+
+
+def _unsafe_physical_source_reason(source: str) -> str | None:
+    if source.endswith(".monitor"):
+        return "la fuente configurada es un monitor de salida, no un micrófono físico"
+    for prefix in PROJECT_VIRTUAL_SOURCE_PREFIXES:
+        if source == prefix or source.startswith(f"{prefix}.") or source.startswith(f"{prefix}_sink"):
+            return "la fuente configurada apunta al micrófono virtual del proyecto"
+    return None
+
+
+def validate_physical_source(source: str) -> None:
+    reason = _unsafe_physical_source_reason(source)
+    if reason is not None:
+        raise AudioCaptureError(
+            "Fuente de micrófono no válida para traducción de voz: "
+            f"{source}. {reason}. Configura `VOICE_TRANSLATION_PHYSICAL_SOURCE` "
+            "con el micrófono físico real, por ejemplo una fuente `alsa_input...`."
+        )
 
 
 @dataclass(slots=True)
@@ -96,6 +125,7 @@ class LinuxMicrophoneAudioCapture:
             raise UnsupportedEnvironmentError("No se encontró `parec` para capturar el micrófono.")
 
         source = self.source or detect_default_source(pactl_bin=self.pactl_bin)
+        validate_physical_source(source)
         bytes_per_chunk = int(self.sample_rate_hz * (self.chunk_ms / 1000.0) * 2)
         if bytes_per_chunk <= 0:
             raise AudioCaptureError("La configuración produjo un chunk de micrófono inválido.")
@@ -275,15 +305,27 @@ class PulseAudioVirtualMicrophone:
     sink_name: str
     sample_rate_hz: int
     channels: int = 1
+    source_name: str | None = None
+    internal_sink_name: str | None = None
     pactl_bin: str = "pactl"
     pacat_bin: str = "pacat"
     description: str = "SO_AI_Translated_Microphone"
-    _module_id: str | None = field(init=False, default=None)
+    internal_sink_description: str = "SO_AI_Translated_Microphone_Internal_Mix"
+    _sink_module_id: str | None = field(init=False, default=None)
+    _source_module_id: str | None = field(init=False, default=None)
     _playback: PulseAudioPcmPlayback | None = field(init=False, default=None)
 
     @property
+    def playback_sink_name(self) -> str:
+        return self.internal_sink_name or f"{self.sink_name}_sink"
+
+    @property
+    def virtual_source_name(self) -> str:
+        return self.source_name or self.sink_name
+
+    @property
     def monitor_source_name(self) -> str:
-        return f"{self.sink_name}.monitor"
+        return f"{self.playback_sink_name}.monitor"
 
     @property
     def running(self) -> bool:
@@ -291,16 +333,28 @@ class PulseAudioVirtualMicrophone:
 
     def start(self) -> None:
         self._ensure_tooling()
-        if self._module_id is None:
-            self._module_id = self._load_null_sink()
+        if self._sink_module_id is None:
+            self._sink_module_id = self._load_null_sink()
+        if self._source_module_id is None:
+            try:
+                self._source_module_id = self._load_remap_source()
+            except Exception:
+                self._unload_sink_module()
+                raise
         if self._playback is None:
             self._playback = PulseAudioPcmPlayback(
-                sink_name=self.sink_name,
+                sink_name=self.playback_sink_name,
                 sample_rate_hz=self.sample_rate_hz,
                 channels=self.channels,
                 pacat_bin=self.pacat_bin,
             )
-        self._playback.start()
+        try:
+            self._playback.start()
+        except Exception:
+            self._playback = None
+            self._unload_source_module()
+            self._unload_sink_module()
+            raise
 
     def write(self, pcm_bytes: bytes) -> None:
         if self._playback is None:
@@ -311,14 +365,8 @@ class PulseAudioVirtualMicrophone:
         if self._playback is not None:
             self._playback.stop()
             self._playback = None
-        if self._module_id is not None:
-            subprocess.run(
-                [self.pactl_bin, "unload-module", self._module_id],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        self._module_id = None
+        self._unload_source_module()
+        self._unload_sink_module()
 
     def _ensure_tooling(self) -> None:
         missing = [tool for tool in (self.pactl_bin, self.pacat_bin) if which(tool) is None]
@@ -334,11 +382,11 @@ class PulseAudioVirtualMicrophone:
                 self.pactl_bin,
                 "load-module",
                 "module-null-sink",
-                f"sink_name={self.sink_name}",
+                f"sink_name={self.playback_sink_name}",
                 "format=s16le",
                 f"rate={self.sample_rate_hz}",
                 f"channels={self.channels}",
-                f"sink_properties=device.description={self.description}",
+                f"sink_properties=device.description={self.internal_sink_description}",
             ],
             capture_output=True,
             text=True,
@@ -353,6 +401,52 @@ class PulseAudioVirtualMicrophone:
         if not module_id:
             raise AudioCaptureError("PulseAudio no devolvió ID para el módulo virtual.")
         return module_id
+
+    def _load_remap_source(self) -> str:
+        result = subprocess.run(
+            [
+                self.pactl_bin,
+                "load-module",
+                "module-remap-source",
+                f"master={self.monitor_source_name}",
+                f"source_name={self.virtual_source_name}",
+                f"source_properties=device.description={self.description}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise AudioCaptureError(
+                "No se pudo publicar el micrófono virtual de entrada: "
+                + (result.stderr or result.stdout).strip()
+            )
+        module_id = result.stdout.strip()
+        if not module_id:
+            raise AudioCaptureError(
+                "PulseAudio no devolvió ID para la fuente virtual de micrófono."
+            )
+        return module_id
+
+    def _unload_source_module(self) -> None:
+        if self._source_module_id is not None:
+            subprocess.run(
+                [self.pactl_bin, "unload-module", self._source_module_id],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self._source_module_id = None
+
+    def _unload_sink_module(self) -> None:
+        if self._sink_module_id is not None:
+            subprocess.run(
+                [self.pactl_bin, "unload-module", self._sink_module_id],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self._sink_module_id = None
 
 
 @dataclass(slots=True)
@@ -408,3 +502,23 @@ def scale_pcm_s16le(pcm_bytes: bytes, volume: float) -> bytes:
     if usable_length < len(pcm_bytes):
         scaled[-1] = pcm_bytes[-1]
     return bytes(scaled)
+
+
+def limit_pcm_s16le(pcm_bytes: bytes, ceiling: float = 0.92) -> bytes:
+    if not pcm_bytes:
+        return pcm_bytes
+    ceiling = min(max(ceiling, 0.0), 1.0)
+    max_sample = int(32767 * ceiling)
+    min_sample = -max_sample
+    limited = bytearray(len(pcm_bytes))
+    usable_length = len(pcm_bytes) - (len(pcm_bytes) % 2)
+    changed = False
+    for index in range(0, usable_length, 2):
+        sample = int.from_bytes(pcm_bytes[index : index + 2], "little", signed=True)
+        adjusted = max(min(sample, max_sample), min_sample)
+        if adjusted != sample:
+            changed = True
+        limited[index : index + 2] = adjusted.to_bytes(2, "little", signed=True)
+    if usable_length < len(pcm_bytes):
+        limited[-1] = pcm_bytes[-1]
+    return bytes(limited) if changed else pcm_bytes

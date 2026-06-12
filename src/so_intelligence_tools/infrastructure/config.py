@@ -65,8 +65,9 @@ class ToolRunnerSettings(BaseSettings):
     voice_translation_pending_audio_chunks: int = 64
     voice_translation_physical_source: str | None = None
     voice_translation_passthrough_volume: float = 1.0
-    voice_translation_ducked_passthrough_volume: float = 0.18
-    voice_translation_output_volume: float = 1.25
+    voice_translation_ducked_passthrough_volume: float = 0.03
+    voice_translation_max_ducked_passthrough_volume: float = 0.12
+    voice_translation_output_volume: float = 0.75
     voice_translation_virtual_sink_name: str = "so_ai_translated_mic"
     voice_translation_control_socket_path: str = (
         "~/.cache/so_intelligence_tools/voice_translation_virtual_microphone.sock"

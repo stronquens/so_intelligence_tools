@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from so_intelligence_tools.infrastructure.config import ToolRunnerSettings
 from so_intelligence_tools.voice_translation_virtual_microphone.pipeline import (
     VoiceTranslationVirtualMicrophonePipeline,
 )
@@ -8,6 +9,7 @@ from so_intelligence_tools.system_audio_translation.session import TranscriptSes
 
 class FakeVirtualMicrophone:
     monitor_source_name = "so_ai_test.monitor"
+    virtual_source_name = "so_ai_test"
 
     def __init__(self) -> None:
         self.started = False
@@ -66,6 +68,15 @@ class FakeDebugRecorder:
         return self.recording_path
 
 
+def test_tool_runner_settings_use_safe_voice_translation_defaults():
+    settings = ToolRunnerSettings(_env_file=None)
+
+    assert settings.voice_translation_passthrough_volume == 1.0
+    assert settings.voice_translation_ducked_passthrough_volume == 0.03
+    assert settings.voice_translation_max_ducked_passthrough_volume == 0.12
+    assert settings.voice_translation_output_volume == 0.75
+
+
 def test_pipeline_ducks_passthrough_while_translation_is_active():
     virtual_microphone = FakeVirtualMicrophone()
     passthrough = FakePassthrough()
@@ -76,6 +87,7 @@ def test_pipeline_ducks_passthrough_while_translation_is_active():
         translation_controller_factory=lambda _virtual_microphone: translation_controller,  # type: ignore[arg-type]
         passthrough_volume=1.0,
         ducked_passthrough_volume=0.2,
+        max_ducked_passthrough_volume=0.5,
     )
 
     pipeline.start()
@@ -89,6 +101,30 @@ def test_pipeline_ducks_passthrough_while_translation_is_active():
     assert passthrough.volumes == [1.0, 0.2, 1.0, 1.0]
     assert passthrough.stopped is True
     assert virtual_microphone.stopped is True
+
+
+def test_pipeline_caps_unsafe_ducked_passthrough_volume(tmp_path):
+    virtual_microphone = FakeVirtualMicrophone()
+    passthrough = FakePassthrough()
+    translation_controller = FakeTranslationController()
+    logger = TranscriptSessionLogger(logs_dir=tmp_path)
+    pipeline = VoiceTranslationVirtualMicrophonePipeline(
+        virtual_microphone=virtual_microphone,  # type: ignore[arg-type]
+        passthrough=passthrough,  # type: ignore[arg-type]
+        translation_controller_factory=lambda _virtual_microphone: translation_controller,  # type: ignore[arg-type]
+        ducked_passthrough_volume=0.6,
+        max_ducked_passthrough_volume=0.12,
+        session_logger=logger,
+    )
+
+    pipeline.start_translation()
+    pipeline.stop()
+
+    assert passthrough.volumes[0:2] == [1.0, 0.12]
+    assert pipeline.last_log_path is not None
+    content = pipeline.last_log_path.read_text(encoding="utf-8")
+    assert '"requested_ducked_passthrough_volume": 0.6' in content
+    assert '"applied_ducked_passthrough_volume": 0.12' in content
 
 
 def test_pipeline_writes_detailed_session_log(tmp_path):

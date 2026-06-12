@@ -107,6 +107,9 @@ def test_sender_loop_uses_translation_audio_append_event(tmp_path):
 def test_receiver_loop_writes_translation_audio_delta(tmp_path):
     import asyncio
 
+    hot_sample = (32767).to_bytes(2, "little", signed=True)
+    limited_sample = (30145).to_bytes(2, "little", signed=True)
+
     class FakeConnection:
         def __init__(self) -> None:
             self.events = iter(
@@ -114,7 +117,7 @@ def test_receiver_loop_writes_translation_audio_delta(tmp_path):
                     json.dumps(
                         {
                             "type": "session.output_audio.delta",
-                            "delta": base64.b64encode(b"translated-pcm").decode("ascii"),
+                            "delta": base64.b64encode(hot_sample).decode("ascii"),
                         }
                     ),
                     json.dumps({"type": "session.closed"}),
@@ -132,6 +135,7 @@ def test_receiver_loop_writes_translation_audio_delta(tmp_path):
 
     class FakeVirtualMicrophone:
         monitor_source_name = "so_ai_test.monitor"
+        virtual_source_name = "so_ai_test"
 
         def __init__(self) -> None:
             self.writes: list[bytes] = []
@@ -145,7 +149,7 @@ def test_receiver_loop_writes_translation_audio_delta(tmp_path):
 
     asyncio.run(controller._receiver_loop(FakeConnection()))
 
-    assert fake_virtual_microphone.writes == [b"translated-pcm"]
+    assert fake_virtual_microphone.writes == [limited_sample]
     assert controller._output_audio_chunks == 1
 
 
