@@ -39,5 +39,7 @@ fi
   printf '[%s] reinstalling-shortcuts\n' "$(date -Is)"
   "$CLI" install-gnome-selected-text-shortcut --debug
   "$CLI" install-gnome-system-audio-translation-shortcut
+  "$CLI" install-gnome-voice-translation-shortcut
+  "$CLI" install-push-to-talk-dictation-service
   printf '[%s] desktop-health completed\n' "$(date -Is)"
 } >> "$LOG_FILE" 2>&1

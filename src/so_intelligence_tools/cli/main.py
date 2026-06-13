@@ -34,6 +34,10 @@ from so_intelligence_tools.infrastructure.shortcut_listener import LinuxShortcut
 from so_intelligence_tools.infrastructure.user_services import (
     LocalApiUserServiceInstaller,
 )
+from so_intelligence_tools.push_to_talk_dictation import (
+    run_push_to_talk_dictation_once,
+    run_push_to_talk_dictation_service,
+)
 from so_intelligence_tools.system_audio_translation import (
     run_system_audio_translation_toggle,
 )
@@ -59,6 +63,8 @@ def build_parser() -> argparse.ArgumentParser:
     selected_parser.add_argument("--debug-log-path", default=None)
     subparsers.add_parser("run-system-audio-translation-toggle")
     subparsers.add_parser("run-voice-translation-virtual-mic-toggle")
+    subparsers.add_parser("run-push-to-talk-dictation-service")
+    subparsers.add_parser("check-push-to-talk-dictation-runtime")
     subparsers.add_parser("listen-shortcuts")
     install_parser = subparsers.add_parser("install-gnome-selected-text-shortcut")
     install_parser.add_argument("--binding", default=None)
@@ -71,6 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
         "install-gnome-voice-translation-shortcut"
     )
     voice_shortcut_parser.add_argument("--binding", default=None)
+    subparsers.add_parser("install-push-to-talk-dictation-service")
     desktop_parser = subparsers.add_parser("install-linux-desktop-integration")
     desktop_parser.add_argument("--binding", default=None)
     desktop_parser.add_argument("--debug-shortcut", action="store_true")
@@ -136,6 +143,16 @@ def main(argv: list[str] | None = None) -> int:
             print(result)
             return 0
 
+        if args.command == "run-push-to-talk-dictation-service":
+            result = run_push_to_talk_dictation_service(settings)
+            print(result)
+            return 0
+
+        if args.command == "check-push-to-talk-dictation-runtime":
+            result = run_push_to_talk_dictation_once(settings)
+            print(result)
+            return 0
+
         if args.command == "listen-shortcuts":
             runtime = build_linux_runtime(settings)
             registry = build_default_shortcut_registry(runtime)
@@ -175,6 +192,22 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Command: {command}")
             return 0
 
+        if args.command == "install-push-to-talk-dictation-service":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            service_path, started_now = installer.install_push_to_talk_dictation_service(
+                enable_now=True
+            )
+            print(f"Push-to-talk dictation service installed: {service_path}")
+            print(
+                "Push-to-talk dictation service state: "
+                + ("enabled and started now" if started_now else "enabled for next login")
+            )
+            return 0
+
         if args.command == "install-linux-desktop-integration":
             installer = LocalApiUserServiceInstaller(
                 project_dir=Path.cwd(),
@@ -182,6 +215,9 @@ def main(argv: list[str] | None = None) -> int:
                 port=settings.local_inference_api_port,
             )
             service_path, service_started_now = installer.install_api_service(enable_now=True)
+            dictation_service_path, dictation_service_started_now = (
+                installer.install_push_to_talk_dictation_service(enable_now=True)
+            )
             autostart_path = installer.install_desktop_health_autostart()
             manager = GnomeShortcutManager(project_dir=Path.cwd())
             binding = args.binding or settings.gnome_selected_text_correction_binding
@@ -196,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
                 binding=settings.gnome_voice_translation_binding,
             )
             print(f"User service installed: {service_path}")
+            print(f"Push-to-talk dictation service installed: {dictation_service_path}")
             print(f"Desktop health autostart installed: {autostart_path}")
             print(
                 "User service state: "
@@ -220,6 +257,14 @@ def main(argv: list[str] | None = None) -> int:
                 f"{settings.gnome_voice_translation_binding}"
             )
             print(f"Voice translation shortcut command: {voice_shortcut_command}")
+            print(
+                "Push-to-talk dictation service state: "
+                + (
+                    "enabled and started now"
+                    if dictation_service_started_now
+                    else "enabled for next login"
+                )
+            )
             return 0
     except ToolRunnerError as exc:
         print(str(exc), file=sys.stderr)

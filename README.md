@@ -25,6 +25,7 @@ El proyecto debe usar Python gestionado con Poetry. El entorno virtual debe vivi
 La forma recomendada de dejar la primera versión integrada en tu escritorio Linux es instalar:
 
 - un servicio `systemd --user` para arrancar `local-inference-api` al iniciar sesión en `127.0.0.1:8010`
+- un servicio `systemd --user` para escuchar el atajo press-and-hold de dictado local
 - atajos nativos de GNOME para corrección de texto y traducción de audio
 - un autostart de sesión que refresca `org.gnome.SettingsDaemon.MediaKeys.target` y reaplica los atajos tras login
 
@@ -55,6 +56,7 @@ poetry run so-intelligence-tools install-linux-desktop-integration
 Eso deja el backend activo tras reiniciar, registra los atajos de GNOME sobre wrappers de diagnóstico del proyecto y crea:
 
 - `~/.config/systemd/user/so-intelligence-tools-api.service`
+- `~/.config/systemd/user/so-intelligence-tools-push-to-talk-dictation.service`
 - `~/.config/autostart/so-intelligence-tools-desktop-health.desktop`
 
 Atajos actuales recomendados:
@@ -62,8 +64,15 @@ Atajos actuales recomendados:
 | Herramienta | Atajo |
 | --- | --- |
 | Corrección de texto seleccionado | `Ctrl + Alt + C` |
+| Dictado local mientras mantienes pulsado | `Ctrl + Alt + Space` |
 | Traducción del audio del sistema | `Ctrl + Alt + Y` |
 | Traducción de tu voz con micrófono virtual | `Ctrl + Alt + U` |
+
+El dictado usa Nemotron 3.5 ASR en una variante ONNX INT4 local con CPU. Puedes validar que el modelo carga con:
+
+```bash
+poetry run so-intelligence-tools check-push-to-talk-dictation-runtime
+```
 
 El puerto de escritorio por defecto es `8010` para evitar conflictos con otros proyectos locales que usen `8000`.
 

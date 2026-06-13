@@ -30,8 +30,16 @@ class LocalApiUserServiceInstaller:
         return "so-intelligence-tools-api.service"
 
     @property
+    def dictation_service_name(self) -> str:
+        return "so-intelligence-tools-push-to-talk-dictation.service"
+
+    @property
     def service_path(self) -> Path:
         return self._service_dir / self.service_name
+
+    @property
+    def dictation_service_path(self) -> Path:
+        return self._service_dir / self.dictation_service_name
 
     @property
     def autostart_path(self) -> Path:
@@ -54,6 +62,26 @@ class LocalApiUserServiceInstaller:
         else:
             self._run_systemctl(["--user", "enable", self.service_name])
         return self.service_path, start_now
+
+    def install_push_to_talk_dictation_service(self, *, enable_now: bool = True) -> tuple[Path, bool]:
+        cli = self._project_dir / ".venv" / "bin" / "so-intelligence-tools"
+        if not cli.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontró `.venv/bin/so-intelligence-tools`. Ejecuta `poetry install` antes de instalar el servicio."
+            )
+
+        self._service_dir.mkdir(parents=True, exist_ok=True)
+        self.dictation_service_path.write_text(
+            self._build_dictation_service_contents(),
+            encoding="utf-8",
+        )
+
+        self._run_systemctl(["--user", "daemon-reload"])
+        if enable_now:
+            self._run_systemctl(["--user", "enable", "--now", self.dictation_service_name])
+        else:
+            self._run_systemctl(["--user", "enable", self.dictation_service_name])
+        return self.dictation_service_path, enable_now
 
     def install_desktop_health_autostart(self) -> Path:
         script_path = self._project_dir / "scripts" / "ensure-linux-desktop-integration.sh"
@@ -96,6 +124,29 @@ class LocalApiUserServiceInstaller:
                     f"ExecStart={uvicorn_bin} --app-dir {project_dir / 'src'} "
                     f"local_inference_api.main:app --host {self._host} --port {self._port}"
                 ),
+                "Restart=on-failure",
+                "RestartSec=2",
+                "",
+                "[Install]",
+                "WantedBy=default.target",
+                "",
+            ]
+        )
+
+    def _build_dictation_service_contents(self) -> str:
+        project_dir = self._project_dir
+        cli = project_dir / ".venv" / "bin" / "so-intelligence-tools"
+        return "\n".join(
+            [
+                "[Unit]",
+                "Description=so_intelligence_tools push-to-talk dictation listener",
+                "After=graphical-session.target",
+                "Wants=graphical-session.target",
+                "",
+                "[Service]",
+                "Type=simple",
+                f"WorkingDirectory={project_dir}",
+                f"ExecStart={cli} run-push-to-talk-dictation-service",
                 "Restart=on-failure",
                 "RestartSec=2",
                 "",

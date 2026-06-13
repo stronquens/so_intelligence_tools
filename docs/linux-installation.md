@@ -105,6 +105,9 @@ LOCAL_INFERENCE_API_HOST=127.0.0.1
 LOCAL_INFERENCE_API_PORT=8010
 LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010
 GNOME_SELECTED_TEXT_CORRECTION_BINDING=<Primary><Alt>c
+PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<alt>+<space>
+PUSH_TO_TALK_DICTATION_RUNTIME=onnx_cpu
+PUSH_TO_TALK_DICTATION_LANGUAGE=es-ES
 GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING=<Primary><Alt>y
 GNOME_VOICE_TRANSLATION_BINDING=<Primary><Alt>u
 ```
@@ -114,8 +117,17 @@ Atajos actuales:
 | Herramienta | Atajo |
 | --- | --- |
 | Correccion de texto seleccionado | `Ctrl + Alt + C` |
+| Dictado local mientras mantienes pulsado | `Ctrl + Alt + Space` |
 | Traduccion del audio del sistema | `Ctrl + Alt + Y` |
 | Traduccion de tu voz con microfono virtual | `Ctrl + Alt + U` |
+
+El dictado press-and-hold no se instala como custom shortcut GNOME tradicional porque GNOME solo lanza comandos en key-down. Para poder detectar key-up, se ejecuta un servicio de usuario con listener global. En esta primera version el listener esta orientado a X11.
+
+Validar runtime ONNX CPU:
+
+```bash
+poetry run so-intelligence-tools check-push-to-talk-dictation-runtime
+```
 
 ## Servicio de usuario
 
@@ -128,6 +140,7 @@ poetry run so-intelligence-tools install-linux-desktop-integration
 crea este servicio:
 
 - `~/.config/systemd/user/so-intelligence-tools-api.service`
+- `~/.config/systemd/user/so-intelligence-tools-push-to-talk-dictation.service`
 
 Y lo habilita para `default.target`.
 
@@ -258,6 +271,7 @@ Ver estado:
 
 ```bash
 systemctl --user status so-intelligence-tools-api.service
+systemctl --user status so-intelligence-tools-push-to-talk-dictation.service
 systemctl --user status org.gnome.SettingsDaemon.MediaKeys.service
 curl http://127.0.0.1:8010/health
 ```
@@ -266,6 +280,7 @@ Parar servicio:
 
 ```bash
 systemctl --user stop so-intelligence-tools-api.service
+systemctl --user stop so-intelligence-tools-push-to-talk-dictation.service
 ```
 
 Reparar atajos GNOME sin reiniciar:
