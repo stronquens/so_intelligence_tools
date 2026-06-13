@@ -8,6 +8,8 @@ from local_inference_api.models import OllamaGenerateResult, ReasoningMode
 class RuntimeAdapter(Protocol):
     async def status(self) -> dict[str, Any]: ...
 
+    async def warmup(self) -> dict[str, Any]: ...
+
     async def generate_text(
         self,
         *,

@@ -16,6 +16,19 @@ Or use the installed user service:
 systemctl --user start so-intelligence-tools-api.service
 ```
 
+On Windows, install the current user's Startup launcher:
+
+```powershell
+cd C:\Dev\Active\so_intelligence_tools
+poetry run so-intelligence-tools install-windows-api-startup
+```
+
+For the current session, run:
+
+```powershell
+poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8010
+```
+
 ## Health
 
 ```bash
@@ -38,6 +51,14 @@ curl http://127.0.0.1:8010/status
 ```
 
 This reports provider reachability and whether the configured model appears available.
+
+With Ollama warm-up enabled, API startup also loads the configured model and refreshes its keep-alive window:
+
+```env
+OLLAMA_MODEL=gemma4-e2b-longctx:latest
+OLLAMA_KEEP_ALIVE=24h
+OLLAMA_WARMUP_ON_STARTUP=true
+```
 
 ## Text Generation
 

@@ -9,7 +9,7 @@ Shortcut / desktop UI
 Python CLI and tool runner
         |
         v
-Linux adapters: selection, clipboard, keyboard, screenshot, audio, notifications
+OS adapters: Linux or Windows selection, clipboard, keyboard, notifications, and platform-specific media adapters
         |
         v
 Local inference API, local ASR runtime, or realtime provider API
@@ -40,9 +40,11 @@ poetry run so-intelligence-tools run-voice-translation-virtual-mic-toggle
 poetry run so-intelligence-tools run-push-to-talk-dictation-service
 ```
 
-### Linux Desktop Adapters
+### Desktop Adapters
 
-The current target is Linux, mainly GNOME/X11. The adapters isolate OS-specific behavior:
+Adapters isolate OS-specific behavior from shared application use cases.
+
+Linux, mainly GNOME/X11, currently covers:
 
 - text selection and clipboard
 - keyboard insertion
@@ -50,6 +52,14 @@ The current target is Linux, mainly GNOME/X11. The adapters isolate OS-specific 
 - desktop notifications
 - GNOME custom shortcuts
 - PulseAudio/PipeWire-compatible audio routing
+
+Windows currently covers:
+
+- Win32 clipboard read/write
+- Win32 keyboard copy/paste automation
+- selected text correction through clipboard roundtrips
+- native global shortcut listener through `RegisterHotKey`
+- user Startup launchers for the API and shortcut listener
 
 ### Audio Workflows
 
@@ -65,5 +75,5 @@ The Electron/Vue app under `desktop/` is a dedicated realtime translation interf
 
 ## Portability
 
-Linux is the only supported desktop target today. The architecture keeps OS behavior behind adapters so macOS and Windows support can be added later without replacing the product model.
+Linux is still the most complete desktop target. Windows is supported for text-focused selected text correction. The architecture keeps OS behavior behind adapters so macOS and broader Windows support can be added without replacing the product model.
 

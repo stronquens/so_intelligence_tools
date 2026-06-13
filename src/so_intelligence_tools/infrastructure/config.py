@@ -14,9 +14,11 @@ class ToolRunnerSettings(BaseSettings):
     linux_replace_selection_command: str | None = None
     linux_notify_send_binary: str = "notify-send"
     selected_text_correction_shortcut: str = "<ctrl>+<space>"
+    windows_selected_text_correction_shortcut: str = "<ctrl>+<alt>+c"
     shortcut_listener_platform: str = "linux-x11"
     gnome_selected_text_correction_binding: str = "<Primary><Alt>c"
     shortcut_action_start_delay_seconds: float = 0.35
+    shortcut_action_cooldown_seconds: float = 2.0
     push_to_talk_dictation_shortcut: str = "<ctrl>+<alt>+<space>"
     push_to_talk_dictation_runtime: str = "onnx_cpu"
     push_to_talk_dictation_model_repo: str = (

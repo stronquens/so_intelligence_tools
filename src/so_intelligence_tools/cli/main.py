@@ -26,13 +26,17 @@ from so_intelligence_tools.infrastructure.config import get_tool_runner_settings
 from so_intelligence_tools.infrastructure.gnome_shortcuts import GnomeShortcutManager
 from so_intelligence_tools.infrastructure.inference_client import LocalInferenceClient
 from so_intelligence_tools.infrastructure.logging import configure_logging
-from so_intelligence_tools.infrastructure.runtime import build_linux_runtime
+from so_intelligence_tools.infrastructure.runtime import build_runtime
 from so_intelligence_tools.infrastructure.shortcut_actions import (
     build_default_shortcut_registry,
 )
-from so_intelligence_tools.infrastructure.shortcut_listener import LinuxShortcutListener
+from so_intelligence_tools.infrastructure.shortcut_listener import build_shortcut_listener
 from so_intelligence_tools.infrastructure.user_services import (
     LocalApiUserServiceInstaller,
+)
+from so_intelligence_tools.infrastructure.windows_startup import (
+    WindowsApiStartupInstaller,
+    WindowsShortcutStartupInstaller,
 )
 from so_intelligence_tools.push_to_talk_dictation import (
     run_push_to_talk_dictation_once,
@@ -66,6 +70,8 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("run-push-to-talk-dictation-service")
     subparsers.add_parser("check-push-to-talk-dictation-runtime")
     subparsers.add_parser("listen-shortcuts")
+    subparsers.add_parser("install-windows-shortcut-listener-startup")
+    subparsers.add_parser("install-windows-api-startup")
     install_parser = subparsers.add_parser("install-gnome-selected-text-shortcut")
     install_parser.add_argument("--binding", default=None)
     install_parser.add_argument("--debug", action="store_true")
@@ -122,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "run-selected-text-correction":
             time.sleep(settings.shortcut_action_start_delay_seconds)
-            runtime = build_linux_runtime(settings)
+            runtime = build_runtime(settings)
             debug_log_path = None
             if args.debug:
                 debug_log_path = Path(
@@ -154,15 +160,54 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "listen-shortcuts":
-            runtime = build_linux_runtime(settings)
-            registry = build_default_shortcut_registry(runtime)
-            listener = LinuxShortcutListener(
+            runtime = build_runtime(settings)
+            debug_log_path = Path(
+                "~/.cache/so_intelligence_tools/selected_text_correction.log"
+            ).expanduser()
+            registry = build_default_shortcut_registry(
+                runtime,
+                debug_log_path=debug_log_path,
+            )
+            listener = build_shortcut_listener(
                 shortcut_to_action={
-                    settings.selected_text_correction_shortcut: "selected-text-correction"
+                    _selected_text_correction_shortcut_for_platform(settings): (
+                        "selected-text-correction"
+                    )
                 },
                 registry=registry,
+                action_delay_seconds=settings.shortcut_action_start_delay_seconds,
+                action_cooldown_seconds=settings.shortcut_action_cooldown_seconds,
+                event_log_path=Path(
+                    "~/.cache/so_intelligence_tools/shortcut_listener.log"
+                ).expanduser(),
             )
             listener.run_forever()
+            return 0
+
+        if args.command == "install-windows-shortcut-listener-startup":
+            installer = WindowsShortcutStartupInstaller(project_dir=Path.cwd())
+            launcher_path = installer.install()
+            print(f"Windows shortcut listener startup installed: {launcher_path}")
+            print(
+                "Start it now with: poetry run so-intelligence-tools listen-shortcuts "
+                "or sign out and back in."
+            )
+            return 0
+
+        if args.command == "install-windows-api-startup":
+            installer = WindowsApiStartupInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            launcher_path = installer.install()
+            print(f"Windows local API startup installed: {launcher_path}")
+            print(
+                "Start it now with: poetry run uvicorn --app-dir src "
+                "local_inference_api.main:app --host "
+                f"{settings.local_inference_api_host} --port "
+                f"{settings.local_inference_api_port} or sign out and back in."
+            )
             return 0
 
         if args.command == "install-gnome-selected-text-shortcut":
@@ -272,3 +317,9 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.error("Unsupported command")
     return 2
+
+
+def _selected_text_correction_shortcut_for_platform(settings) -> str:
+    if sys.platform == "win32":
+        return settings.windows_selected_text_correction_shortcut
+    return settings.selected_text_correction_shortcut

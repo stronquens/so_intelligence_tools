@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import socket
 import threading
 import time
 from pathlib import Path
+
+import pytest
 
 from so_intelligence_tools.system_audio_translation.session import (
     PcmSegmentAccumulator,
@@ -69,6 +72,10 @@ def test_transcript_session_logger_writes_session_file(tmp_path: Path):
     assert "hola" in content
 
 
+@pytest.mark.skipif(
+    not hasattr(socket, "AF_UNIX"),
+    reason="Unix domain sockets are not available on this Python/platform combination.",
+)
 def test_toggle_socket_server_receives_toggle(tmp_path: Path):
     socket_path = tmp_path / "toggle.sock"
     event = threading.Event()

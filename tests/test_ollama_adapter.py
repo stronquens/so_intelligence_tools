@@ -12,7 +12,7 @@ def make_adapter() -> OllamaAdapter:
     return OllamaAdapter(
         Settings(
             ollama_base_url="http://ollama.test:11434",
-            ollama_model="gemma4:e2b-it-qat",
+            ollama_model="gemma4-e2b-longctx:latest",
             ollama_keep_alive="10m",
             ollama_timeout_seconds=30,
         )
@@ -64,6 +64,41 @@ def test_build_generate_result_maps_reasoning_mode_to_strategy():
     assert result.prompt_eval_count == 4
     assert result.eval_count == 2
     assert result.reasoning_strategy_applied == "thinking:on"
+
+
+def test_warmup_loads_configured_model_with_keep_alive(monkeypatch):
+    adapter = make_adapter()
+    captured_payloads: list[dict] = []
+
+    async def fake_post_generate(payload: dict):
+        captured_payloads.append(payload)
+        return {
+            "model": "gemma4-e2b-longctx:latest",
+            "load_duration": 10,
+            "total_duration": 20,
+        }
+
+    monkeypatch.setattr(adapter, "_post_generate", fake_post_generate)
+
+    result = asyncio.run(adapter.warmup())
+
+    assert result == {
+        "model": "gemma4-e2b-longctx:latest",
+        "load_duration": 10,
+        "total_duration": 20,
+    }
+    assert captured_payloads == [
+        {
+            "model": "gemma4-e2b-longctx:latest",
+            "prompt": " ",
+            "stream": False,
+            "keep_alive": "10m",
+            "options": {
+                "temperature": 0.0,
+                "num_predict": 1,
+            },
+        }
+    ]
 
 
 def test_post_generate_maps_connection_errors_to_runtime_error(monkeypatch):

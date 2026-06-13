@@ -1,0 +1,5 @@
+- [x] Add Windows API Startup installer.
+- [x] Add CLI command.
+- [x] Add unit tests.
+- [x] Update docs.
+- [x] Validate with tests and lint.

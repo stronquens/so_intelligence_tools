@@ -37,6 +37,7 @@ class FakeAdapter:
         self.text_error = text_error
         self.image_result = image_result or FakeGenerateResult(response="texto extraido")
         self.image_error = image_error
+        self.warmup_calls = 0
         self.last_text_request: dict[str, Any] | None = None
         self.last_image_request: dict[str, Any] | None = None
 
@@ -48,6 +49,10 @@ class FakeAdapter:
             "configured_model": "test-model",
             "configured_model_available": True,
         }
+
+    async def warmup(self) -> dict[str, Any]:
+        self.warmup_calls += 1
+        return {"model": "test-model", "load_duration": 0, "total_duration": 0}
 
     async def generate_text(self, **kwargs: Any) -> FakeGenerateResult:
         self.last_text_request = kwargs
@@ -64,7 +69,7 @@ class FakeAdapter:
 
 def make_settings() -> Settings:
     return Settings(
-        ollama_model="gemma4:e2b-it-qat",
+        ollama_model="gemma4-e2b-longctx:latest",
         ollama_base_url="http://ollama.test:11434",
     )
 
@@ -81,7 +86,7 @@ def test_status_endpoint_reports_ready_runtime(monkeypatch):
     fake_adapter = FakeAdapter(
         status_result={
             "ollama_version": "0.30.5",
-            "configured_model": "gemma4:e2b-it-qat",
+            "configured_model": "gemma4-e2b-longctx:latest",
             "configured_model_available": True,
         }
     )
@@ -96,7 +101,7 @@ def test_status_endpoint_reports_ready_runtime(monkeypatch):
     assert body["status"] == "ok"
     assert body["ollama_reachable"] is True
     assert body["configured_model_available"] is True
-    assert body["configured_model"] == "gemma4:e2b-it-qat"
+    assert body["configured_model"] == "gemma4-e2b-longctx:latest"
 
 
 def test_status_endpoint_reports_degraded_when_runtime_is_unreachable(monkeypatch):

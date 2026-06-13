@@ -51,7 +51,7 @@ For local Ollama inference:
 ```env
 INFERENCE_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=gemma4:e2b-it-qat
+OLLAMA_MODEL=gemma4-e2b-longctx:latest
 LOCAL_INFERENCE_API_PORT=8010
 LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010
 ```
@@ -59,7 +59,7 @@ LOCAL_INFERENCE_API_BASE_URL=http://127.0.0.1:8010
 Pull the default local model:
 
 ```bash
-ollama pull gemma4:e2b-it-qat
+ollama pull gemma4-e2b-longctx:latest
 ```
 
 ## Install Desktop Integration
@@ -112,7 +112,7 @@ poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 -
 
 ```bash
 docker compose up -d --build
-docker compose exec ollama ollama pull gemma4:e2b-it-qat
+docker compose exec ollama ollama pull gemma4-e2b-longctx:latest
 curl http://127.0.0.1:8000/health
 ```
 

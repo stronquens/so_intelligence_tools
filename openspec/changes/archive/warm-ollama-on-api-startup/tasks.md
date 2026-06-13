@@ -1,0 +1,6 @@
+- [x] 1.1 Add `OLLAMA_WARMUP_ON_STARTUP` setting.
+- [x] 1.2 Add `warmup()` to runtime adapters.
+- [x] 1.3 Call warm-up during API lifespan startup when enabled.
+- [x] 1.4 Document Windows warm-up configuration.
+- [x] 2.1 Run focused tests and linting.
+- [x] 2.2 Record validation evidence.

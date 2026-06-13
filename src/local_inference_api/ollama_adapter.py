@@ -42,6 +42,24 @@ class OllamaAdapter:
             "configured_model_available": self._settings.ollama_model in available_models,
         }
 
+    async def warmup(self) -> dict[str, Any]:
+        payload = {
+            "model": self._settings.ollama_model,
+            "prompt": " ",
+            "stream": False,
+            "keep_alive": self._settings.ollama_keep_alive,
+            "options": {
+                "temperature": 0.0,
+                "num_predict": 1,
+            },
+        }
+        data = await self._post_generate(payload)
+        return {
+            "model": data.get("model", self._settings.ollama_model),
+            "load_duration": data.get("load_duration", 0),
+            "total_duration": data.get("total_duration", 0),
+        }
+
     async def generate_text(
         self,
         *,

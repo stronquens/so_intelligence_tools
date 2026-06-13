@@ -26,10 +26,15 @@ The desktop tools use `LOCAL_INFERENCE_API_BASE_URL`. The user service uses host
 ```env
 INFERENCE_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=gemma4:e2b-it-qat
+OLLAMA_MODEL=gemma4-e2b-longctx:latest
 OLLAMA_TIMEOUT_SECONDS=180
-OLLAMA_KEEP_ALIVE=10m
+OLLAMA_KEEP_ALIVE=24h
+OLLAMA_WARMUP_ON_STARTUP=true
 ```
+
+`OLLAMA_WARMUP_ON_STARTUP=true` makes the local API load the configured model when
+the API starts, so the first desktop shortcut call does not pay the model load cost.
+`OLLAMA_KEEP_ALIVE=24h` keeps that model resident for a long Windows session.
 
 ### OpenAI-Compatible Proxy
 
@@ -44,12 +49,14 @@ LITELLM_MODEL=your/model
 
 ```env
 GNOME_SELECTED_TEXT_CORRECTION_BINDING=<Primary><Alt>c
+WINDOWS_SELECTED_TEXT_CORRECTION_SHORTCUT=<ctrl>+<alt>+c
 PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<alt>+<space>
 GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING=<Primary><Alt>y
 GNOME_VOICE_TRANSLATION_BINDING=<Primary><Alt>u
 ```
 
 GNOME custom shortcuts launch wrapper scripts or CLI commands from the repository root so `.env` is loaded correctly.
+Windows selected text correction uses the local API plus a resident listener. Install both Startup launchers with `install-windows-api-startup` and `install-windows-shortcut-listener-startup`.
 
 ## System Audio Translation
 

@@ -65,7 +65,7 @@ The desktop service defaults to `8010`; Docker publishes `8000`.
 
 ```bash
 ollama list
-ollama pull gemma4:e2b-it-qat
+ollama pull gemma4-e2b-longctx:latest
 curl http://127.0.0.1:8010/status
 ```
 

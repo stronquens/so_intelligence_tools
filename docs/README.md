@@ -2,11 +2,12 @@
 
 This folder contains the public documentation for `so_intelligence_tools`.
 
-The project is Linux-first today, with local-first architecture and optional API-backed providers where low-latency audio or remote inference is useful.
+The project is Linux-first overall, with working Windows support for selected text correction and local-first architecture that keeps operating-system adapters separate from shared use cases.
 
 ## Start Here
 
 - [Getting Started On Linux](getting-started-linux.md)
+- [Windows Support](windows-support.md)
 - [Configuration](configuration.md)
 - [Architecture](architecture.md)
 - [Troubleshooting Linux](troubleshooting-linux.md)
@@ -28,7 +29,7 @@ The project is Linux-first today, with local-first architecture and optional API
 
 ## Status Labels
 
-- `Working`: useful on a supported Linux desktop today.
+- `Working`: useful on a supported desktop today.
 - `Experimental`: implemented but still being stabilized.
 - `Planned`: specified or intended, but not yet polished for daily use.
 

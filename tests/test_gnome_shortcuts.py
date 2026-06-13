@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shlex
 import sys
 
 from so_intelligence_tools.infrastructure.gnome_shortcuts import (
@@ -21,7 +22,10 @@ def test_install_selected_text_shortcut_adds_path_and_sets_values(monkeypatch):
         return ""
 
     monkeypatch.setattr(GnomeShortcutManager, "_gsettings", staticmethod(fake_gsettings))
-    manager = GnomeShortcutManager(python_executable="/tmp/project/.venv/bin/python")
+    manager = GnomeShortcutManager(
+        python_executable="/tmp/project/.venv/bin/python",
+        gsettings_bin="gsettings",
+    )
 
     command = manager.install_selected_text_correction_shortcut(binding="<Primary>space")
 
@@ -29,7 +33,11 @@ def test_install_selected_text_shortcut_adds_path_and_sets_values(monkeypatch):
     if expected_script.exists():
         assert command == f"{expected_script} run-selected-text-correction"
     else:
-        assert command == "/tmp/project/.venv/bin/python -m so_intelligence_tools run-selected-text-correction"
+        python_path = Path("/tmp/project/.venv/bin/python").resolve()
+        assert (
+            command
+            == f"{shlex.quote(str(python_path))} -m so_intelligence_tools run-selected-text-correction"
+        )
     assert ("set", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings", f"['{SELECTED_TEXT_SHORTCUT_PATH}']") in calls
     assert any(call[2] == "binding" and call[3] == "<Primary>space" for call in calls)
 
@@ -41,7 +49,10 @@ def test_install_selected_text_shortcut_can_enable_debug(monkeypatch):
         return ""
 
     monkeypatch.setattr(GnomeShortcutManager, "_gsettings", staticmethod(fake_gsettings))
-    manager = GnomeShortcutManager(python_executable="/tmp/project/.venv/bin/python")
+    manager = GnomeShortcutManager(
+        python_executable="/tmp/project/.venv/bin/python",
+        gsettings_bin="gsettings",
+    )
 
     command = manager.install_selected_text_correction_shortcut(
         binding="<Primary>space",
@@ -61,7 +72,10 @@ def test_install_system_audio_translation_shortcut_adds_path(monkeypatch):
         return ""
 
     monkeypatch.setattr(GnomeShortcutManager, "_gsettings", staticmethod(fake_gsettings))
-    manager = GnomeShortcutManager(python_executable="/tmp/project/.venv/bin/python")
+    manager = GnomeShortcutManager(
+        python_executable="/tmp/project/.venv/bin/python",
+        gsettings_bin="gsettings",
+    )
 
     command = manager.install_system_audio_translation_shortcut(binding="<Super><Alt>t")
 
@@ -69,9 +83,10 @@ def test_install_system_audio_translation_shortcut_adds_path(monkeypatch):
     if expected_script.exists():
         assert command == f"{expected_script} run-system-audio-translation-toggle"
     else:
-        assert (
-            command
-            == "/tmp/project/.venv/bin/python -m so_intelligence_tools run-system-audio-translation-toggle"
+        python_path = Path("/tmp/project/.venv/bin/python").resolve()
+        assert command == (
+            f"{shlex.quote(str(python_path))} "
+            "-m so_intelligence_tools run-system-audio-translation-toggle"
         )
     assert (
         "set",
@@ -91,7 +106,10 @@ def test_install_voice_translation_shortcut_adds_path(monkeypatch):
         return ""
 
     monkeypatch.setattr(GnomeShortcutManager, "_gsettings", staticmethod(fake_gsettings))
-    manager = GnomeShortcutManager(python_executable="/tmp/project/.venv/bin/python")
+    manager = GnomeShortcutManager(
+        python_executable="/tmp/project/.venv/bin/python",
+        gsettings_bin="gsettings",
+    )
 
     command = manager.install_voice_translation_shortcut(binding="<Primary><Alt>u")
 
@@ -99,9 +117,10 @@ def test_install_voice_translation_shortcut_adds_path(monkeypatch):
     if expected_script.exists():
         assert command == f"{expected_script} run-voice-translation-virtual-mic-toggle"
     else:
-        assert (
-            command
-            == "/tmp/project/.venv/bin/python -m so_intelligence_tools run-voice-translation-virtual-mic-toggle"
+        python_path = Path("/tmp/project/.venv/bin/python").resolve()
+        assert command == (
+            f"{shlex.quote(str(python_path))} "
+            "-m so_intelligence_tools run-voice-translation-virtual-mic-toggle"
         )
     assert (
         "set",

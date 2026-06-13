@@ -88,6 +88,11 @@ El sistema SHALL poder desplegar el servicio de inferencia dentro de Docker para
 - **WHEN** el usuario decide apagar temporalmente la infraestructura local de inferencia
 - **THEN** el despliegue SHALL permitir detener los contenedores asociados para liberar recursos del equipo
 
+#### Scenario: Windows user startup
+- **WHEN** the project is installed on Windows
+- **THEN** the local inference API SHALL provide a user-level Startup launcher installer
+- **AND** the installer SHALL start the API from the project virtual environment without requiring administrator privileges.
+
 #### Scenario: El equipo quiere probar otro modelo local
 - **WHEN** el proyecto necesite sustituir el modelo local validado por otro nuevo
 - **THEN** la arquitectura SHALL permitir cambiar el runtime o perfil de modelo con el menor impacto posible sobre la interfaz pública del API
@@ -99,14 +104,31 @@ El sistema SHALL permitir una primera implementación basada en Ollama y una fam
 - **WHEN** el equipo implemente la primera versión del servicio
 - **THEN** esta SHALL poder apoyarse en Ollama como runtime de modelo local
 
-#### Scenario: Runtime recomendado actual para portátil CPU-only
-- **WHEN** el equipo necesite elegir el runtime recomendado actual para una instalación en un portátil sin GPU dedicada
-- **THEN** el modelo recomendado SHALL ser `gemma4:e2b-it-qat`
+#### Scenario: Runtime recomendado actual para corrección de texto local
+- **WHEN** el equipo necesite elegir el runtime recomendado actual para corrección de texto local con baja latencia
+- **THEN** el modelo recomendado SHALL ser `gemma4-e2b-longctx:latest`
 - **AND** el proyecto MAY mantener evidencia histórica de benchmarks de modelos anteriores en los changes archivados
 
 #### Scenario: Evolución futura del proveedor local
 - **WHEN** el proyecto necesite cambiar de modelo o runtime en una iteración posterior
 - **THEN** la interfaz consumida por las herramientas cliente SHALL minimizar el acoplamiento a ese proveedor
+
+### Requirement: Ollama startup warm-up
+The local inference API SHALL support optional startup warm-up for the configured Ollama model.
+
+#### Scenario: Warm-up is enabled
+- **GIVEN** `OLLAMA_WARMUP_ON_STARTUP` is enabled
+- **AND** the configured provider is Ollama
+- **WHEN** the local inference API starts
+- **THEN** it SHALL send a minimal generation request for the configured model
+- **AND** it SHALL use the configured Ollama keep-alive value.
+
+#### Scenario: Warm-up fails
+- **GIVEN** startup warm-up is enabled
+- **AND** Ollama is unreachable
+- **WHEN** the local inference API starts
+- **THEN** it SHALL log the warm-up failure
+- **AND** it SHALL continue starting so `/status` can report the degraded runtime.
 
 ### Requirement: Soporte de proveedor remoto OpenAI-compatible
 El sistema SHALL poder enrutar peticiones de inferencia a un proveedor remoto OpenAI-compatible sin romper el contrato HTTP consumido por las herramientas cliente.

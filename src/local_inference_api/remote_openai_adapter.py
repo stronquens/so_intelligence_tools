@@ -40,6 +40,13 @@ class RemoteOpenAICompatibleAdapter:
             "configured_model_available": configured_model in available_models,
         }
 
+    async def warmup(self) -> dict[str, Any]:
+        return {
+            "model": self._settings.litellm_model,
+            "load_duration": 0,
+            "total_duration": 0,
+        }
+
     async def generate_text(
         self,
         *,

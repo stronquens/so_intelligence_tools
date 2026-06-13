@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import logging
+import time
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
@@ -17,11 +19,29 @@ from local_inference_api.runtime_factory import build_runtime_adapter
 from local_inference_api.runtime_protocol import RuntimeAdapter
 
 
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.settings = settings
-    app.state.runtime = build_runtime_adapter(settings)
+    runtime = build_runtime_adapter(settings)
+    app.state.runtime = runtime
+    app.state.runtime_warmup = None
+    if settings.ollama_warmup_on_startup:
+        started_at = time.perf_counter()
+        try:
+            app.state.runtime_warmup = await runtime.warmup()
+            elapsed_seconds = time.perf_counter() - started_at
+            logger.info(
+                "Runtime warm-up completed in %.2fs: %s",
+                elapsed_seconds,
+                app.state.runtime_warmup,
+            )
+        except OllamaRuntimeError as exc:
+            app.state.runtime_warmup = {"error": str(exc)}
+            logger.warning("Runtime warm-up failed: %s", exc)
     yield
 
 

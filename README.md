@@ -17,7 +17,7 @@
 
 ---
 
-`so_intelligence_tools` is a suite of AI-powered desktop tools for Linux, built around global keyboard shortcuts, local services, overlays, clipboard/text automation and realtime audio workflows.
+`so_intelligence_tools` is a suite of AI-powered desktop tools for Linux and Windows, built around global keyboard shortcuts, local services, overlays, clipboard/text automation and realtime audio workflows.
 
 The project is intentionally practical: select text and fix it, capture a screen region and extract text, translate system audio, expose a translated virtual microphone to calls, or experiment with local push-to-talk dictation.
 
@@ -28,6 +28,7 @@ The project is intentionally practical: select text and fix it, capture a screen
 - [Platform Support](#platform-support)
 - [How It Works](#how-it-works)
 - [Quick Start On Linux](#quick-start-on-linux)
+- [Quick Start On Windows](#quick-start-on-windows)
 - [Configuration](#configuration)
 - [Roadmap](#roadmap)
 - [Current Limitations](#current-limitations)
@@ -64,17 +65,17 @@ Status legend: 🟢 working/useful now, 🟡 partial or experimental, 🔴 not i
 
 | Feature | Linux | macOS | Windows |
 | --- | :---: | :---: | :---: |
-| Local inference API | 🟢 | 🟡 | 🟡 |
+| Local inference API | 🟢 | 🟡 | 🟢 |
 | Docker/Ollama backend | 🟢 | 🟡 | 🟡 |
-| Global keyboard shortcuts | 🟢 | 🔴 | 🔴 |
-| Selected text correction | 🟢 | 🔴 | 🔴 |
-| Clipboard/text automation | 🟢 | 🔴 | 🔴 |
+| Global keyboard shortcuts | 🟢 | 🔴 | 🟢 |
+| Selected text correction | 🟢 | 🔴 | 🟢 |
+| Clipboard/text automation | 🟢 | 🔴 | 🟢 |
 | System audio translation | 🟢 | 🔴 | 🔴 |
 | Desktop translation UI | 🟡 | 🔴 | 🔴 |
 | Virtual translated microphone | 🟢 | 🔴 | 🔴 |
 | Push-to-talk dictation | 🟡 | 🔴 | 🔴 |
 
-Linux is the current target. The architecture keeps OS-specific code behind adapters so macOS and Windows support can be added later without rewriting the product model.
+Linux remains the most complete target. Windows now supports text-focused selected-text correction with native Win32 adapters and a user Startup launcher. The architecture keeps OS-specific code behind adapters so macOS and additional Windows capabilities can be added without rewriting the product model.
 
 ## How It Works
 
@@ -83,7 +84,7 @@ Global shortcut / desktop UI
         ↓
 Python tool runner
         ↓
-Linux adapters: selection, clipboard, keyboard, audio, notifications
+OS adapters: Linux or Windows selection, clipboard, keyboard, notifications and platform-specific media adapters
         ↓
 Local inference API or realtime ASR/audio provider
         ↓
@@ -107,7 +108,7 @@ The project currently uses:
 make install-system-deps
 poetry install
 poetry run so-intelligence-tools install-linux-desktop-integration
-ollama pull gemma4:e2b-it-qat
+ollama pull gemma4-e2b-longctx:latest
 ```
 
 The installer creates:
@@ -132,7 +133,27 @@ Detailed setup:
 - [Getting started on Linux](docs/getting-started-linux.md)
 - [Configuration](docs/configuration.md)
 - [Troubleshooting Linux](docs/troubleshooting-linux.md)
+- [Windows support](docs/windows-support.md)
 - [Security and secrets](docs/security-and-secrets.md)
+
+## Quick Start On Windows
+
+```powershell
+cd C:\Dev\Active\so_intelligence_tools
+poetry install
+ollama pull gemma4-e2b-longctx:latest
+poetry run so-intelligence-tools install-windows-api-startup
+poetry run so-intelligence-tools install-windows-shortcut-listener-startup
+```
+
+For the current session, start the API and listener manually or sign out and back in:
+
+```powershell
+poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8010
+poetry run so-intelligence-tools listen-shortcuts
+```
+
+The supported Windows workflow today is selected text correction with `Ctrl + Alt + C`. If no text is selected, the tool attempts to select and correct the whole focused text input.
 
 ## Configuration
 
@@ -147,7 +168,8 @@ Local Ollama example:
 ```env
 INFERENCE_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=gemma4:e2b-it-qat
+OLLAMA_MODEL=gemma4-e2b-longctx:latest
+OLLAMA_WARMUP_ON_STARTUP=true
 ```
 
 OpenAI-compatible remote provider example:
@@ -180,13 +202,13 @@ Realtime audio features require their own API key configuration. Keep real secre
 ### Later
 
 - macOS adapters for shortcuts, selection, clipboard and system audio.
-- Windows adapters for shortcuts, text insertion and audio routing.
+- Broader Windows adapters for screenshots, audio routing and voice workflows.
 - Local-only realtime voice translation backends.
 - Overlay agent chat with access to selected text, screenshots and audio context.
 
 ## Current Limitations
 
-- The project is Linux-first and tested primarily on GNOME/X11.
+- The project is Linux-first overall, with Windows support currently focused on selected text correction and clipboard/text automation.
 - Some audio workflows depend on PulseAudio/PipeWire compatibility tools such as `pactl`, `parec` and virtual sink/source modules.
 - Push-to-talk dictation is promising but still experimental; the current known issue is text stabilization during live insertion.
 - Realtime translation can require paid provider API keys depending on the selected backend.
@@ -209,7 +231,7 @@ Run the Docker stack:
 
 ```bash
 docker compose up -d --build
-docker compose exec ollama ollama pull gemma4:e2b-it-qat
+docker compose exec ollama ollama pull gemma4-e2b-longctx:latest
 curl http://127.0.0.1:8000/health
 ```
 
