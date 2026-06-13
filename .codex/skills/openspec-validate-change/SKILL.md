@@ -2,7 +2,6 @@
 name: openspec-validate-change
 description: Validate a completed or nearly completed OpenSpec change. Use when implementation is ready for verification, when visual/manual evidence should be captured, or before archiving a change so validation.md, evidence, and research are preserved inside the change.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: codex
   version: "1.0"

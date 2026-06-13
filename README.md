@@ -37,16 +37,18 @@ The project is intentionally practical: select text and fix it, capture a screen
 
 ## Highlights
 
-| Capability | What it does | Status |
-| --- | --- | --- |
-| Selected text correction | Correct selected text in any app while preserving the original language. | 🟢 Useful now |
-| Screenshot OCR | Capture a screen region and copy exact extracted text to the clipboard. | 🟡 Planned / specced |
-| System audio translation | Listen to audio playing on the system and show live Spanish translation. | 🟢 Useful now |
-| Desktop translation UI | Electron/Vue interface for realtime transcript and translation sessions. | 🟡 In progress |
-| Translated virtual microphone | Expose `so_ai_translated_mic` to Slack/Meet/Zoom with passthrough or translated voice. | 🟢 Useful now |
-| Push-to-talk dictation | Hold a shortcut and dictate text locally with Nemotron ASR ONNX CPU. | 🟡 Experimental |
-| Local inference API | FastAPI gateway over Ollama or OpenAI-compatible remote providers. | 🟢 Useful now |
-| Overlay agent chat | Conversational OS tool launcher and assistant overlay. | 🔴 Roadmap |
+| Capability | What it does | Runtime | Status |
+| --- | --- | --- | --- |
+| Selected text correction | Correct selected text in any app while preserving the original language. | Both | 🟢 Useful now |
+| Screenshot OCR | Capture a screen region and copy exact extracted text to the clipboard. | Planned | 🟡 Planned / specced |
+| System audio translation | Listen to audio playing on the system and show live Spanish translation. | API | 🟢 Useful now |
+| Desktop translation UI | Electron/Vue interface for realtime transcript and translation sessions. | Both | 🟡 In progress |
+| Translated virtual microphone | Expose `so_ai_translated_mic` to Slack/Meet/Zoom with passthrough or translated voice. | API | 🟢 Useful now |
+| Push-to-talk dictation | Hold a shortcut and dictate text locally with Nemotron ASR ONNX CPU. | Local/on-prem | 🟡 Experimental |
+| Local inference API | FastAPI gateway over Ollama or OpenAI-compatible remote providers. | Both | 🟢 Useful now |
+| Overlay agent chat | Conversational OS tool launcher and assistant overlay. | Planned | 🔴 Roadmap |
+
+Runtime legend: `Local/on-prem` runs without a third-party inference API, `API` currently depends on an external provider API, and `Both` can be configured for local or API-backed execution.
 
 ## Desktop UI
 
@@ -126,8 +128,11 @@ Default shortcuts:
 
 Detailed setup:
 
-- [Linux installation](docs/linux-installation.md)
-- [Linux problems and solutions](docs/linux-problems-and-solutions.md)
+- [Documentation index](docs/README.md)
+- [Getting started on Linux](docs/getting-started-linux.md)
+- [Configuration](docs/configuration.md)
+- [Troubleshooting Linux](docs/troubleshooting-linux.md)
+- [Security and secrets](docs/security-and-secrets.md)
 
 ## Configuration
 

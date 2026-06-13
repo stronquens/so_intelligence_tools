@@ -1,66 +1,63 @@
-# AGENTS.md — Mapa de navegación para agentes de IA
+# Codex Workspace Notes
 
-> Este archivo es el **punto de entrada** para cualquier agente que trabaje en este
-> repositorio. NO es una biblia de reglas: es un **mapa**. Lee solo lo que
-> necesites cuando lo necesites (divulgación progresiva).
+This folder contains repository-local Codex affordances. The canonical working
+agreement for the project lives in the root `AGENTS.md`; read that first.
 
----
+## What To Keep In Mind
 
-## 1. Antes de empezar (obligatorio)
+- Use OpenSpec before implementation. Create or select a change under
+  `openspec/changes/`, define scope, design, specs, tasks, and validation.
+- Use Poetry for Python work. Do not install Python dependencies globally for
+  this project.
+- Prefer `poetry run pytest`, `poetry run ruff check src tests scripts`, and
+  `openspec validate <change> --strict` for verification.
+- Keep `.env` and other local secrets out of version control.
+- Treat Linux as the current target while keeping OS-specific behavior isolated.
 
-1. Ejecuta `./init.sh` y verifica que termina sin errores. Si falla, **para**
-   y resuelve el entorno antes de tocar código.
-2. Lee `progress/current.md` para entender en qué estado quedó la última sesión.
-3. Lee `feature_list.json` y elige **una** tarea con estado `pending`. No
-   trabajes en más de una a la vez.
+## Local Skills
 
-## 2. Mapa del repositorio
+The `.codex/skills/` directory is intentionally tracked because this repository
+uses the local OpenSpec skills during planning, implementation, validation, and
+archiving.
 
-| Archivo / carpeta            | Qué contiene                                              | Cuándo leerlo |
-|------------------------------|-----------------------------------------------------------|---------------|
-| `feature_list.json`          | Lista de tareas con estado (pending / in_progress / done) | Siempre, al empezar |
-| `progress/current.md`        | Estado de la sesión actual                                | Siempre, al empezar |
-| `progress/history.md`        | Bitácora append-only de sesiones anteriores               | Si necesitas contexto histórico |
-| `docs/architecture.md`       | Qué significa "hacer un buen trabajo" en este proyecto    | Antes de implementar |
-| `docs/conventions.md`        | Reglas de estilo, nombres, estructura                     | Antes de escribir código |
-| `docs/verification.md`       | Cómo verificar que tu trabajo funciona                    | Antes de declarar una tarea como `done` |
-| `CHECKPOINTS.md`             | Criterios objetivos de "estado final correcto"            | Para auto-evaluarte |
-| `.claude/agents/`            | Definiciones de subagentes (líder, implementador, revisor) | Si orquestas trabajo |
-| `scripts/demo_orchestration.py` | Demo del patrón Líder-Trabajador con escritura en disco | Para entender la regla anti-teléfono-descompuesto |
-| `src/`                       | Código de la aplicación                                   | Para implementar |
-| `tests/`                     | Tests automáticos                                         | Para verificar |
+Useful skills:
 
-## 3. Reglas duras (no negociables)
+- `openspec-propose`: create a new change.
+- `openspec-apply-change`: implement tasks from a change.
+- `openspec-validate-change`: validate a change and capture evidence.
+- `openspec-sync-specs`: sync completed delta specs.
+- `openspec-archive-change`: archive completed changes.
 
-- **Una sola feature a la vez.** No mezcles cambios de varias tareas en la misma sesión.
-- **No declares una tarea `done` sin pruebas verdes.** Ejecuta `./init.sh` y
-  asegúrate de que el bloque de tests pasa al 100%.
-- **Documenta lo que haces** en `progress/current.md` mientras trabajas, no al final.
-- **Deja el repositorio limpio** antes de cerrar la sesión (ver §5).
-- **Si no sabes algo, busca en `docs/`** antes de inventarlo.
+## Subagents
 
-## 4. Cómo elegir una tarea
+Codex can use subagents when the active session exposes multi-agent tools. They
+are runtime workers spawned by Codex, not Markdown agent profiles loaded from
+`.codex/agents/`.
 
+Use subagents for bounded parallel work:
+
+- `explorer`: answer specific codebase questions.
+- `worker`: implement a clearly scoped slice with explicit file ownership.
+
+When using workers, split tasks by disjoint files or modules, tell each worker
+that other edits may exist in the worktree, and review/integrate their changes
+before committing.
+
+Reusable Codex delegation prompts live in `.codex/agents/`. They are not
+auto-loaded role definitions; they are prompt templates for the main Codex agent
+to copy or adapt when spawning runtime `explorer` or `worker` subagents.
+
+Do not use legacy agent frontmatter or hard-coded tool declarations in these
+files. Keep them plain Markdown, scoped, and compatible with Codex runtime
+delegation.
+
+## Manual Preflight
+
+Run this from the repository root when you want a quick workspace sanity check:
+
+```bash
+.codex/init.sh
 ```
-1. Abre feature_list.json
-2. Filtra por status == "pending"
-3. Coge la de menor "id"
-4. Cambia su status a "in_progress" y guarda
-5. Anota en progress/current.md: feature, hora de inicio, plan breve
-```
 
-## 5. Cierre de sesión (lifecycle)
-
-Antes de terminar:
-
-1. Ejecuta `./init.sh` — todo verde.
-2. Si la tarea está acabada: marca `status: "done"` en `feature_list.json`.
-3. Mueve el resumen de `progress/current.md` al final de `progress/history.md`.
-4. Vacía `progress/current.md` dejando solo la plantilla.
-5. No dejes archivos temporales, ni `print()` de debug, ni TODOs sin contexto.
-
-## 6. Si te bloqueas
-
-- Relee la sección relevante de `docs/`.
-- Si la herramienta no hace lo que esperas, **no inventes un workaround**:
-  documenta el bloqueo en `progress/current.md` y para la sesión.
+The script is a helper, not a replacement for targeted validation. Feature work
+should still run the tests and OpenSpec validation relevant to that change.
