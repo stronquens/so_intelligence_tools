@@ -1,9 +1,7 @@
 # Purpose
 
 Definir el comportamiento esperado del servicio de inferencia multimodal que alimentará las herramientas de IA del sistema.
-
 ## Requirements
-
 ### Requirement: Servicio de inferencia accesible por API
 El sistema SHALL exponer un servicio accesible por API local al sistema para recibir peticiones de inferencia desde las herramientas cliente del sistema operativo.
 
@@ -74,15 +72,15 @@ El sistema SHALL permitir que las herramientas cliente expresen si una petición
 - **AND** SHALL poder enviar la configuración equivalente a `think: true` para `reasoning_mode=medium|high`
 
 ### Requirement: Despliegue portable mediante contenedores
-El sistema SHALL poder desplegar el servicio de inferencia dentro de Docker para facilitar instalación, aislamiento y portabilidad.
+El sistema SHALL poder desplegar el servicio de inferencia dentro de Docker para facilitar instalacion, aislamiento y portabilidad.
 
 #### Scenario: Despliegue inicial en Linux
 - **WHEN** el proyecto se instala en un entorno Linux soportado
-- **THEN** el backend SHALL poder levantarse mediante una configuración basada en Docker
+- **THEN** el backend SHALL poder levantarse mediante una configuracion basada en Docker
 
-#### Scenario: Preparación para otros sistemas
+#### Scenario: Preparacion para otros sistemas
 - **WHEN** se quiera portar el proyecto a otro sistema operativo
-- **THEN** la arquitectura SHALL mantener la capa de inferencia aislada detrás de la misma interfaz de API
+- **THEN** la arquitectura SHALL mantener la capa de inferencia aislada detras de la misma interfaz de API
 
 #### Scenario: El usuario quiere liberar recursos del sistema
 - **WHEN** el usuario decide apagar temporalmente la infraestructura local de inferencia
@@ -91,11 +89,13 @@ El sistema SHALL poder desplegar el servicio de inferencia dentro de Docker para
 #### Scenario: Windows user startup
 - **WHEN** the project is installed on Windows
 - **THEN** the local inference API SHALL provide a user-level Startup launcher installer
-- **AND** the installer SHALL start the API from the project virtual environment without requiring administrator privileges.
+- **AND** the launcher SHALL start the API from the project virtual environment without requiring administrator privileges
+- **AND** the launcher SHALL run without leaving a visible terminal window open
+- **AND** the launcher SHALL write process output to a diagnostic log file.
 
 #### Scenario: El equipo quiere probar otro modelo local
 - **WHEN** el proyecto necesite sustituir el modelo local validado por otro nuevo
-- **THEN** la arquitectura SHALL permitir cambiar el runtime o perfil de modelo con el menor impacto posible sobre la interfaz pública del API
+- **THEN** la arquitectura SHALL permitir cambiar el runtime o perfil de modelo con el menor impacto posible sobre la interfaz publica del API
 
 ### Requirement: Compatibilidad inicial con Ollama y Gemma
 El sistema SHALL permitir una primera implementación basada en Ollama y una familia de modelos Gemma multimodales en local.

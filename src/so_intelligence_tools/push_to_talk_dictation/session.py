@@ -4,6 +4,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from threading import Lock
+import time
 
 from so_intelligence_tools.domain.models import NotificationLevel
 from so_intelligence_tools.ports.notification import NotificationPort
@@ -46,6 +47,9 @@ class StreamingDictationController:
     def result(self) -> DictationSessionResult:
         return self._result
 
+    def warm_up(self) -> None:
+        self._transcriber.check_ready()
+
     def start(self) -> None:
         with self._lock:
             if self._active:
@@ -79,6 +83,7 @@ class StreamingDictationController:
             self._handle_events(list(session.finish()))
         finally:
             session.close()
+        self._insert_buffered_result()
         self._notify(
             title="Dictado finalizado",
             body=self._result.inserted_text.strip() or "No se reconoció texto.",
@@ -111,13 +116,19 @@ class StreamingDictationController:
 
     def _insert_final_segment(self, text: str) -> None:
         segment = self._stable_delta(text)
-        if self._insertion_strategy != "final_segments":
-            return
         if not segment:
             return
-        self._text_insertion.replace_selected_text(segment)
         self._result.final_segments.append(segment)
         self._result.inserted_text += segment
+        if self._insertion_strategy == "final_segments":
+            self._text_insertion.replace_selected_text(segment)
+
+    def _insert_buffered_result(self) -> None:
+        if self._insertion_strategy != "final_on_release":
+            return
+        text = self._result.inserted_text
+        if text:
+            self._text_insertion.replace_selected_text(text)
 
     def _stable_delta(self, text: str) -> str:
         if not text:
@@ -140,24 +151,49 @@ class PressAndHoldDictationRunner:
         *,
         controller: StreamingDictationController,
         audio_capture_factory: Callable[[Callable[[bytes], None]], object],
+        post_roll_seconds: float = 0.0,
     ) -> None:
         self._controller = controller
         self._audio_capture_factory = audio_capture_factory
+        self._post_roll_seconds = post_roll_seconds
         self._capture = None
 
     def press(self) -> None:
         if self._controller.active:
             return
-        self._controller.start()
-        capture = self._audio_capture_factory(self._controller.accept_audio)
+        pending_audio: list[bytes] = []
+        pending_audio_lock = Lock()
+
+        def accept_or_buffer(pcm_s16le: bytes) -> None:
+            if self._controller.active:
+                self._controller.accept_audio(pcm_s16le)
+                return
+            with pending_audio_lock:
+                pending_audio.append(pcm_s16le)
+
+        capture = self._audio_capture_factory(accept_or_buffer)
         start = getattr(capture, "start")
-        start()
+        try:
+            start()
+            self._controller.start()
+        except Exception:
+            stop = getattr(capture, "stop")
+            stop()
+            self._controller.abort()
+            raise
         self._capture = capture
+        with pending_audio_lock:
+            buffered_audio = list(pending_audio)
+            pending_audio.clear()
+        for chunk in buffered_audio:
+            self._controller.accept_audio(chunk)
 
     def release(self) -> DictationSessionResult:
         capture = self._capture
         self._capture = None
         if capture is not None:
+            if self._post_roll_seconds > 0:
+                time.sleep(self._post_roll_seconds)
             stop = getattr(capture, "stop")
             stop()
         return self._controller.stop()
@@ -169,3 +205,6 @@ class PressAndHoldDictationRunner:
             stop = getattr(capture, "stop")
             stop()
         self._controller.abort()
+
+    def warm_up(self) -> None:
+        self._controller.warm_up()

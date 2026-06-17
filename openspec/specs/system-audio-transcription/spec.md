@@ -181,3 +181,22 @@ La primera versión validada de esta herramienta SHALL permitir una implementaci
 #### Scenario: Ruta local futura
 - **WHEN** se investiguen proveedores o modelos locales adecuados para este caso de uso
 - **THEN** la arquitectura SHALL poder enchufarlos sin romper la semántica de la herramienta
+
+### Requirement: Windows system audio capture plan
+The Windows implementation SHALL use WASAPI loopback capture as the preferred approach for capturing the audio rendered by the system output endpoint.
+
+#### Scenario: Windows captures the default output mix
+- **WHEN** the user starts system audio translation on Windows
+- **THEN** the Windows audio adapter SHALL capture audio from a render endpoint using WASAPI loopback or fail with a clear unsupported-environment message
+
+#### Scenario: Windows per-application capture is requested later
+- **WHEN** a future workflow needs to capture or exclude a specific process tree
+- **THEN** the implementation MAY use Windows Application Loopback Capture on supported Windows builds rather than forcing all routing through a virtual cable
+
+### Requirement: Desktop translator launch from overlay
+The desktop overlay SHALL launch the translator UI in a separate Electron window instead of replacing the launcher.
+
+#### Scenario: User clicks audio translation in the overlay
+- **WHEN** the user clicks `Traducir audio` in the overlay launcher
+- **THEN** the launcher window SHALL remain visible
+- **AND** the translator UI SHALL open or focus in its own desktop window

@@ -19,7 +19,7 @@
 
 `so_intelligence_tools` is a suite of AI-powered desktop tools for Linux and Windows, built around global keyboard shortcuts, local services, overlays, clipboard/text automation and realtime audio workflows.
 
-The project is intentionally practical: select text and fix it, capture a screen region and extract text, translate system audio, expose a translated virtual microphone to calls, or experiment with local push-to-talk dictation.
+The project is intentionally practical: open a desktop overlay, select text and fix it, capture a screen region and extract text, translate system audio, expose a translated virtual microphone to calls, or use local push-to-talk dictation.
 
 ## Table Of Contents
 
@@ -30,6 +30,7 @@ The project is intentionally practical: select text and fix it, capture a screen
 - [Quick Start On Linux](#quick-start-on-linux)
 - [Quick Start On Windows](#quick-start-on-windows)
 - [Configuration](#configuration)
+- [Keyboard shortcuts](docs/keyboard-shortcuts.md)
 - [Roadmap](#roadmap)
 - [Current Limitations](#current-limitations)
 - [Development](#development)
@@ -44,8 +45,9 @@ The project is intentionally practical: select text and fix it, capture a screen
 | Screenshot OCR | Capture a screen region and copy exact extracted text to the clipboard. | Planned | 🟡 Planned / specced |
 | System audio translation | Listen to audio playing on the system and show live Spanish translation. | API | 🟢 Useful now |
 | Desktop translation UI | Electron/Vue interface for realtime transcript and translation sessions. | Both | 🟡 In progress |
+| Main overlay launcher | Electron/Vue overlay with tool cards, settings and Windows single-instance toggle. | Local | 🟢 Useful now on Windows |
 | Translated virtual microphone | Expose `so_ai_translated_mic` to Slack/Meet/Zoom with passthrough or translated voice. | API | 🟢 Useful now |
-| Push-to-talk dictation | Hold a shortcut and dictate text locally with Nemotron ASR ONNX CPU. | Local/on-prem | 🟡 Experimental |
+| Push-to-talk dictation | Hold a shortcut and dictate text locally through a warm faster-whisper HTTP Docker server. | Local/on-prem | 🟢 Useful now on Windows |
 | Local inference API | FastAPI gateway over Ollama or OpenAI-compatible remote providers. | Both | 🟢 Useful now |
 | Overlay agent chat | Conversational OS tool launcher and assistant overlay. | Planned | 🔴 Roadmap |
 
@@ -53,10 +55,10 @@ Runtime legend: `Local/on-prem` runs without a third-party inference API, `API` 
 
 ## Desktop UI
 
-The realtime translation frontend is being shaped as a quiet, work-focused desktop tool: live status, language controls, transcript pairs, model selection and meeting-style controls.
+The Electron/Vue frontend now opens as the main overlay launcher by default. The overlay exposes tool cards, settings, shortcut rows and startup toggles; selected-text correction is wired through the Electron bridge, while remaining cards show clear pending feedback until connected. The realtime translation frontend remains available as a dedicated view with live status, language controls, transcript pairs, model selection and meeting-style controls.
 
 <p align="center">
-  <img src="assets/screenshots/realtime-translator-ui.png" alt="Realtime translator desktop UI screenshot" width="900">
+  <img src="assets/design/overlay-future-reference.jpg" alt="so_intelligence_tools overlay design reference" width="900">
 </p>
 
 ## Platform Support
@@ -71,11 +73,12 @@ Status legend: 🟢 working/useful now, 🟡 partial or experimental, 🔴 not i
 | Selected text correction | 🟢 | 🔴 | 🟢 |
 | Clipboard/text automation | 🟢 | 🔴 | 🟢 |
 | System audio translation | 🟢 | 🔴 | 🔴 |
-| Desktop translation UI | 🟡 | 🔴 | 🔴 |
+| Desktop overlay/settings UI | 🟡 | 🔴 | 🟢 |
+| Desktop translation UI | 🟡 | 🔴 | 🟡 |
 | Virtual translated microphone | 🟢 | 🔴 | 🔴 |
-| Push-to-talk dictation | 🟡 | 🔴 | 🔴 |
+| Push-to-talk dictation | 🟡 | 🔴 | 🟢 |
 
-Linux remains the most complete target. Windows now supports text-focused selected-text correction with native Win32 adapters and a user Startup launcher. The architecture keeps OS-specific code behind adapters so macOS and additional Windows capabilities can be added without rewriting the product model.
+Linux remains the most complete target for audio routing. Windows now supports selected-text correction, hidden Startup launchers, the main overlay launcher, shortcut introspection and push-to-talk dictation with a warm faster-whisper Docker backend. The architecture keeps OS-specific code behind adapters so macOS and additional Windows capabilities can be added without rewriting the product model.
 
 ## How It Works
 
@@ -98,8 +101,9 @@ The project currently uses:
 - **Ollama** for local model serving.
 - **LiteLLM/OpenAI-compatible providers** when a remote backend is configured.
 - **OpenAI Realtime** for realtime audio translation workflows.
+- **faster-whisper HTTP in Docker** for the preferred validated Windows dictation backend.
 - **PulseAudio/PipeWire compatibility tools** for audio routing on Linux.
-- **Electron + Vue** for the desktop translation UI.
+- **Electron + Vue** for the main overlay, settings and desktop translation UI.
 - **OpenSpec** for change proposals, specs, tasks and validation evidence.
 
 ## Quick Start On Linux
@@ -144,6 +148,7 @@ poetry install
 ollama pull gemma4-e2b-longctx:latest
 poetry run so-intelligence-tools install-windows-api-startup
 poetry run so-intelligence-tools install-windows-shortcut-listener-startup
+poetry run so-intelligence-tools install-windows-dictation-startup
 ```
 
 For the current session, start the API and listener manually or sign out and back in:
@@ -151,9 +156,18 @@ For the current session, start the API and listener manually or sign out and bac
 ```powershell
 poetry run uvicorn --app-dir src local_inference_api.main:app --host 127.0.0.1 --port 8010
 poetry run so-intelligence-tools listen-shortcuts
+poetry run so-intelligence-tools listen-dictation-shortcut
 ```
 
-The supported Windows workflow today is selected text correction with `Ctrl + Alt + C`. If no text is selected, the tool attempts to select and correct the whole focused text input.
+Useful Windows shortcuts today:
+
+| Tool | Shortcut |
+| --- | --- |
+| Open/toggle main overlay | `Ctrl + Alt + A` |
+| Correct selected text | `Ctrl + Alt + C` |
+| Push-to-talk dictation | `Ctrl + Space` |
+
+Selected text correction tries to select and correct the whole focused text input when no text is selected. Dictation is validated with the faster-whisper HTTP Docker backend documented in [Faster-Whisper Docker Server](docs/whisper-docker.md).
 
 ## Configuration
 
@@ -187,16 +201,16 @@ Realtime audio features require their own API key configuration. Keep real secre
 
 ### Now
 
-- Stabilize push-to-talk dictation insertion so text is not lost, reordered or overwritten.
+- Validate faster-whisper HTTP push-to-talk dictation end to end on Linux after the Docker backend is started by the desktop bootstrap.
+- Wire the remaining overlay tool cards to their production workflows.
 - Improve debug traces for audio timing, ASR emissions and inserted text.
 - Finish the realtime translation desktop UI flow.
 - Keep hardening virtual microphone audio levels and call setup.
 
 ### Next
 
-- Add a proper tools overlay with visible settings.
 - Add screenshot OCR as a polished shortcut workflow.
-- Add configurable shortcut management from the UI.
+- Connect persisted overlay shortcut settings to every OS-level listener where appropriate.
 - Add runtime health checks for local models, realtime audio and virtual devices.
 
 ### Later
@@ -208,9 +222,9 @@ Realtime audio features require their own API key configuration. Keep real secre
 
 ## Current Limitations
 
-- The project is Linux-first overall, with Windows support currently focused on selected text correction and clipboard/text automation.
+- The project is Linux-first for audio-routing workflows, while Windows is already useful for selected-text correction, overlay launch/settings and push-to-talk dictation.
 - Some audio workflows depend on PulseAudio/PipeWire compatibility tools such as `pactl`, `parec` and virtual sink/source modules.
-- Push-to-talk dictation is promising but still experimental; the current known issue is text stabilization during live insertion.
+- Push-to-talk dictation is working on Windows with faster-whisper HTTP; Linux bootstrap now starts the same Docker backend and still needs end-to-end desktop validation.
 - Realtime translation can require paid provider API keys depending on the selected backend.
 
 ## Development

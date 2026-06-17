@@ -32,6 +32,8 @@ make install-system-deps
 
 The script installs desktop and audio tooling such as `xclip`, `xdotool`, `wl-clipboard`, `wtype`, `ydotool`, `libnotify-bin`, and `pulseaudio-utils`.
 
+Docker is also required for push-to-talk dictation because the supported ASR backend is the faster-whisper server in `docker/whisper-server`.
+
 ## Install Python Dependencies
 
 ```bash
@@ -74,6 +76,8 @@ This creates:
 - `~/.config/systemd/user/so-intelligence-tools-push-to-talk-dictation.service`
 - `~/.config/autostart/so-intelligence-tools-desktop-health.desktop`
 - GNOME shortcuts for stable desktop tools
+- `docker/whisper-server/.env` from `.env.example` if it does not exist
+- a running `docker/whisper-server` faster-whisper container through `docker compose up -d`
 
 Default shortcuts:
 
@@ -84,11 +88,18 @@ Default shortcuts:
 | System audio translation | `Ctrl + Alt + Y` |
 | Voice translation virtual microphone | `Ctrl + Alt + U` |
 
+To inspect the effective shortcut map after editing `.env`:
+
+```bash
+poetry run so-intelligence-tools show-shortcuts --platform linux
+```
+
 ## Verify Services
 
 ```bash
 systemctl --user status so-intelligence-tools-api.service
 systemctl --user status so-intelligence-tools-push-to-talk-dictation.service
+curl http://127.0.0.1:9000/v1/models
 curl http://127.0.0.1:8010/health
 curl http://127.0.0.1:8010/status
 ```
@@ -117,4 +128,15 @@ curl http://127.0.0.1:8000/health
 ```
 
 The desktop integration defaults to port `8010` to avoid conflicts with other local projects. Docker publishes the API on `8000`.
+
+## Whisper Server
+
+The dictation backend can also be started independently:
+
+```bash
+poetry run so-intelligence-tools ensure-whisper-docker-server
+poetry run so-intelligence-tools check-push-to-talk-dictation-runtime
+```
+
+See [Faster-Whisper Docker Server](whisper-docker.md) for GPU and CPU porting notes.
 

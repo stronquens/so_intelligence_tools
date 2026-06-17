@@ -115,11 +115,16 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
     service_dir = tmp_path / "systemd-user"
     (project_dir / ".venv" / "bin").mkdir(parents=True)
     (project_dir / ".venv" / "bin" / "so-intelligence-tools").write_text("", encoding="utf-8")
+    whisper_dir = project_dir / "docker" / "whisper-server"
+    whisper_dir.mkdir(parents=True)
+    (whisper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (whisper_dir / ".env.example").write_text("WHISPER_MODEL=large-v3-turbo\n", encoding="utf-8")
 
-    calls: list[list[str]] = []
+    calls: list[tuple[list[str], str | None]] = []
 
     def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
-        calls.append(command)
+        cwd = kwargs.get("cwd")
+        calls.append((command, str(cwd) if cwd is not None else None))
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr("subprocess.run", fake_run)
@@ -135,17 +140,29 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
 
     assert started_now is True
     assert service_path == service_dir / "so-intelligence-tools-push-to-talk-dictation.service"
+    assert (whisper_dir / ".env").read_text(encoding="utf-8") == "WHISPER_MODEL=large-v3-turbo\n"
     service_text = service_path.read_text(encoding="utf-8")
     assert "push-to-talk dictation listener" in service_text
     assert f"WorkingDirectory={project_dir}" in service_text
     assert "run-push-to-talk-dictation-service" in service_text
     assert calls == [
-        ["systemctl", "--user", "daemon-reload"],
-        [
-            "systemctl",
-            "--user",
-            "enable",
-            "--now",
-            "so-intelligence-tools-push-to-talk-dictation.service",
-        ],
+        (["docker", "compose", "up", "-d"], str(whisper_dir)),
+        (["systemctl", "--user", "daemon-reload"], None),
+        (
+            [
+                "systemctl",
+                "--user",
+                "enable",
+                "--now",
+                "so-intelligence-tools-push-to-talk-dictation.service",
+            ],
+            None,
+        ),
     ]
+
+
+def test_ensure_whisper_server_requires_compose_file(tmp_path):
+    installer = LocalApiUserServiceInstaller(project_dir=tmp_path / "project")
+
+    with pytest.raises(ToolRunnerConfigurationError, match="whisper-server"):
+        installer.ensure_whisper_server()

@@ -1,7 +1,7 @@
 :root {
   font-family: Avenir Next, "Nunito Sans", "Segoe UI", sans-serif;
   color: #11182f;
-  background: #eef3fb;
+  background: transparent;
   font-synthesis: none;
   text-rendering: geometricPrecision;
 }
@@ -12,13 +12,702 @@
 
 body {
   margin: 0;
-  min-width: 1080px;
-  min-height: 720px;
+  min-width: 320px;
+  min-height: 472px;
   overflow: hidden;
+  background: transparent;
+}
+
+button,
+input {
+  font: inherit;
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
 }
 
 button {
-  font: inherit;
+  cursor: pointer;
+}
+
+.overlay-desktop {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-width: 680px;
+  min-height: 472px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+  background: transparent;
+}
+
+.overlay-desktop::before {
+  content: none;
+}
+
+.overlay-desktop::after {
+  content: none;
+}
+
+.settings-desktop {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-width: 373px;
+  min-height: 620px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+  background: transparent;
+}
+
+.glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background:
+    linear-gradient(145deg, rgba(112, 114, 132, 0.78), rgba(38, 40, 58, 0.76)),
+    rgba(42, 44, 62, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 27px 70px rgba(2, 4, 16, 0.48);
+  backdrop-filter: blur(30px) saturate(1.16);
+}
+
+.launcher-panel {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  top: 0;
+  width: 680px;
+  height: 472px;
+  border-radius: 18px;
+  padding: 17px 20px 16px;
+  animation: launcher-enter 190ms cubic-bezier(0.2, 0.85, 0.25, 1.08);
+}
+
+@keyframes launcher-enter {
+  from {
+    opacity: 0;
+    transform: translateY(13px) scale(0.975);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.launcher-header {
+  height: 55px;
+  display: grid;
+  grid-template-columns: 1fr 48px 36px;
+  align-items: start;
+  column-gap: 12px;
+}
+
+.launcher-drag-handle {
+  min-width: 0;
+  height: 44px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: start;
+  column-gap: 12px;
+  cursor: grab;
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
+.launcher-drag-handle:active {
+  cursor: grabbing;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  color: #cc7cff;
+  filter: drop-shadow(0 0 11px rgba(205, 124, 255, 0.58));
+}
+
+.launcher-header h1,
+.launcher-header p,
+.settings-header h2,
+.settings-section h3 {
+  margin: 0;
+}
+
+.launcher-header h1 {
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.launcher-header p {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.panel-icon-button,
+.panel-close-button,
+.settings-back,
+.settings-close,
+.shortcut-row button {
+  border: 0;
+  color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+}
+
+.panel-icon-button {
+  width: 39px;
+  height: 39px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  transition:
+    transform 130ms ease,
+    background-color 130ms ease,
+    border-color 130ms ease,
+    box-shadow 130ms ease,
+    color 130ms ease;
+}
+
+.panel-close-button,
+.settings-back,
+.settings-close {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  transition:
+    transform 130ms ease,
+    background-color 130ms ease,
+    color 130ms ease;
+}
+
+.panel-icon-button:hover,
+.panel-close-button:hover,
+.settings-back:hover,
+.settings-close:hover,
+.shortcut-row button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.panel-icon-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 10px 22px rgba(2, 4, 16, 0.18);
+}
+
+.panel-icon-button:active,
+.panel-close-button:active,
+.settings-back:active,
+.settings-close:active,
+.shortcut-row button:active {
+  transform: translateY(1px) scale(0.96);
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.tool-card {
+  position: relative;
+  height: 160px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 50% 23%, rgba(255, 255, 255, 0.16), transparent 39%),
+    rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.92);
+  display: grid;
+  grid-template-rows: 56px auto auto;
+  row-gap: 0;
+  justify-items: center;
+  align-content: start;
+  align-items: start;
+  padding: 19px 16px 12px;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 24px rgba(2, 4, 16, 0.13);
+  transition:
+    transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease;
+}
+
+.tool-card::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), transparent 54%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.tool-card:hover {
+  transform: translateY(-4px) scale(1.018);
+  border-color: rgba(255, 255, 255, 0.28);
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 17px 35px rgba(2, 4, 16, 0.25),
+    0 0 22px color-mix(in srgb, var(--tool-accent) 22%, transparent);
+}
+
+.tool-card:hover::before {
+  opacity: 1;
+}
+
+.tool-card:active {
+  transform: translateY(-1px) scale(0.985);
+  filter: brightness(1.08);
+}
+
+.tool-card:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.tool-icon-wrap {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  color: var(--tool-accent);
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.tool-icon-wrap > svg {
+  filter: drop-shadow(0 0 11px currentColor);
+}
+
+.tool-card:hover .tool-icon-wrap {
+  transform: translateY(-2px) scale(1.08);
+  filter: saturate(1.18);
+}
+
+.tool-badge-icon {
+  position: absolute;
+  right: -8px;
+  bottom: 2px;
+  color: #ffd56d;
+}
+
+.tool-card strong {
+  align-self: end;
+  width: 100%;
+  max-width: 136px;
+  margin: 2px 0 0;
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.93);
+  text-wrap: balance;
+}
+
+.tool-description {
+  width: 100%;
+  max-width: 132px;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 10px;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.tool-card.pink { --tool-accent: #f2a1ff; }
+.tool-card.blue { --tool-accent: #9fc6ff; }
+.tool-card.green { --tool-accent: #74f170; }
+.tool-card.gold { --tool-accent: #ffd56d; }
+.tool-card.cyan { --tool-accent: #88bbff; }
+.tool-card.violet { --tool-accent: #a78bff; }
+.tool-card.teal { --tool-accent: #86efe4; }
+.tool-card.rose { --tool-accent: #ff75c6; }
+
+.command-status {
+  height: 21px;
+  margin: 8px 0 -3px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  text-align: center;
+}
+
+.command-status.running {
+  color: #9fc6ff;
+}
+
+.command-status.success {
+  color: #88f5a0;
+}
+
+.command-status.failed {
+  color: #ff9bba;
+}
+
+.command-status.pending {
+  color: #ffd56d;
+}
+
+.launcher-shortcut {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.launcher-shortcut p {
+  height: 22px;
+  margin: 0 0 0 6px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.launcher-shortcut > span {
+  width: 8px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.launcher-shortcut kbd,
+.shortcut-row kbd {
+  min-width: 31px;
+  height: 22px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  background: rgba(20, 24, 39, 0.33);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.74);
+  font: 11px/1 "Segoe UI", sans-serif;
+  vertical-align: middle;
+}
+
+.launcher-shortcut kbd {
+  min-width: 32px;
+  padding: 0 7px;
+}
+
+.launcher-shortcut kbd.shortcut-key-wide {
+  min-width: 48px;
+  padding: 0 10px;
+}
+
+.settings-panel {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  top: 0;
+  width: 373px;
+  height: 620px;
+  border-radius: 15px;
+  padding: 14px 14px 15px;
+  display: grid;
+  grid-template-rows: 56px auto 1fr 42px;
+  animation: settings-pop 180ms cubic-bezier(0.2, 0.85, 0.25, 1.1);
+}
+
+.settings-drag-zone {
+  position: absolute;
+  z-index: 1;
+  left: 54px;
+  right: 54px;
+  top: 0;
+  height: 66px;
+  cursor: grab;
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
+.settings-drag-zone:active {
+  cursor: grabbing;
+}
+
+.settings-desktop .settings-panel {
+  left: 0;
+  top: 0;
+}
+
+@keyframes settings-pop {
+  from {
+    opacity: 0;
+    transform: translateX(17px) translateY(7px) scale(0.965);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.settings-header {
+  position: relative;
+  z-index: 2;
+  height: 56px;
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: start;
+  gap: 4px;
+  padding-top: 3px;
+  cursor: grab;
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
+.settings-header:active {
+  cursor: grabbing;
+}
+
+.shortcut-list,
+.settings-status,
+.settings-options,
+.save-settings {
+  cursor: default;
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.settings-header h2 {
+  font-size: 14px;
+  line-height: 1;
+  padding-top: 8px;
+}
+
+.settings-back,
+.settings-close {
+  position: relative;
+  z-index: 3;
+  cursor: pointer;
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.settings-section h3 {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  cursor: grab;
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
+.settings-section h3:active {
+  cursor: grabbing;
+}
+
+.shortcut-list {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.shortcut-row {
+  height: 36px;
+  display: grid;
+  grid-template-columns: 1fr 137px 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 7px 0 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 21, 36, 0.3);
+  transition: background-color 130ms ease, box-shadow 130ms ease;
+}
+
+.shortcut-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 2px 0 0 rgba(159, 198, 255, 0.38);
+}
+
+.shortcut-row:first-child {
+  border-top: 0;
+}
+
+.shortcut-row span {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 12px;
+}
+
+.shortcut-row kbd {
+  width: 137px;
+  height: 26px;
+  padding: 0 8px;
+}
+
+.shortcut-input {
+  width: 137px;
+  height: 26px;
+  border: 1px solid rgba(159, 198, 255, 0.58);
+  border-radius: 5px;
+  outline: 0;
+  padding: 0 8px;
+  background: rgba(20, 24, 39, 0.42);
+  color: rgba(255, 255, 255, 0.88);
+  font: 11px/1 "Segoe UI", sans-serif;
+  text-align: center;
+  box-shadow: 0 0 0 3px rgba(95, 135, 255, 0.12);
+}
+
+.shortcut-row button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  transition:
+    transform 130ms ease,
+    background-color 130ms ease,
+    color 130ms ease;
+}
+
+.settings-status {
+  min-height: 18px;
+  margin: 5px 0 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.settings-status.running {
+  color: #9fc6ff;
+}
+
+.settings-status.success {
+  color: #88f5a0;
+}
+
+.settings-status.failed {
+  color: #ff9bba;
+}
+
+.settings-status.pending {
+  color: #ffd56d;
+}
+
+.settings-options {
+  align-self: end;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toggle-row {
+  position: relative;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  align-items: center;
+  gap: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toggle-row strong,
+.toggle-row small {
+  display: block;
+}
+
+.toggle-row strong {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.toggle-row small {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+}
+
+.toggle-row input {
+  position: absolute;
+  opacity: 0;
+}
+
+.toggle-row i {
+  position: relative;
+  width: 39px;
+  height: 23px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background-color 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.toggle-row i::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.28);
+  transition: transform 0.16s ease;
+}
+
+.toggle-row input:checked + i {
+  background: #6050f0;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 16px rgba(96, 80, 240, 0.45);
+}
+
+.toggle-row input:checked + i::after {
+  transform: translateX(16px);
+}
+
+.save-settings {
+  width: 100%;
+  height: 42px;
+  margin-top: 0;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: linear-gradient(180deg, #5d57ee, #473dc2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-weight: 800;
+  box-shadow: 0 12px 25px rgba(35, 30, 126, 0.34);
+  transition:
+    transform 130ms ease,
+    filter 130ms ease,
+    box-shadow 130ms ease;
+}
+
+.save-settings:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 16px 30px rgba(35, 30, 126, 0.42);
+}
+
+.save-settings:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.save-settings:disabled {
+  cursor: progress;
+  opacity: 0.72;
 }
 
 .translator-shell {

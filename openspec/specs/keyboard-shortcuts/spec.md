@@ -1,9 +1,7 @@
 # Purpose
 
 Definir cómo las herramientas de IA se activan mediante combinaciones de teclado a nivel de sistema operativo.
-
 ## Requirements
-
 ### Requirement: Atajos globales para lanzar herramientas
 El sistema SHALL permitir que herramientas de IA concretas se ejecuten mediante atajos globales de teclado.
 
@@ -97,9 +95,71 @@ The system SHALL provide a user-level Windows startup entry for the selected tex
 
 #### Scenario: The user installs Windows shortcut startup
 - **WHEN** the user runs the Windows shortcut startup installer
-- **THEN** the system SHALL create a Startup folder command file that launches the shortcut listener from the project virtual environment
+- **THEN** the system SHALL create a Startup folder launcher that launches the shortcut listener from the project virtual environment
+- **AND** the launcher SHALL run without leaving a visible terminal window open
+- **AND** the launcher SHALL write process output to a diagnostic log file
 - **AND** the installer SHALL NOT require administrator privileges.
 
 #### Scenario: The user starts a new Windows session
 - **WHEN** the Startup entry exists
 - **THEN** Windows SHALL be able to start the shortcut listener after user login.
+
+### Requirement: Windows press-and-hold dictation shortcut
+The system SHALL provide a Windows global press-and-hold shortcut for local dictation.
+
+#### Scenario: Dictation shortcut press
+- **WHEN** the Windows dictation listener is running
+- **AND** the user presses the configured dictation shortcut
+- **THEN** the system SHALL start only the dictation action
+- **AND** it SHALL ignore repeated press events while dictation is already active.
+
+#### Scenario: Dictation shortcut release
+- **WHEN** dictation is active from the Windows dictation shortcut
+- **AND** the user releases the shortcut
+- **THEN** the system SHALL stop only the active dictation action.
+
+#### Scenario: Dictation shortcut avoids native Windows dictation
+- **WHEN** Windows dictation shortcuts are configured by default
+- **THEN** the system SHALL use `Ctrl+Space` for project dictation
+- **AND** this SHALL be allowed because the conflicting Codex integrated dictation shortcut has been disabled on the current Windows machine.
+
+### Requirement: Windows dictation startup entry
+The system SHALL provide a user-level Windows Startup entry for the dictation shortcut listener.
+
+#### Scenario: User installs Windows dictation startup
+- **WHEN** the user runs the Windows dictation startup installer
+- **THEN** the system SHALL create a hidden Startup launcher for the dictation listener
+- **AND** the installer SHALL NOT require administrator privileges.
+
+#### Scenario: User starts a new Windows session
+- **WHEN** the Startup entry exists
+- **THEN** Windows SHALL be able to start the dictation listener after user login.
+
+### Requirement: Shortcut map introspection
+The system SHALL provide a way to inspect the effective keyboard shortcuts by platform.
+
+#### Scenario: User lists all shortcuts
+- **WHEN** the user runs the shortcut map command without filters
+- **THEN** the system SHALL show supported Linux, Windows and desktop-overlay shortcut entries
+- **AND** each entry SHALL include the feature, platform, configured shortcut, configuration source and activation mechanism.
+
+#### Scenario: User filters shortcuts by platform
+- **WHEN** the user requests a specific platform shortcut map
+- **THEN** the system SHALL show only entries for that platform.
+
+#### Scenario: Windows overlay shortcut is listed
+- **WHEN** the user requests the Windows shortcut map
+- **THEN** the system SHALL include the main overlay launcher shortcut
+- **AND** it SHALL identify `Ctrl + Alt + A` as the Windows shortcut that opens or toggles the overlay.
+
+#### Scenario: Shortcut is visual but not globally registered
+- **WHEN** a shortcut belongs to desktop overlay settings rather than an OS listener
+- **THEN** the system SHALL identify it separately from active OS-level shortcuts.
+
+### Requirement: User-facing shortcut documentation
+The repository SHALL keep user-facing shortcut documentation aligned with the implemented operating-system and desktop shortcut behavior.
+
+#### Scenario: Documentation describes active shortcuts
+- **WHEN** a shortcut becomes operational or changes ownership between features
+- **THEN** README, AGENTS and relevant `docs/` pages SHALL identify the active key combination, platform, feature and configuration source.
+

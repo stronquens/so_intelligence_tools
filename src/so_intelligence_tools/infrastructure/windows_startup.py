@@ -18,6 +18,10 @@ class WindowsShortcutStartupInstaller:
 
     @property
     def launcher_name(self) -> str:
+        return "so-intelligence-tools-shortcuts.vbs"
+
+    @property
+    def legacy_launcher_name(self) -> str:
         return "so-intelligence-tools-shortcuts.cmd"
 
     @property
@@ -27,32 +31,31 @@ class WindowsShortcutStartupInstaller:
     def install(self) -> Path:
         python = self._project_dir / ".venv" / "Scripts" / "python.exe"
         pythonw = self._project_dir / ".venv" / "Scripts" / "pythonw.exe"
-        executable = python if python.exists() else pythonw
-        if not executable.exists():
+        if not python.exists() or not pythonw.exists():
             raise ToolRunnerConfigurationError(
                 "No se encontro `.venv\\Scripts\\python.exe` ni `.venv\\Scripts\\pythonw.exe`. "
                 "Ejecuta `poetry install` antes de instalar el listener de atajos Windows."
             )
 
         self._startup_dir.mkdir(parents=True, exist_ok=True)
+        self._remove_legacy_launcher()
         self.launcher_path.write_text(
-            self._build_launcher_contents(executable),
+            _build_hidden_vbs_launcher(
+                project_dir=self._project_dir,
+                executable=pythonw,
+                arguments=(
+                    "-m so_intelligence_tools.infrastructure.windows_background_launcher "
+                    "shortcuts"
+                ),
+            ),
             encoding="utf-8",
         )
         return self.launcher_path
 
-    def _build_launcher_contents(self, executable: Path) -> str:
-        return "\n".join(
-            [
-                "@echo off",
-                f'cd /d "{self._project_dir}"',
-                (
-                    'start "so_intelligence_tools shortcuts" /min '
-                    f'"{executable}" -m so_intelligence_tools listen-shortcuts'
-                ),
-                "",
-            ]
-        )
+    def _remove_legacy_launcher(self) -> None:
+        legacy_path = self._startup_dir / self.legacy_launcher_name
+        if legacy_path.exists():
+            legacy_path.unlink()
 
     @staticmethod
     def _default_startup_dir() -> Path:
@@ -67,6 +70,40 @@ class WindowsShortcutStartupInstaller:
             / "Programs"
             / "Startup"
         )
+
+
+class WindowsDictationStartupInstaller(WindowsShortcutStartupInstaller):
+    @property
+    def launcher_name(self) -> str:
+        return "so-intelligence-tools-dictation.vbs"
+
+    @property
+    def legacy_launcher_name(self) -> str:
+        return "so-intelligence-tools-dictation.cmd"
+
+    def install(self) -> Path:
+        python = self._project_dir / ".venv" / "Scripts" / "python.exe"
+        pythonw = self._project_dir / ".venv" / "Scripts" / "pythonw.exe"
+        if not python.exists() or not pythonw.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontro `.venv\\Scripts\\python.exe` ni `.venv\\Scripts\\pythonw.exe`. "
+                "Ejecuta `poetry install` antes de instalar el listener de dictado Windows."
+            )
+
+        self._startup_dir.mkdir(parents=True, exist_ok=True)
+        self._remove_legacy_launcher()
+        self.launcher_path.write_text(
+            _build_hidden_vbs_launcher(
+                project_dir=self._project_dir,
+                executable=pythonw,
+                arguments=(
+                    "-m so_intelligence_tools.infrastructure.windows_background_launcher "
+                    "dictation"
+                ),
+            ),
+            encoding="utf-8",
+        )
+        return self.launcher_path
 
 
 class WindowsApiStartupInstaller:
@@ -87,6 +124,10 @@ class WindowsApiStartupInstaller:
 
     @property
     def launcher_name(self) -> str:
+        return "so-intelligence-tools-api.vbs"
+
+    @property
+    def legacy_launcher_name(self) -> str:
         return "so-intelligence-tools-api.cmd"
 
     @property
@@ -95,30 +136,61 @@ class WindowsApiStartupInstaller:
 
     def install(self) -> Path:
         python = self._project_dir / ".venv" / "Scripts" / "python.exe"
-        if not python.exists():
+        pythonw = self._project_dir / ".venv" / "Scripts" / "pythonw.exe"
+        if not python.exists() or not pythonw.exists():
             raise ToolRunnerConfigurationError(
-                "No se encontro `.venv\\Scripts\\python.exe`. "
+                "No se encontro `.venv\\Scripts\\python.exe` ni `.venv\\Scripts\\pythonw.exe`. "
                 "Ejecuta `poetry install` antes de instalar la API local en Startup."
             )
 
         self._startup_dir.mkdir(parents=True, exist_ok=True)
+        self._remove_legacy_launcher()
         self.launcher_path.write_text(
-            self._build_launcher_contents(python),
+            self._build_launcher_contents(pythonw),
             encoding="utf-8",
         )
         return self.launcher_path
 
     def _build_launcher_contents(self, executable: Path) -> str:
-        return "\n".join(
-            [
-                "@echo off",
-                f'cd /d "{self._project_dir}"',
-                (
-                    'start "so_intelligence_tools api" /min '
-                    f'"{executable}" -m uvicorn --app-dir src '
-                    "local_inference_api.main:app "
-                    f"--host {self._host} --port {self._port}"
-                ),
-                "",
-            ]
+        return _build_hidden_vbs_launcher(
+            project_dir=self._project_dir,
+            executable=executable,
+            arguments=(
+                "-m so_intelligence_tools.infrastructure.windows_background_launcher "
+                "api "
+                f"--host {self._host} --port {self._port}"
+            ),
         )
+
+    def _remove_legacy_launcher(self) -> None:
+        legacy_path = self._startup_dir / self.legacy_launcher_name
+        if legacy_path.exists():
+            legacy_path.unlink()
+
+
+def _build_hidden_vbs_launcher(
+    *,
+    project_dir: Path,
+    executable: Path,
+    arguments: str,
+) -> str:
+    project_dir_value = _vbs_string(str(project_dir))
+    executable_value = _vbs_string(str(executable))
+    arguments_value = _vbs_string(arguments)
+    return "\n".join(
+        [
+            'Set shell = CreateObject("WScript.Shell")',
+            f"projectDir = {project_dir_value}",
+            f"executable = {executable_value}",
+            f"arguments = {arguments_value}",
+            "shell.CurrentDirectory = projectDir",
+            'command = Chr(34) & executable & Chr(34) & " " & arguments',
+            "shell.Run command, 0, False",
+            "",
+        ]
+    )
+
+
+def _vbs_string(value: str) -> str:
+    escaped = value.replace('"', '""')
+    return f'"{escaped}"'

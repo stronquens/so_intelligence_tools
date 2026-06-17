@@ -70,6 +70,7 @@ class LocalApiUserServiceInstaller:
                 "No se encontró `.venv/bin/so-intelligence-tools`. Ejecuta `poetry install` antes de instalar el servicio."
             )
 
+        self.ensure_whisper_server()
         self._service_dir.mkdir(parents=True, exist_ok=True)
         self.dictation_service_path.write_text(
             self._build_dictation_service_contents(),
@@ -106,6 +107,24 @@ class LocalApiUserServiceInstaller:
             encoding="utf-8",
         )
         return self.autostart_path
+
+    def ensure_whisper_server(self) -> Path:
+        compose_dir = self._project_dir / "docker" / "whisper-server"
+        compose_file = compose_dir / "compose.yaml"
+        env_file = compose_dir / ".env"
+        env_example = compose_dir / ".env.example"
+        if not compose_file.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontro `docker/whisper-server/compose.yaml`."
+            )
+        if not env_file.exists():
+            if not env_example.exists():
+                raise ToolRunnerConfigurationError(
+                    "No se encontro `docker/whisper-server/.env.example`."
+                )
+            env_file.write_text(env_example.read_text(encoding="utf-8"), encoding="utf-8")
+        self._run_docker_compose(compose_dir, ["up", "-d"])
+        return env_file
 
     def _build_service_contents(self) -> str:
         project_dir = self._project_dir
@@ -166,6 +185,20 @@ class LocalApiUserServiceInstaller:
         if result.returncode != 0:
             raise ToolRunnerConfigurationError(
                 "No se pudo instalar o activar el servicio de usuario. "
+                f"Detalle: {(result.stderr or result.stdout).strip()}"
+            )
+
+    def _run_docker_compose(self, compose_dir: Path, args: list[str]) -> None:
+        result = subprocess.run(
+            ["docker", "compose", *args],
+            cwd=compose_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise ToolRunnerConfigurationError(
+                "No se pudo arrancar el servidor faster-whisper con Docker Compose. "
                 f"Detalle: {(result.stderr or result.stdout).strip()}"
             )
 

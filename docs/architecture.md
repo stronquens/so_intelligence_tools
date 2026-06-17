@@ -38,6 +38,8 @@ poetry run so-intelligence-tools run-selected-text-correction
 poetry run so-intelligence-tools run-system-audio-translation-toggle
 poetry run so-intelligence-tools run-voice-translation-virtual-mic-toggle
 poetry run so-intelligence-tools run-push-to-talk-dictation-service
+poetry run so-intelligence-tools listen-dictation-shortcut
+poetry run so-intelligence-tools show-shortcuts
 ```
 
 ### Desktop Adapters
@@ -59,7 +61,11 @@ Windows currently covers:
 - Win32 keyboard copy/paste automation
 - selected text correction through clipboard roundtrips
 - native global shortcut listener through `RegisterHotKey`
-- user Startup launchers for the API and shortcut listener
+- push-to-talk dictation through a press-and-hold keyboard hook
+- microphone capture through PortAudio / `sounddevice`
+- faster-whisper HTTP dictation against a warm Docker server
+- user Startup launchers for the API, shortcut listener and dictation listener
+- Electron overlay launcher and settings on the desktop
 
 ### Audio Workflows
 
@@ -67,13 +73,13 @@ Audio features currently use different runtime strategies:
 
 - System audio translation uses system audio capture and either chunked transcription or OpenAI Realtime.
 - Voice translation virtual microphone uses realtime provider audio and PulseAudio virtual source routing.
-- Push-to-talk dictation uses a local ONNX CPU ASR runtime and keyboard insertion.
+- Push-to-talk dictation uses the `faster_whisper_http` ASR runtime against a warm Docker server; the earlier Nemotron ONNX route was removed after Whisper produced better Spanish dictation.
 
 ### Desktop UI
 
-The Electron/Vue app under `desktop/` is a dedicated realtime translation interface. It is currently a polished UI shell with mocked bridge handling and ongoing integration work.
+The Electron/Vue app under `desktop/` opens as the main overlay launcher by default and also contains the realtime translation view. The overlay has persisted settings, shortcut rows, startup toggles, single-instance Windows toggle behavior and a real bridge for selected-text correction. Some tool cards still return pending feedback until their production workflows are connected.
 
 ## Portability
 
-Linux is still the most complete desktop target. Windows is supported for text-focused selected text correction. The architecture keeps OS behavior behind adapters so macOS and broader Windows support can be added without replacing the product model.
+Linux is still the most complete target for audio routing. Windows is supported for selected text correction, overlay launch/settings and push-to-talk dictation. The architecture keeps OS behavior behind adapters so macOS and broader Windows support can be added without replacing the product model.
 

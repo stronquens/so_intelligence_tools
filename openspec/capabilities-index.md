@@ -11,8 +11,9 @@ Este índice ordena las capabilities por prioridad de ejecución recomendada y a
 | 5 | `overlay-settings` | No | `system` | `none` | Ajustes del overlay para atajos, preferencias y configuración futura. |
 | 6 | `selected-text-correction` | No | `text` | `local/remote` | Corrección de texto seleccionado preservando idioma y reemplazando el contenido original, con adapters Linux y Windows para flujos de texto. |
 | 7 | `screenshot-text-extraction` | No | `image` | `local` | Captura de una región de pantalla y extracción exacta de texto al portapapeles. |
-| 8 | `push-to-talk-dictation` | Si | `audio` | `local` | Dictado temporal mientras se mantiene un atajo y escritura directa donde está el cursor. |
+| 8 | `push-to-talk-dictation` | Si | `audio` | `local/on-prem` | Dictado temporal mientras se mantiene un atajo y escritura directa donde está el cursor, validado en Windows con faster-whisper HTTP. |
 | 9 | `overlay-agent-chat` | No | `text` | `local` | Agente conversacional dentro del overlay con acceso a herramientas y búsqueda en archivos. |
 | 10 | `system-audio-transcription` | Si | `audio` | `local/remote` | Traducción en vivo del audio de salida del sistema en una ventana dedicada, con primera iteración validada sobre proveedor remoto y apertura futura a rutas locales. |
-| 11 | `realtime-translation-desktop-ui` | Si | `audio/system-ui` | `none` | Interfaz Electron/Vue futura para visualizar y controlar la traducción en vivo del audio del sistema sin reemplazar todavía la capa funcional Python. |
-| 12 | `voice-translation-virtual-microphone` | Si | `audio` | `remote` | Micrófono virtual para traducir la voz del usuario en tiempo real con streaming remoto. |
+| 11 | `overlay-launcher-desktop-ui` | No | `system-ui` | `none` | Implementación Electron/Vue del overlay principal con superficie translúcida, catálogo de herramientas y ventanas independientes para ajustes y traductor. |
+| 12 | `realtime-translation-desktop-ui` | Si | `audio/system-ui` | `none` | Interfaz Electron/Vue futura para visualizar y controlar la traducción en vivo del audio del sistema sin reemplazar todavía la capa funcional Python. |
+| 13 | `voice-translation-virtual-microphone` | Si | `audio` | `remote` | Micrófono virtual para traducir la voz del usuario en tiempo real con streaming remoto. |

@@ -103,3 +103,75 @@ class LinuxParecMicrophoneCapture:
             if not chunk:
                 break
             self.callback(chunk)
+
+
+@dataclass(slots=True)
+class WindowsSoundDeviceMicrophoneCapture:
+    sample_rate_hz: int
+    chunk_ms: int
+    callback: Callable[[bytes], None]
+    source_name: str | None = None
+    _stream: object | None = field(init=False, default=None)
+
+    @property
+    def running(self) -> bool:
+        return self._stream is not None
+
+    def start(self) -> None:
+        if self.running:
+            return
+        try:
+            import sounddevice as sd
+        except ImportError as exc:
+            raise UnsupportedEnvironmentError(
+                "Falta `sounddevice` para capturar el microfono en Windows."
+            ) from exc
+
+        blocksize = int(self.sample_rate_hz * (self.chunk_ms / 1000.0))
+        if blocksize <= 0:
+            raise AudioCaptureError(
+                "La configuracion de dictado produjo un tamano de chunk invalido."
+            )
+
+        try:
+            stream = sd.InputStream(
+                samplerate=self.sample_rate_hz,
+                channels=1,
+                dtype="int16",
+                blocksize=blocksize,
+                device=_sounddevice_device(self.source_name),
+                callback=self._audio_callback,
+            )
+            stream.start()
+        except Exception as exc:
+            raise AudioCaptureError(
+                f"No se pudo iniciar la captura de microfono Windows: {exc}"
+            ) from exc
+        self._stream = stream
+
+    def stop(self) -> None:
+        stream = self._stream
+        self._stream = None
+        if stream is None:
+            return
+        stop = getattr(stream, "stop")
+        close = getattr(stream, "close")
+        stop()
+        close()
+
+    def _audio_callback(self, indata, frames, time_info, status) -> None:
+        if status:
+            # PortAudio status flags are diagnostic; keep capture alive.
+            pass
+        if indata is None:
+            return
+        self.callback(indata.copy().tobytes())
+
+
+def _sounddevice_device(source_name: str | None):
+    if source_name is None or source_name == "":
+        return None
+    stripped = source_name.strip()
+    if stripped.isdigit():
+        return int(stripped)
+    return stripped

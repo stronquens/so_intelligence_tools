@@ -105,6 +105,26 @@ def test_streaming_dictation_tracks_stable_delta_for_cumulative_finals():
     assert result.inserted_text == "hola mundo"
 
 
+def test_streaming_dictation_can_insert_buffered_text_on_release():
+    transcriber = FakeTranscriber()
+    insertion = MemoryTextInsertionAdapter()
+    controller = StreamingDictationController(
+        transcriber=transcriber,
+        text_insertion=insertion,
+        insertion_strategy="final_on_release",
+    )
+
+    controller.start()
+    controller.accept_audio(b"pcm")
+    assert insertion.last_text is None
+
+    result = controller.stop()
+
+    assert result.final_segments == ["hola ", "mundo"]
+    assert result.inserted_text == "hola mundo"
+    assert insertion.last_text == "hola mundo"
+
+
 class FakeCapture:
     def __init__(self, callback) -> None:
         self.callback = callback
@@ -145,3 +165,35 @@ def test_press_and_hold_runner_stops_capture_before_finalizing():
     assert captures[0].stopped is True
     assert transcriber.session.finished is True
     assert result.inserted_text == "hola mundo"
+
+
+def test_press_and_hold_runner_applies_post_roll_before_stopping_capture(monkeypatch):
+    sleeps: list[float] = []
+    transcriber = FakeTranscriber()
+    insertion = MemoryTextInsertionAdapter()
+    controller = StreamingDictationController(
+        transcriber=transcriber,
+        text_insertion=insertion,
+    )
+    captures: list[FakeCapture] = []
+
+    def capture_factory(callback):
+        capture = FakeCapture(callback)
+        captures.append(capture)
+        return capture
+
+    monkeypatch.setattr(
+        "so_intelligence_tools.push_to_talk_dictation.session.time.sleep",
+        sleeps.append,
+    )
+    runner = PressAndHoldDictationRunner(
+        controller=controller,
+        audio_capture_factory=capture_factory,
+        post_roll_seconds=0.35,
+    )
+
+    runner.press()
+    runner.release()
+
+    assert sleeps == [0.35]
+    assert captures[0].stopped is True

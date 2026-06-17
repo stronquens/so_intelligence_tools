@@ -27,6 +27,12 @@ from so_intelligence_tools.infrastructure.gnome_shortcuts import GnomeShortcutMa
 from so_intelligence_tools.infrastructure.inference_client import LocalInferenceClient
 from so_intelligence_tools.infrastructure.logging import configure_logging
 from so_intelligence_tools.infrastructure.runtime import build_runtime
+from so_intelligence_tools.infrastructure.shortcut_map import (
+    ShortcutPlatform,
+    build_shortcut_map,
+    filter_shortcut_map,
+    format_shortcut_map,
+)
 from so_intelligence_tools.infrastructure.shortcut_actions import (
     build_default_shortcut_registry,
 )
@@ -36,6 +42,7 @@ from so_intelligence_tools.infrastructure.user_services import (
 )
 from so_intelligence_tools.infrastructure.windows_startup import (
     WindowsApiStartupInstaller,
+    WindowsDictationStartupInstaller,
     WindowsShortcutStartupInstaller,
 )
 from so_intelligence_tools.push_to_talk_dictation import (
@@ -69,9 +76,18 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("run-voice-translation-virtual-mic-toggle")
     subparsers.add_parser("run-push-to-talk-dictation-service")
     subparsers.add_parser("check-push-to-talk-dictation-runtime")
+    subparsers.add_parser("listen-dictation-shortcut")
     subparsers.add_parser("listen-shortcuts")
+    subparsers.add_parser("install-windows-dictation-startup")
     subparsers.add_parser("install-windows-shortcut-listener-startup")
     subparsers.add_parser("install-windows-api-startup")
+    shortcut_map_parser = subparsers.add_parser("show-shortcuts")
+    shortcut_map_parser.add_argument(
+        "--platform",
+        choices=["linux", "windows", "desktop"],
+        default=None,
+        help="Filter shortcuts by platform.",
+    )
     install_parser = subparsers.add_parser("install-gnome-selected-text-shortcut")
     install_parser.add_argument("--binding", default=None)
     install_parser.add_argument("--debug", action="store_true")
@@ -84,6 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     voice_shortcut_parser.add_argument("--binding", default=None)
     subparsers.add_parser("install-push-to-talk-dictation-service")
+    subparsers.add_parser("ensure-whisper-docker-server")
     desktop_parser = subparsers.add_parser("install-linux-desktop-integration")
     desktop_parser.add_argument("--binding", default=None)
     desktop_parser.add_argument("--debug-shortcut", action="store_true")
@@ -126,6 +143,12 @@ def main(argv: list[str] | None = None) -> int:
             print(result)
             return 0
 
+        if args.command == "show-shortcuts":
+            platform: ShortcutPlatform | None = args.platform
+            entries = filter_shortcut_map(build_shortcut_map(settings), platform)
+            print(format_shortcut_map(entries))
+            return 0
+
         if args.command == "run-selected-text-correction":
             time.sleep(settings.shortcut_action_start_delay_seconds)
             runtime = build_runtime(settings)
@@ -149,7 +172,10 @@ def main(argv: list[str] | None = None) -> int:
             print(result)
             return 0
 
-        if args.command == "run-push-to-talk-dictation-service":
+        if args.command in {
+            "run-push-to-talk-dictation-service",
+            "listen-dictation-shortcut",
+        }:
             result = run_push_to_talk_dictation_service(settings)
             print(result)
             return 0
@@ -191,6 +217,16 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 "Start it now with: poetry run so-intelligence-tools listen-shortcuts "
                 "or sign out and back in."
+            )
+            return 0
+
+        if args.command == "install-windows-dictation-startup":
+            installer = WindowsDictationStartupInstaller(project_dir=Path.cwd())
+            launcher_path = installer.install()
+            print(f"Windows dictation startup installed: {launcher_path}")
+            print(
+                "Start it now with: poetry run so-intelligence-tools "
+                "listen-dictation-shortcut or sign out and back in."
             )
             return 0
 
@@ -246,11 +282,25 @@ def main(argv: list[str] | None = None) -> int:
             service_path, started_now = installer.install_push_to_talk_dictation_service(
                 enable_now=True
             )
+            print(
+                "Faster-whisper Docker server ensured: "
+                f"{Path.cwd() / 'docker' / 'whisper-server' / '.env'}"
+            )
             print(f"Push-to-talk dictation service installed: {service_path}")
             print(
                 "Push-to-talk dictation service state: "
                 + ("enabled and started now" if started_now else "enabled for next login")
             )
+            return 0
+
+        if args.command == "ensure-whisper-docker-server":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            whisper_env_path = installer.ensure_whisper_server()
+            print(f"Faster-whisper Docker server ensured: {whisper_env_path}")
             return 0
 
         if args.command == "install-linux-desktop-integration":
@@ -277,6 +327,10 @@ def main(argv: list[str] | None = None) -> int:
                 binding=settings.gnome_voice_translation_binding,
             )
             print(f"User service installed: {service_path}")
+            print(
+                "Faster-whisper Docker server ensured: "
+                f"{Path.cwd() / 'docker' / 'whisper-server' / '.env'}"
+            )
             print(f"Push-to-talk dictation service installed: {dictation_service_path}")
             print(f"Desktop health autostart installed: {autostart_path}")
             print(

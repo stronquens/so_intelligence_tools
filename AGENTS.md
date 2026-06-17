@@ -1,4 +1,4 @@
-# AGENTS
+﻿# AGENTS
 
 ## Purpose
 
@@ -6,51 +6,64 @@ Este repositorio define y desarrolla una suite de herramientas de IA local integ
 
 ## Product Direction
 
-- El motor de inferencia servirá peticiones mediante una API local al sistema y podrá apoyarse en runtimes locales o remotos.
-- La primera aproximación contempla Gemma 4 corriendo con Ollama y soporte opcional a LiteLLM Proxy como proveedor OpenAI-compatible remoto.
+- El motor de inferencia servirÃ¡ peticiones mediante una API local al sistema y podrÃ¡ apoyarse en runtimes locales o remotos.
+- La primera aproximaciÃ³n contempla Gemma 4 corriendo con Ollama y soporte opcional a LiteLLM Proxy como proveedor OpenAI-compatible remoto.
 - El despliegue de la API debe poder encapsularse en Docker.
-- Las herramientas de usuario vivirán como scripts o servicios Python que consumen la API local.
+- Las herramientas de usuario vivirÃ¡n como scripts o servicios Python que consumen la API local.
 - El stack Python del repo debe gestionarse con Poetry y un entorno `.venv` dentro del propio proyecto.
-- La interacción principal del usuario será mediante atajos globales de teclado, overlays y automatizaciones del portapapeles o del texto seleccionado.
+- El stack Node/Electron del frontend debe instalar dependencias en `desktop/node_modules/` desde `desktop/`, usando la `.npmrc` local del paquete.
+- La interacciÃ³n principal del usuario serÃ¡ mediante atajos globales de teclado, overlays y automatizaciones del portapapeles o del texto seleccionado.
 
 ## Working Agreement
 
 1. Antes de implementar, crea o selecciona un change en `openspec/changes/`.
 2. Define el alcance en `proposal.md`.
-3. Describe la solución en `design.md`.
+3. Describe la soluciÃ³n en `design.md`.
 4. Captura requisitos nuevos o cambios de comportamiento en delta specs dentro del change.
-5. Descompón el trabajo en `tasks.md`.
-6. Implementa solo cuando el change esté listo.
-7. Registra validación y evidencia dentro del mismo change antes de archivarlo.
+5. DescompÃ³n el trabajo en `tasks.md`.
+6. Implementa solo cuando el change estÃ© listo.
+7. Registra validaciÃ³n y evidencia dentro del mismo change antes de archivarlo.
 
 ## Repository Layout
 
 - `.codex/skills/`: skills locales disponibles para Codex en este repo.
-- `pyproject.toml`: configuración base del proyecto Python gestionado con Poetry.
+- `pyproject.toml`: configuraciÃ³n base del proyecto Python gestionado con Poetry.
 - `poetry.toml`: fuerza el entorno virtual `.venv` dentro del repo.
 - `Makefile`: comandos operativos de bootstrap para Linux.
-- `scripts/`: utilidades de integración y bootstrap del sistema operativo.
-- `docs/`: documentación operativa, instalación y troubleshooting.
-- `openspec/config.yaml`: configuración base del workflow spec-driven.
-- `openspec/capabilities-index.md`: índice priorizado de capabilities y metadatos.
+- `scripts/`: utilidades de integraciÃ³n y bootstrap del sistema operativo.
+- `docs/`: documentaciÃ³n operativa, instalaciÃ³n y troubleshooting.
+- `openspec/config.yaml`: configuraciÃ³n base del workflow spec-driven.
+- `openspec/capabilities-index.md`: Ã­ndice priorizado de capabilities y metadatos.
 - `openspec/changes/`: cambios activos y archivados.
 - `openspec/specs/`: fuente de verdad de capacidades consolidadas.
 
 ## Current Capability Map
 
-Los nombres de capability deben describir la función y mantenerse estables en el tiempo. La prioridad y los metadatos operativos viven en `openspec/capabilities-index.md`.
+Los nombres de capability deben describir la funciÃ³n y mantenerse estables en el tiempo. La prioridad y los metadatos operativos viven en `openspec/capabilities-index.md`.
 
-- `local-inference-api`: servicio de inferencia multimodal detrás de una API, con proveedor intercambiable local o remoto.
+- `local-inference-api`: servicio de inferencia multimodal detrÃ¡s de una API, con proveedor intercambiable local o remoto.
 - `python-tool-runners`: runners Python que orquestan herramientas, contexto del sistema e inferencia.
-- `keyboard-shortcuts`: capa de integración con atajos globales del sistema.
+- `keyboard-shortcuts`: capa de integraciÃ³n con atajos globales del sistema.
 - `tools-overlay`: overlay lanzador con botones de herramientas y entrada conversacional.
-- `overlay-settings`: configuración de atajos de teclado y preferencias desde la UI del overlay.
-- `selected-text-correction`: corrección de texto seleccionado en cualquier aplicación.
-- `screenshot-text-extraction`: captura parcial de pantalla y extracción exacta de texto al portapapeles.
-- `push-to-talk-dictation`: grabación mientras se mantiene un atajo, transcripción local e inserción automática de texto.
+- `overlay-launcher-desktop-ui`: implementaciÃ³n Electron/Vue del overlay principal, settings y launcher de herramientas.
+- `overlay-settings`: configuraciÃ³n de atajos de teclado y preferencias desde la UI del overlay.
+- `selected-text-correction`: correcciÃ³n de texto seleccionado en cualquier aplicaciÃ³n.
+- `screenshot-text-extraction`: captura parcial de pantalla y extracciÃ³n exacta de texto al portapapeles.
+- `push-to-talk-dictation`: grabaciÃ³n mientras se mantiene un atajo, transcripciÃ³n local e inserciÃ³n automÃ¡tica de texto.
 - `overlay-agent-chat`: barra de texto conversacional en el overlay con acceso a herramientas del sistema.
-- `system-audio-transcription`: captura de audio del sistema, transcripción o traducción en vivo y visualización en una ventana propia.
-- `voice-translation-virtual-microphone`: micrófono virtual compatible con apps de videollamada que hace passthrough o traducción de voz en streaming.
+- `system-audio-transcription`: captura de audio del sistema, transcripciÃ³n o traducciÃ³n en vivo y visualizaciÃ³n en una ventana propia.
+- `voice-translation-virtual-microphone`: micrÃ³fono virtual compatible con apps de videollamada que hace passthrough o traducciÃ³n de voz en streaming.
+
+## Current Operational Status
+
+- Windows tiene workflows utiles validados para correccion de texto seleccionado, overlay principal y dictado push-to-talk.
+- Atajos Windows actuales: `Ctrl + Alt + A` abre o alterna el overlay principal, `Ctrl + Alt + C` corrige texto seleccionado, `Ctrl + Space` activa dictado push-to-talk mientras se mantiene pulsado.
+- `Ctrl + Space` se usa para el dictado de `so_intelligence_tools` en Windows despues de desactivar el dictado integrado de Codex que ocupaba `Ctrl + Alt + Space`.
+- El dictado usa `faster_whisper_http` contra un servidor Docker warm en `http://127.0.0.1:9000`; no debe tratarse ningun runtime ASR anterior como fallback activo.
+- En Linux, `install-linux-desktop-integration` y `install-push-to-talk-dictation-service` deben preparar `docker/whisper-server` con `docker compose up -d` antes de habilitar el listener de dictado.
+- El overlay Electron/Vue guarda settings en `desktop-settings.json`; esos settings visuales no implican por si solos que todos los atajos esten registrados a nivel del sistema operativo.
+- Para consultar el mapa efectivo de atajos, usa `poetry run so-intelligence-tools show-shortcuts` con `--platform linux`, `--platform windows` o `--platform desktop`.
+- Las notas operativas detalladas viven en `docs/windows-support.md`, `docs/keyboard-shortcuts.md`, `docs/push-to-talk-dictation.md`, `docs/whisper-docker.md` y `docs/desktop-ui.md`.
 
 ## Recommended Skills
 
@@ -73,8 +86,9 @@ Los nombres de capability deben describir la función y mantenerse estables en e
 
 ## Notes
 
-- Si el repo todavía no tiene código de producto, se puede empezar creando una capability desde el primer change.
-- No guardes evidencia de validación solo en conversación; déjala dentro del change.
-- Linux es el target inicial, pero las decisiones de diseño deben intentar aislar dependencias específicas del sistema operativo.
+- Si el repo todavÃ­a no tiene cÃ³digo de producto, se puede empezar creando una capability desde el primer change.
+- No guardes evidencia de validaciÃ³n solo en conversaciÃ³n; dÃ©jala dentro del change.
+- Linux es el target inicial, pero las decisiones de diseÃ±o deben intentar aislar dependencias especÃ­ficas del sistema operativo.
 - No instales dependencias Python a nivel global para este proyecto. Usa siempre Poetry dentro del `.venv` local del repo.
+- No instales dependencias Node/Electron a nivel global para este proyecto. Ejecuta `npm install` dentro de `desktop/` y conserva `node_modules/` como artefacto local ignorado por git.
 - Para dependencias del sistema operativo, usa los scripts del repo o los targets de `make` antes de crear instrucciones manuales nuevas.

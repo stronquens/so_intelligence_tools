@@ -43,6 +43,16 @@ SYSTEM_AUDIO_TRANSLATION_OPENAI_REALTIME_SILENCE_DURATION_MS=280
 
 The tool uses PulseAudio/PipeWire-compatible capture tooling. Make sure `pulseaudio-utils` is installed and that `pactl` and `parec` are available.
 
+Implementation details:
+
+- The Linux adapter detects the default output sink with `pactl`.
+- It captures the sink monitor source, for example `<default-sink>.monitor`.
+- It reads mono `s16le` PCM chunks with `parec` and forwards those chunks to the translation pipeline.
+
+## Windows Audio Plan
+
+Windows system audio capture is not implemented yet. The planned approach is WASAPI loopback capture. See [Windows Audio Routing Research](windows-audio-routing.md).
+
 ## Logs And Control Socket
 
 ```bash

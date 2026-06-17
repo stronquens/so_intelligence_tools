@@ -64,6 +64,21 @@ Do not point it to:
 - `so_ai_translated_mic`
 - the internal virtual sink/source created by this tool
 
+## Linux Virtual Audio
+
+The Linux implementation creates the virtual microphone dynamically with PulseAudio/PipeWire-compatible modules:
+
+- `module-null-sink` creates the internal playback sink, normally `so_ai_translated_mic_sink`.
+- `module-remap-source` exposes that sink monitor as the selectable microphone `so_ai_translated_mic`.
+- `pacat` writes passthrough and translated PCM into the internal sink.
+- Call apps should select `so_ai_translated_mic` as microphone and keep normal headphones or speakers as output.
+
+## Windows Audio Plan
+
+Windows virtual microphone output is not implemented yet. The planned first approach is to write translated PCM to an installed virtual audio cable playback endpoint, for example VB-CABLE `CABLE Input`, while the call app selects the paired recording endpoint, for example `CABLE Output`, as microphone.
+
+See [Windows Audio Routing Research](windows-audio-routing.md).
+
 ## Debug Recordings
 
 ```env

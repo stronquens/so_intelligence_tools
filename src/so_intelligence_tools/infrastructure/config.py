@@ -20,18 +20,18 @@ class ToolRunnerSettings(BaseSettings):
     shortcut_action_start_delay_seconds: float = 0.35
     shortcut_action_cooldown_seconds: float = 2.0
     push_to_talk_dictation_shortcut: str = "<ctrl>+<alt>+<space>"
-    push_to_talk_dictation_runtime: str = "onnx_cpu"
-    push_to_talk_dictation_model_repo: str = (
-        "onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4"
-    )
-    push_to_talk_dictation_model_path: str | None = None
+    windows_push_to_talk_dictation_shortcut: str = "<ctrl>+<space>"
+    push_to_talk_dictation_runtime: str = "faster_whisper_http"
     push_to_talk_dictation_language: str = "es-ES"
+    push_to_talk_dictation_faster_whisper_base_url: str = "http://127.0.0.1:9000"
+    push_to_talk_dictation_faster_whisper_model: str = "whisper-1"
+    push_to_talk_dictation_faster_whisper_timeout_seconds: float = 30.0
+    push_to_talk_dictation_faster_whisper_prompt: str | None = None
     push_to_talk_dictation_microphone_source: str | None = None
     push_to_talk_dictation_sample_rate_hz: int = 16000
     push_to_talk_dictation_chunk_ms: int = 560
-    push_to_talk_dictation_chunk_samples: int = 8960
     push_to_talk_dictation_insertion_strategy: str = "final_segments"
-    push_to_talk_dictation_use_vad: bool = False
+    push_to_talk_dictation_post_roll_seconds: float = 0.35
     gnome_system_audio_translation_binding: str = "<Primary><Alt>y"
     system_audio_translation_source_language: str = "auto"
     system_audio_translation_target_language: str = "es"

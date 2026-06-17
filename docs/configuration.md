@@ -51,6 +51,7 @@ LITELLM_MODEL=your/model
 GNOME_SELECTED_TEXT_CORRECTION_BINDING=<Primary><Alt>c
 WINDOWS_SELECTED_TEXT_CORRECTION_SHORTCUT=<ctrl>+<alt>+c
 PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<alt>+<space>
+WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<space>
 GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING=<Primary><Alt>y
 GNOME_VOICE_TRANSLATION_BINDING=<Primary><Alt>u
 ```
@@ -90,13 +91,26 @@ Use `VOICE_TRANSLATION_PHYSICAL_SOURCE` only when you need to force a specific r
 ## Push-To-Talk Dictation
 
 ```env
-PUSH_TO_TALK_DICTATION_RUNTIME=onnx_cpu
-PUSH_TO_TALK_DICTATION_MODEL_REPO=onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4
+PUSH_TO_TALK_DICTATION_RUNTIME=faster_whisper_http
 PUSH_TO_TALK_DICTATION_LANGUAGE=es-ES
+PUSH_TO_TALK_DICTATION_FASTER_WHISPER_BASE_URL=http://127.0.0.1:9000
+PUSH_TO_TALK_DICTATION_FASTER_WHISPER_MODEL=whisper-1
+PUSH_TO_TALK_DICTATION_FASTER_WHISPER_TIMEOUT_SECONDS=30
 PUSH_TO_TALK_DICTATION_SAMPLE_RATE_HZ=16000
 PUSH_TO_TALK_DICTATION_CHUNK_MS=560
+PUSH_TO_TALK_DICTATION_POST_ROLL_SECONDS=0.35
 PUSH_TO_TALK_DICTATION_INSERTION_STRATEGY=final_segments
 ```
 
-This feature is experimental. See [Push-To-Talk Dictation](push-to-talk-dictation.md).
+The Windows route is validated with `faster_whisper_http`; Linux with the same Docker backend is the next validation target. See [Push-To-Talk Dictation](push-to-talk-dictation.md) and [Faster-Whisper Docker Server](whisper-docker.md).
+
+## Keyboard Shortcuts
+
+Use the CLI to see effective shortcuts from the current `.env`:
+
+```bash
+poetry run so-intelligence-tools show-shortcuts
+```
+
+The full reference is in [Keyboard Shortcuts](keyboard-shortcuts.md).
 
