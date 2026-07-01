@@ -40,6 +40,19 @@ from so_intelligence_tools.infrastructure.shortcut_listener import build_shortcu
 from so_intelligence_tools.infrastructure.user_services import (
     LocalApiUserServiceInstaller,
 )
+from so_intelligence_tools.local_tts.client import LocalTtsClient, LocalTtsSettings
+from so_intelligence_tools.local_tts.codex_voice import (
+    run_codex_visible_event_listener,
+    speak_text,
+)
+from so_intelligence_tools.local_tts.codex_voice_control import (
+    format_sessions,
+    list_sessions,
+    set_sessions_detail,
+    set_sessions_enabled,
+    set_sessions_voice,
+    toggle_sessions,
+)
 from so_intelligence_tools.infrastructure.windows_startup import (
     WindowsApiStartupInstaller,
     WindowsDictationStartupInstaller,
@@ -101,6 +114,41 @@ def build_parser() -> argparse.ArgumentParser:
     voice_shortcut_parser.add_argument("--binding", default=None)
     subparsers.add_parser("install-push-to-talk-dictation-service")
     subparsers.add_parser("ensure-whisper-docker-server")
+    subparsers.add_parser("ensure-piper-tts-server")
+    subparsers.add_parser("stop-piper-tts-server")
+    subparsers.add_parser("status-piper-tts-server")
+    speak_parser = subparsers.add_parser("speak-text")
+    speak_parser.add_argument("--text", default=None)
+    speak_parser.add_argument("--base-url", default=None)
+    speak_parser.add_argument("--voice", default=None)
+    codex_voice_parser = subparsers.add_parser("listen-codex-visible-events")
+    codex_voice_parser.add_argument("--base-url", default=None)
+    codex_voice_parser.add_argument("--voice", default=None)
+    codex_voice_parser.add_argument("--include-progress", action="store_true")
+    codex_voice_parser.add_argument("--final-only", action="store_true")
+    codex_voice_parser.add_argument(
+        "--detail",
+        choices=["minimal", "actions", "standard", "no-code", "full"],
+        default=None,
+    )
+    codex_voice_parser.add_argument("--max-segment-chars", type=int, default=None)
+    subparsers.add_parser("codex-voice-sessions")
+    codex_voice_on_parser = subparsers.add_parser("codex-voice-on")
+    _add_codex_voice_target_args(codex_voice_on_parser)
+    codex_voice_off_parser = subparsers.add_parser("codex-voice-off")
+    _add_codex_voice_target_args(codex_voice_off_parser)
+    codex_voice_toggle_parser = subparsers.add_parser("codex-voice-toggle")
+    _add_codex_voice_target_args(codex_voice_toggle_parser)
+    codex_voice_detail_parser = subparsers.add_parser("codex-voice-detail")
+    codex_voice_detail_parser.add_argument(
+        "detail",
+        choices=["minimal", "actions", "standard", "no-code", "full"],
+    )
+    _add_codex_voice_target_args(codex_voice_detail_parser)
+    codex_voice_voice_parser = subparsers.add_parser("codex-voice-voice")
+    codex_voice_voice_parser.add_argument("voice")
+    codex_voice_voice_parser.add_argument("--base-url", default=None)
+    _add_codex_voice_target_args(codex_voice_voice_parser)
     desktop_parser = subparsers.add_parser("install-linux-desktop-integration")
     desktop_parser.add_argument("--binding", default=None)
     desktop_parser.add_argument("--debug-shortcut", action="store_true")
@@ -303,6 +351,111 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Faster-whisper Docker server ensured: {whisper_env_path}")
             return 0
 
+        if args.command == "ensure-piper-tts-server":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            piper_env_path = installer.ensure_piper_tts_server()
+            print(f"Piper TTS Docker server ensured: {piper_env_path}")
+            return 0
+
+        if args.command == "stop-piper-tts-server":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            installer.stop_piper_tts_server()
+            print("Piper TTS Docker server stopped. Voice output is disabled.")
+            return 0
+
+        if args.command == "status-piper-tts-server":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            ready = installer.piper_tts_server_ready()
+            print("ready" if ready else "disabled")
+            return 0
+
+        if args.command == "speak-text":
+            text = args.text if args.text is not None else sys.stdin.read()
+            client = _build_local_tts_client(
+                settings,
+                base_url=args.base_url,
+                voice=args.voice,
+            )
+            print(speak_text(client, text))
+            return 0
+
+        if args.command == "listen-codex-visible-events":
+            client = _build_local_tts_client(
+                settings,
+                base_url=args.base_url,
+                voice=args.voice,
+            )
+            return run_codex_visible_event_listener(
+                client=client,
+                include_progress=(
+                    False
+                    if args.final_only
+                    else args.include_progress or settings.codex_voice_include_progress
+                ),
+                speech_detail=args.detail or settings.codex_voice_detail,
+                max_segment_chars=(
+                    args.max_segment_chars or settings.codex_voice_max_segment_chars
+                ),
+            )
+
+        if args.command == "codex-voice-sessions":
+            print(format_sessions(list_sessions()))
+            return 0
+
+        if args.command == "codex-voice-on":
+            sessions = set_sessions_enabled(
+                enabled=True,
+                pid=args.pid,
+                all_sessions=args.all,
+            )
+            print(_format_codex_voice_update("enabled", sessions))
+            return 0
+
+        if args.command == "codex-voice-off":
+            sessions = set_sessions_enabled(
+                enabled=False,
+                pid=args.pid,
+                all_sessions=args.all,
+            )
+            print(_format_codex_voice_update("disabled", sessions))
+            return 0
+
+        if args.command == "codex-voice-toggle":
+            sessions = toggle_sessions(pid=args.pid, all_sessions=args.all)
+            print(_format_codex_voice_update("toggled", sessions))
+            return 0
+
+        if args.command == "codex-voice-detail":
+            sessions = set_sessions_detail(
+                detail=args.detail,
+                pid=args.pid,
+                all_sessions=args.all,
+            )
+            print(_format_codex_voice_update(f"detail set to {args.detail}", sessions))
+            return 0
+
+        if args.command == "codex-voice-voice":
+            sessions = set_sessions_voice(
+                voice=args.voice,
+                base_url=args.base_url,
+                pid=args.pid,
+                all_sessions=args.all,
+            )
+            print(_format_codex_voice_update(f"voice set to {args.voice}", sessions))
+            return 0
+
         if args.command == "install-linux-desktop-integration":
             installer = LocalApiUserServiceInstaller(
                 project_dir=Path.cwd(),
@@ -377,3 +530,30 @@ def _selected_text_correction_shortcut_for_platform(settings) -> str:
     if sys.platform == "win32":
         return settings.windows_selected_text_correction_shortcut
     return settings.selected_text_correction_shortcut
+
+
+def _add_codex_voice_target_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--pid", type=int, default=None)
+    parser.add_argument("--all", action="store_true")
+
+
+def _format_codex_voice_update(action: str, sessions) -> str:
+    if not sessions:
+        return "No matching active Codex voice session."
+    return f"Codex voice {action}:\n{format_sessions(sessions)}"
+
+
+def _build_local_tts_client(
+    settings,
+    *,
+    base_url: str | None = None,
+    voice: str | None = None,
+) -> LocalTtsClient:
+    return LocalTtsClient(
+        LocalTtsSettings(
+            base_url=base_url or settings.local_tts_base_url,
+            timeout_seconds=settings.local_tts_timeout_seconds,
+            playback_command=settings.local_tts_playback_command,
+            voice=voice or "default",
+        )
+    )

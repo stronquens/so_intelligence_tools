@@ -190,6 +190,50 @@ def test_ensure_whisper_server_requires_compose_file(tmp_path):
         installer.ensure_whisper_server()
 
 
+def test_ensure_piper_tts_server_copies_env_and_starts_compose(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    piper_dir = project_dir / "docker" / "piper-tts"
+    piper_dir.mkdir(parents=True)
+    (piper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (piper_dir / ".env.example").write_text("PIPER_TTS_PORT=9010\n", encoding="utf-8")
+    calls: list[tuple[list[str], str | None]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        cwd = kwargs.get("cwd")
+        calls.append((command, str(cwd) if cwd is not None else None))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    installer = LocalApiUserServiceInstaller(project_dir=project_dir)
+    monkeypatch.setattr(installer, "_wait_for_piper_tts_server", lambda _env_file: None)
+
+    env_path = installer.ensure_piper_tts_server()
+
+    assert env_path == piper_dir / ".env"
+    assert env_path.read_text(encoding="utf-8") == "PIPER_TTS_PORT=9010\n"
+    assert calls == [(["docker", "compose", "up", "-d", "--build"], str(piper_dir))]
+
+
+def test_stop_piper_tts_server_runs_compose_down(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    piper_dir = project_dir / "docker" / "piper-tts"
+    piper_dir.mkdir(parents=True)
+    (piper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    calls: list[tuple[list[str], str | None]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        cwd = kwargs.get("cwd")
+        calls.append((command, str(cwd) if cwd is not None else None))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    installer = LocalApiUserServiceInstaller(project_dir=project_dir)
+
+    installer.stop_piper_tts_server()
+
+    assert calls == [(["docker", "compose", "down"], str(piper_dir))]
+
+
 def test_read_simple_env_parses_whisper_startup_settings(tmp_path):
     env_file = tmp_path / ".env"
     env_file.write_text(

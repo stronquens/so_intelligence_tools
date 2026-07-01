@@ -34,6 +34,8 @@ The script installs desktop and audio tooling such as `xclip`, `xdotool`, `wl-cl
 
 Docker is also required for push-to-talk dictation because the supported ASR backend is the faster-whisper server in `docker/whisper-server`.
 
+Docker is also used for local text-to-speech voice output when the Piper service is enabled.
+
 ## Install Python Dependencies
 
 ```bash
@@ -153,3 +155,30 @@ poetry run so-intelligence-tools check-push-to-talk-dictation-runtime
 See [Faster-Whisper Docker Server](whisper-docker.md) for GPU and CPU porting notes.
 
 Linux dictation records while the shortcut is held, then sends the captured utterance to `/v1/audio/transcriptions` after release. The Docker server is warm, so the first dictation avoids model startup, but CPU transcription can still add a visible delay after release.
+
+## Piper TTS Voice Output
+
+Linux can also run a warm Piper text-to-speech container for reading visible Codex activity aloud:
+
+```bash
+poetry run so-intelligence-tools ensure-piper-tts-server
+poetry run so-intelligence-tools status-piper-tts-server
+poetry run so-intelligence-tools speak-text --text "Hola, esto es una prueba de voz local."
+```
+
+Stopping the Piper container disables voice output everywhere while leaving text workflows unchanged:
+
+```bash
+poetry run so-intelligence-tools stop-piper-tts-server
+```
+
+The default spoken detail for Codex is `actions`: task start/end plus tool, function and command lifecycle. Per-window controls can mute one VS Code/Codex window, change detail, or switch between the configured `male` and `female` Piper aliases:
+
+```bash
+poetry run so-intelligence-tools codex-voice-sessions
+poetry run so-intelligence-tools codex-voice-off
+poetry run so-intelligence-tools codex-voice-detail minimal
+poetry run so-intelligence-tools codex-voice-voice female
+```
+
+See [Piper TTS Voice Output](piper-tts-voice-output.md) for the VS Code wrapper, multi-voice container configuration, privacy boundary and troubleshooting.

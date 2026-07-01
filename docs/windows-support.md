@@ -34,8 +34,11 @@ The following Windows integrations are not implemented yet:
 - screenshot region capture
 - system audio loopback capture
 - translated virtual microphone output
+- Piper/Codex voice-output playback through the Linux `scripts/codex-tts-wrapper.py` path
 
 Audio support needs a separate design because the Linux implementation currently relies on PulseAudio-compatible tools such as `pactl`, `parec` and `pacat`. Windows will need a different backend, likely based on WASAPI for capture and an explicit virtual audio device strategy for microphone output.
+
+Local Piper TTS voice output is also Linux-validated only at the moment. The Docker HTTP service may be portable, but Windows still needs validation for audio playback, Docker Desktop behavior, the VS Code Codex wrapper path and per-window session-state storage. The Linux setup is documented in [Piper TTS Voice Output](piper-tts-voice-output.md).
 
 The current research plan is documented in [Windows Audio Routing Research](windows-audio-routing.md). The recommended first Windows audio slice is WASAPI loopback for system audio capture plus an installed virtual audio cable driver, such as VB-CABLE, for translated virtual microphone output.
 

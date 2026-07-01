@@ -2,7 +2,7 @@
 
 This folder contains the public documentation for `so_intelligence_tools`.
 
-The project is Linux-first for audio-routing workflows, with working Linux CPU push-to-talk dictation through a warm faster-whisper Docker backend. Windows separately supports selected text correction, the main overlay launcher, shortcut introspection and push-to-talk dictation with Windows-specific Startup launchers and adapters. The architecture keeps operating-system adapters separate from shared use cases.
+The project is Linux-first for audio-routing workflows, with working Linux CPU push-to-talk dictation through a warm faster-whisper Docker backend and a Linux-validated Piper TTS service for speaking visible Codex activity. Windows separately supports selected text correction, the main overlay launcher, shortcut introspection and push-to-talk dictation with Windows-specific Startup launchers and adapters. The architecture keeps operating-system adapters separate from shared use cases.
 
 ## Start Here
 
@@ -24,6 +24,7 @@ The project is Linux-first for audio-routing workflows, with working Linux CPU p
 - [Linux Whisper Dictation](linux-whisper-dictation.md)
 - [Faster-Whisper Docker Server](whisper-docker.md)
 - [Linux Whisper CPU Benchmark](whisper-cpu-benchmark-linux.md)
+- [Piper TTS Voice Output](piper-tts-voice-output.md)
 - [Linux Nemotron Streaming Dictation](nemotron-dictation-backup.md)
 - [Desktop UI](desktop-ui.md)
 - [Local Inference API](local-inference-api.md)

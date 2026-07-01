@@ -32,6 +32,12 @@ class ToolRunnerSettings(BaseSettings):
     push_to_talk_dictation_chunk_ms: int = 560
     push_to_talk_dictation_insertion_strategy: str = "final_segments"
     push_to_talk_dictation_post_roll_seconds: float = 0.35
+    local_tts_base_url: str = "http://127.0.0.1:9010"
+    local_tts_timeout_seconds: float = 20.0
+    local_tts_playback_command: str | None = None
+    codex_voice_include_progress: bool = True
+    codex_voice_detail: str = "actions"
+    codex_voice_max_segment_chars: int = 500
     gnome_system_audio_translation_binding: str = "<Primary><Alt>y"
     system_audio_translation_source_language: str = "auto"
     system_audio_translation_target_language: str = "es"

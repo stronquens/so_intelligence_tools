@@ -134,6 +134,46 @@ class LocalApiUserServiceInstaller:
         self._wait_for_whisper_server(env_file)
         return env_file
 
+    def ensure_piper_tts_server(self) -> Path:
+        compose_dir = self._project_dir / "docker" / "piper-tts"
+        compose_file = compose_dir / "compose.yaml"
+        env_file = compose_dir / ".env"
+        env_example = compose_dir / ".env.example"
+        if not compose_file.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontro `docker/piper-tts/compose.yaml`."
+            )
+        if not env_file.exists():
+            if not env_example.exists():
+                raise ToolRunnerConfigurationError(
+                    "No se encontro `docker/piper-tts/.env.example`."
+                )
+            env_file.write_text(env_example.read_text(encoding="utf-8"), encoding="utf-8")
+        self._run_docker_compose(compose_dir, ["up", "-d", "--build"])
+        self._wait_for_piper_tts_server(env_file)
+        return env_file
+
+    def stop_piper_tts_server(self) -> None:
+        compose_dir = self._project_dir / "docker" / "piper-tts"
+        compose_file = compose_dir / "compose.yaml"
+        if not compose_file.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontro `docker/piper-tts/compose.yaml`."
+            )
+        self._run_docker_compose(compose_dir, ["down"])
+
+    def piper_tts_server_ready(self) -> bool:
+        env_file = self._project_dir / "docker" / "piper-tts" / ".env"
+        if not env_file.exists():
+            return False
+        env_values = self._read_simple_env(env_file)
+        port = env_values.get("PIPER_TTS_PORT", "9010")
+        try:
+            with urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as response:
+                return 200 <= response.status < 300
+        except (HTTPError, URLError, TimeoutError, OSError):
+            return False
+
     def release_linux_ctrl_space_conflicts(self) -> None:
         ctrl_space_values = {
             "control+space",
@@ -237,7 +277,7 @@ class LocalApiUserServiceInstaller:
         )
         if result.returncode != 0:
             raise ToolRunnerConfigurationError(
-                "No se pudo arrancar el servidor faster-whisper con Docker Compose. "
+                "No se pudo ejecutar Docker Compose para el servicio local. "
                 f"Detalle: {(result.stderr or result.stdout).strip()}"
             )
 
@@ -258,6 +298,26 @@ class LocalApiUserServiceInstaller:
             time.sleep(2)
         raise ToolRunnerConfigurationError(
             "El servidor faster-whisper no estuvo listo a tiempo. "
+            f"URL: {url}. Ultimo error: {last_error or 'sin respuesta'}"
+        )
+
+    def _wait_for_piper_tts_server(self, env_file: Path) -> None:
+        env_values = self._read_simple_env(env_file)
+        port = env_values.get("PIPER_TTS_PORT", "9010")
+        timeout_seconds = float(env_values.get("PIPER_TTS_STARTUP_TIMEOUT_SECONDS", "180"))
+        deadline = time.monotonic() + timeout_seconds
+        url = f"http://127.0.0.1:{port}/health"
+        last_error = ""
+        while time.monotonic() < deadline:
+            try:
+                with urlopen(url, timeout=2) as response:
+                    if 200 <= response.status < 300:
+                        return
+            except (HTTPError, URLError, TimeoutError, OSError) as exc:
+                last_error = str(exc)
+            time.sleep(2)
+        raise ToolRunnerConfigurationError(
+            "El servidor Piper TTS no estuvo listo a tiempo. "
             f"URL: {url}. Ultimo error: {last_error or 'sin respuesta'}"
         )
 
