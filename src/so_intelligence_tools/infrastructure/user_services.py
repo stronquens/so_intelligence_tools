@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import ast
+import json
 import socket
 import subprocess
+import time
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 from pathlib import Path
 
 from so_intelligence_tools.domain.errors import ToolRunnerConfigurationError
@@ -71,6 +76,7 @@ class LocalApiUserServiceInstaller:
             )
 
         self.ensure_whisper_server()
+        self.release_linux_ctrl_space_conflicts()
         self._service_dir.mkdir(parents=True, exist_ok=True)
         self.dictation_service_path.write_text(
             self._build_dictation_service_contents(),
@@ -79,7 +85,8 @@ class LocalApiUserServiceInstaller:
 
         self._run_systemctl(["--user", "daemon-reload"])
         if enable_now:
-            self._run_systemctl(["--user", "enable", "--now", self.dictation_service_name])
+            self._run_systemctl(["--user", "enable", self.dictation_service_name])
+            self._run_systemctl(["--user", "restart", self.dictation_service_name])
         else:
             self._run_systemctl(["--user", "enable", self.dictation_service_name])
         return self.dictation_service_path, enable_now
@@ -124,7 +131,39 @@ class LocalApiUserServiceInstaller:
                 )
             env_file.write_text(env_example.read_text(encoding="utf-8"), encoding="utf-8")
         self._run_docker_compose(compose_dir, ["up", "-d"])
+        self._wait_for_whisper_server(env_file)
         return env_file
+
+    def release_linux_ctrl_space_conflicts(self) -> None:
+        ctrl_space_values = {
+            "control+space",
+            "<control>space",
+            "<ctrl>space",
+            "ctrl+space",
+        }
+        self._remove_gsettings_array_values(
+            schema="org.freedesktop.ibus.general.hotkey",
+            key="trigger",
+            blocked_values=ctrl_space_values,
+        )
+        self._remove_gsettings_array_values(
+            schema="org.freedesktop.ibus.general.hotkey",
+            key="triggers",
+            blocked_values=ctrl_space_values,
+        )
+        self._remove_gsettings_array_values(
+            schema="org.gnome.desktop.wm.keybindings",
+            key="switch-input-source",
+            blocked_values=ctrl_space_values,
+        )
+        self._remove_gsettings_array_values(
+            schema="org.gnome.desktop.wm.keybindings",
+            key="switch-input-source-backward",
+            blocked_values=ctrl_space_values,
+        )
+        self._clear_ulauncher_ctrl_space_hotkey(
+            Path.home() / ".config" / "ulauncher" / "settings.json"
+        )
 
     def _build_service_contents(self) -> str:
         project_dir = self._project_dir
@@ -201,6 +240,117 @@ class LocalApiUserServiceInstaller:
                 "No se pudo arrancar el servidor faster-whisper con Docker Compose. "
                 f"Detalle: {(result.stderr or result.stdout).strip()}"
             )
+
+    def _wait_for_whisper_server(self, env_file: Path) -> None:
+        env_values = self._read_simple_env(env_file)
+        port = env_values.get("WHISPER_PORT", "9000")
+        timeout_seconds = float(env_values.get("WHISPER_STARTUP_TIMEOUT_SECONDS", "300"))
+        deadline = time.monotonic() + timeout_seconds
+        url = f"http://127.0.0.1:{port}/v1/models"
+        last_error = ""
+        while time.monotonic() < deadline:
+            try:
+                with urlopen(url, timeout=2) as response:
+                    if 200 <= response.status < 300:
+                        return
+            except (HTTPError, URLError, TimeoutError, OSError) as exc:
+                last_error = str(exc)
+            time.sleep(2)
+        raise ToolRunnerConfigurationError(
+            "El servidor faster-whisper no estuvo listo a tiempo. "
+            f"URL: {url}. Ultimo error: {last_error or 'sin respuesta'}"
+        )
+
+    @staticmethod
+    def _read_simple_env(env_file: Path) -> dict[str, str]:
+        values: dict[str, str] = {}
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            values[key.strip()] = value.strip().strip('"').strip("'")
+        return values
+
+    def _remove_gsettings_array_values(
+        self,
+        *,
+        schema: str,
+        key: str,
+        blocked_values: set[str],
+    ) -> None:
+        current = self._run_gsettings(["get", schema, key])
+        if current is None:
+            return
+        values = self._parse_gsettings_string_array(current)
+        if values is None:
+            return
+        filtered = [
+            value
+            for value in values
+            if self._normalize_hotkey(value) not in blocked_values
+        ]
+        if filtered == values:
+            return
+        serialized = "[" + ", ".join(repr(value) for value in filtered) + "]"
+        self._run_gsettings(["set", schema, key, serialized])
+
+    @staticmethod
+    def _parse_gsettings_string_array(raw: str) -> list[str] | None:
+        raw = raw.strip()
+        if raw == "@as []":
+            return []
+        try:
+            parsed = ast.literal_eval(raw)
+        except (SyntaxError, ValueError):
+            return None
+        if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
+            return None
+        return parsed
+
+    @staticmethod
+    def _normalize_hotkey(value: str) -> str:
+        return value.lower().replace(" ", "").replace("_l", "").replace("_r", "")
+
+    @staticmethod
+    def _run_gsettings(args: list[str]) -> str | None:
+        result = subprocess.run(
+            ["gsettings", *args],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        return result.stdout.strip()
+
+    @staticmethod
+    def _clear_ulauncher_ctrl_space_hotkey(settings_path: Path) -> bool:
+        if not settings_path.exists():
+            return False
+        try:
+            payload = json.loads(settings_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return False
+        if not isinstance(payload, dict):
+            return False
+        current = payload.get("hotkey-show-app")
+        if not isinstance(current, str):
+            return False
+        if LocalApiUserServiceInstaller._normalize_hotkey(current) not in {
+            "control+space",
+            "<control>space",
+            "<primary>space",
+            "<ctrl>space",
+            "ctrl+space",
+        }:
+            return False
+        payload["hotkey-show-app"] = ""
+        settings_path.write_text(
+            json.dumps(payload, indent=4, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        return True
 
     @staticmethod
     def _is_port_in_use(host: str, port: int) -> bool:

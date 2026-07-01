@@ -19,8 +19,8 @@ class ToolRunnerSettings(BaseSettings):
     gnome_selected_text_correction_binding: str = "<Primary><Alt>c"
     shortcut_action_start_delay_seconds: float = 0.35
     shortcut_action_cooldown_seconds: float = 2.0
-    push_to_talk_dictation_shortcut: str = "<ctrl>+<alt>+<space>"
-    windows_push_to_talk_dictation_shortcut: str = "<ctrl>+<space>"
+    push_to_talk_dictation_shortcut: str = "<ctrl>+<shift>+<space>"
+    windows_push_to_talk_dictation_shortcut: str = "<ctrl>+<shift>+<space>"
     push_to_talk_dictation_runtime: str = "faster_whisper_http"
     push_to_talk_dictation_language: str = "es-ES"
     push_to_talk_dictation_faster_whisper_base_url: str = "http://127.0.0.1:9000"

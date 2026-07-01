@@ -145,6 +145,7 @@ def _parse_shortcut(shortcut: str) -> set[str]:
         .replace("<primary>", "ctrl")
         .replace("<control>", "ctrl")
         .replace("<ctrl>", "ctrl")
+        .replace("<shift>", "shift")
         .replace("<alt>", "alt")
         .replace("<space>", "space")
         .replace(" ", "")
@@ -158,6 +159,8 @@ def _parse_shortcut(shortcut: str) -> set[str]:
 def _normalize_key(key) -> str:
     if key in {keyboard.Key.ctrl, keyboard.Key.ctrl_l, keyboard.Key.ctrl_r}:
         return "ctrl"
+    if key in {keyboard.Key.shift, keyboard.Key.shift_l, keyboard.Key.shift_r}:
+        return "shift"
     if key in {keyboard.Key.alt, keyboard.Key.alt_l, keyboard.Key.alt_r, keyboard.Key.alt_gr}:
         return "alt"
     if key == keyboard.Key.space:

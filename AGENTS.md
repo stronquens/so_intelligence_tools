@@ -57,8 +57,8 @@ Los nombres de capability deben describir la funciÃ³n y mantenerse estables en
 ## Current Operational Status
 
 - Windows tiene workflows utiles validados para correccion de texto seleccionado, overlay principal y dictado push-to-talk.
-- Atajos Windows actuales: `Ctrl + Alt + A` abre o alterna el overlay principal, `Ctrl + Alt + C` corrige texto seleccionado, `Ctrl + Space` activa dictado push-to-talk mientras se mantiene pulsado.
-- `Ctrl + Space` se usa para el dictado de `so_intelligence_tools` en Windows despues de desactivar el dictado integrado de Codex que ocupaba `Ctrl + Alt + Space`.
+- Atajos Windows actuales: `Ctrl + Alt + A` abre o alterna el overlay principal, `Ctrl + Alt + C` corrige texto seleccionado, `Ctrl + Shift + Space` activa dictado push-to-talk mientras se mantiene pulsado.
+- `Ctrl + Shift + Space` se usa para el dictado de `so_intelligence_tools` para evitar colisiones con el buscador o metodo de entrada del sistema operativo asociado a `Ctrl + Space`.
 - El dictado usa `faster_whisper_http` contra un servidor Docker warm en `http://127.0.0.1:9000`; no debe tratarse ningun runtime ASR anterior como fallback activo.
 - En Linux, `install-linux-desktop-integration` y `install-push-to-talk-dictation-service` deben preparar `docker/whisper-server` con `docker compose up -d` antes de habilitar el listener de dictado.
 - El overlay Electron/Vue guarda settings en `desktop-settings.json`; esos settings visuales no implican por si solos que todos los atajos esten registrados a nivel del sistema operativo.

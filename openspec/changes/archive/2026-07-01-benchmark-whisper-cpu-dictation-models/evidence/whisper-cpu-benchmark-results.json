@@ -1,0 +1,67 @@
+{
+  "created_at": "2026-07-01T10:54:03",
+  "sample": "/home/sciling/.cache/so_intelligence_tools/voice_translation_debug_audio/voice-translation-final-output-20260610-155636.wav",
+  "max_seconds": 12.0,
+  "reference_mode": "large-v3-turbo pseudo-reference",
+  "results": [
+    {
+      "model": "large-v3-turbo",
+      "base_url": "http://127.0.0.1:9000",
+      "status": "ok",
+      "startup_seconds": null,
+      "audio_duration_seconds": 12.0,
+      "transcription_seconds": 7.14468350900097,
+      "realtime_factor": 0.5953902924167475,
+      "text": "Ahora estoy hablando normal y ahora estoy hablando normal. Ok, ahora estoy hablando normal y ahora debería empezar a cambiar y voy a hablar en otra lengua. He bajado un poco de audio.",
+      "quality": {}
+    },
+    {
+      "model": "base",
+      "base_url": "http://127.0.0.1:9101",
+      "status": "ok",
+      "startup_seconds": 18.359431442999266,
+      "audio_duration_seconds": 12.0,
+      "transcription_seconds": 2.6961285569996107,
+      "realtime_factor": 0.22467737974996757,
+      "text": "Ok, ahora vamos a hablar normalmente y ahora vamos a empezar a cambiar y no estoy hablando de la otra lengua.",
+      "quality": {
+        "reference_word_count": 33,
+        "candidate_word_count": 21,
+        "word_distance": 26,
+        "word_error_rate": 0.7878787878787878
+      }
+    },
+    {
+      "model": "small",
+      "base_url": "http://127.0.0.1:9102",
+      "status": "ok",
+      "startup_seconds": 12.366142812999897,
+      "audio_duration_seconds": 12.0,
+      "transcription_seconds": 2.2640665660001105,
+      "realtime_factor": 0.18867221383334254,
+      "text": "Ok, ahora estoy hablando normalmente y ahora debería estar cambiando y estaré hablando en la otra lengua. Me han bajado el audio un poco más.",
+      "quality": {
+        "reference_word_count": 33,
+        "candidate_word_count": 25,
+        "word_distance": 23,
+        "word_error_rate": 0.696969696969697
+      }
+    },
+    {
+      "model": "medium",
+      "base_url": "http://127.0.0.1:9103",
+      "status": "ok",
+      "startup_seconds": 28.360682099999394,
+      "audio_duration_seconds": 12.0,
+      "transcription_seconds": 5.586842279000848,
+      "realtime_factor": 0.4655701899167373,
+      "text": "Ahora estoy hablando normal y ahora... Ok, ahora estoy hablando normal y ahora se debe empezar a cambiar y voy a hablar en la otra lengua. He bajado el audio un poco más.",
+      "quality": {
+        "reference_word_count": 33,
+        "candidate_word_count": 33,
+        "word_distance": 10,
+        "word_error_rate": 0.30303030303030304
+      }
+    }
+  ]
+}

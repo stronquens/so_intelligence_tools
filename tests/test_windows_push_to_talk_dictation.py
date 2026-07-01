@@ -102,7 +102,7 @@ def test_dictation_service_warms_runner_before_listening(monkeypatch):
     result = dictation_app.run_push_to_talk_dictation_service(
         ToolRunnerSettings(
             push_to_talk_dictation_shortcut="<ctrl>+<alt>+space",
-            windows_push_to_talk_dictation_shortcut="<ctrl>+<space>",
+            windows_push_to_talk_dictation_shortcut="<ctrl>+<shift>+<space>",
         ),
         platform_name="win32",
     )
@@ -110,7 +110,7 @@ def test_dictation_service_warms_runner_before_listening(monkeypatch):
     assert result == "Push-to-talk dictation service stopped"
     assert events == [
         "warm",
-        "listener:<ctrl>+<space>",
+        "listener:<ctrl>+<shift>+<space>",
         "log:so-intelligence-tools-dictation-events.log",
         "listen",
     ]

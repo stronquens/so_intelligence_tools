@@ -138,7 +138,7 @@ Ollama itself should also be configured to start at login. The standard Ollama W
 The default Windows dictation shortcut is:
 
 ```text
-Ctrl + Space
+Ctrl + Shift + Space
 ```
 
 Run the dictation listener manually for the current session:
@@ -172,7 +172,9 @@ The dictation listener checks the ASR runtime before listening for the shortcut,
 
 To select a specific Windows microphone input, set `PUSH_TO_TALK_DICTATION_MICROPHONE_SOURCE` to a `sounddevice` input device index or device name.
 
-Windows uses `WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT`. It currently defaults to `Ctrl + Space` on this machine after disabling the conflicting Codex integrated dictation shortcut. Linux keeps `PUSH_TO_TALK_DICTATION_SHORTCUT`.
+Windows uses `WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT`. It currently defaults to `Ctrl + Shift + Space` to avoid the `Ctrl + Space` operating-system shortcut collision. Linux keeps `PUSH_TO_TALK_DICTATION_SHORTCUT`.
+
+Linux dictation setup, service management, `Ctrl + Space` desktop cleanup, and CPU benchmark notes live in [Linux Whisper Dictation](linux-whisper-dictation.md). Do not use the Windows Startup commands for Linux service installation.
 
 Windows buffers recognized final segments while the shortcut is held and inserts the resulting text once after the shortcut is released. This avoids typing into Word or other applications while modifier keys are still physically pressed.
 

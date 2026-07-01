@@ -29,9 +29,11 @@ If you change `.env`, restart any already-running listener or service before exp
 | Selected text correction | `<Primary><Alt>c` | `GNOME_SELECTED_TEXT_CORRECTION_BINDING` | GNOME custom shortcut |
 | System audio translation | `<Primary><Alt>y` | `GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING` | GNOME custom shortcut |
 | Voice translation virtual microphone | `<Primary><Alt>u` | `GNOME_VOICE_TRANSLATION_BINDING` | GNOME custom shortcut |
-| Push-to-talk dictation | `<ctrl>+<alt>+<space>` | `PUSH_TO_TALK_DICTATION_SHORTCUT` | Press-and-hold listener service |
+| Push-to-talk dictation | `<ctrl>+<shift>+<space>` | `PUSH_TO_TALK_DICTATION_SHORTCUT` | Press-and-hold listener service |
 
 Linux currently uses two shortcut syntaxes because GNOME custom shortcuts and Python press-and-hold listeners expect different formats.
+
+The Linux dictation shortcut intentionally uses `Ctrl + Shift + Space` instead of the older `Ctrl + Space`. The Linux installer performs best-effort cleanup for known old `Ctrl + Space` conflicts in IBus/GNOME settings and Ulauncher, but desktop shell shortcuts cannot always be suppressed by the listener itself.
 
 ## Windows
 
@@ -39,9 +41,9 @@ Linux currently uses two shortcut syntaxes because GNOME custom shortcuts and Py
 | --- | --- | --- | --- |
 | Open overlay | `Ctrl + Alt + A` | Windows shell shortcut | Electron desktop launcher |
 | Selected text correction | `<ctrl>+<alt>+c` | `WINDOWS_SELECTED_TEXT_CORRECTION_SHORTCUT` | Windows global shortcut listener |
-| Push-to-talk dictation | `<ctrl>+<space>` | `WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT` | Press-and-hold listener |
+| Push-to-talk dictation | `<ctrl>+<shift>+<space>` | `WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT` | Press-and-hold listener |
 
-`Ctrl+Alt+A` launches the Electron app; the app single-instance handler toggles the existing overlay when it is already running. `Ctrl+Space` is used by the project dictation listener on this Windows setup after disabling the conflicting Codex integrated dictation shortcut.
+`Ctrl+Alt+A` launches the Electron app; the app single-instance handler toggles the existing overlay when it is already running. `Ctrl+Shift+Space` is used by the Windows project dictation listener to avoid common `Ctrl+Space` operating-system shortcut collisions.
 
 ## Desktop Overlay Settings
 
@@ -54,7 +56,7 @@ The Electron overlay has its own `desktop-settings.json` stored in Electron user
 | Screenshot OCR | `Ctrl + Alt + O` | `desktop-settings.json` | Planned |
 | System audio translation | `Ctrl + Alt + T` | `desktop-settings.json` | UI setting; Linux OS shortcut uses `.env` |
 | Voice translation virtual microphone | `Ctrl + Alt + M` | `desktop-settings.json` | UI setting; Linux OS shortcut uses `.env` |
-| Push-to-talk dictation | `Ctrl + Space` | `desktop-settings.json` | Planned/UI setting; OS listener uses platform `.env` |
+| Push-to-talk dictation | `Ctrl + Shift + Space` | `desktop-settings.json` | Planned/UI setting; OS listener uses platform `.env` |
 | Assistant | `Sin asignar` | `desktop-settings.json` | Planned; `Ctrl + Alt + A` is reserved for the overlay |
 | Summary | `Ctrl + Alt + R` | `desktop-settings.json` | Planned |
 | Intelligent capture | `Ctrl + Alt + I` | `desktop-settings.json` | Planned |

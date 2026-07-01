@@ -120,8 +120,8 @@ The system SHALL provide a Windows global press-and-hold shortcut for local dict
 
 #### Scenario: Dictation shortcut avoids native Windows dictation
 - **WHEN** Windows dictation shortcuts are configured by default
-- **THEN** the system SHALL use `Ctrl+Space` for project dictation
-- **AND** this SHALL be allowed because the conflicting Codex integrated dictation shortcut has been disabled on the current Windows machine.
+- **THEN** the system SHALL use `Ctrl+Shift+Space` for project dictation
+- **AND** this SHALL avoid the known `Ctrl+Space` operating-system shortcut collision.
 
 ### Requirement: Windows dictation startup entry
 The system SHALL provide a user-level Windows Startup entry for the dictation shortcut listener.
@@ -134,6 +134,25 @@ The system SHALL provide a user-level Windows Startup entry for the dictation sh
 #### Scenario: User starts a new Windows session
 - **WHEN** the Startup entry exists
 - **THEN** Windows SHALL be able to start the dictation listener after user login.
+
+### Requirement: Linux shortcut defaults
+The system SHALL document and install Linux shortcut defaults for the current supported desktop workflows.
+
+#### Scenario: Linux push-to-talk dictation shortcut
+- **WHEN** a user reads the Linux shortcut documentation or installs the Linux desktop integration
+- **THEN** push-to-talk dictation SHALL be shown and configured as `Ctrl + Shift + Space`.
+
+### Requirement: Old Ctrl Space cleanup is best effort
+The Linux installer SHALL treat old `Ctrl + Space` desktop conflicts as best-effort cleanup and SHALL NOT depend on keyboard event suppression.
+
+#### Scenario: Linux desktop integration is installed
+- **WHEN** known gsettings keys contain old `Ctrl + Space` bindings
+- **THEN** the installer SHALL remove those values where possible
+- **AND** it SHALL continue when a schema or key is unavailable.
+
+#### Scenario: Ulauncher owns Ctrl Space
+- **WHEN** Ulauncher settings contain `Ctrl + Space` as the app hotkey
+- **THEN** the installer SHALL clear that hotkey so Ulauncher no longer opens over dictation.
 
 ### Requirement: Shortcut map introspection
 The system SHALL provide a way to inspect the effective keyboard shortcuts by platform.
@@ -156,10 +175,13 @@ The system SHALL provide a way to inspect the effective keyboard shortcuts by pl
 - **WHEN** a shortcut belongs to desktop overlay settings rather than an OS listener
 - **THEN** the system SHALL identify it separately from active OS-level shortcuts.
 
+#### Scenario: Dictation shortcut is listed with the current default
+- **WHEN** the user requests Linux, Windows, or desktop shortcut maps with default settings
+- **THEN** push-to-talk dictation SHALL be shown as `Ctrl + Shift + Space`.
+
 ### Requirement: User-facing shortcut documentation
 The repository SHALL keep user-facing shortcut documentation aligned with the implemented operating-system and desktop shortcut behavior.
 
 #### Scenario: Documentation describes active shortcuts
 - **WHEN** a shortcut becomes operational or changes ownership between features
 - **THEN** README, AGENTS and relevant `docs/` pages SHALL identify the active key combination, platform, feature and configuration source.
-

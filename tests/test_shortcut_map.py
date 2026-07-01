@@ -32,6 +32,13 @@ def test_shortcut_map_uses_effective_settings_values():
         and entry.env_var == "WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT"
         for entry in entries
     )
+    assert any(
+        entry.platform == "linux"
+        and entry.feature == "Push-to-talk dictation"
+        and entry.shortcut == "<ctrl>+<shift>+<space>"
+        and entry.env_var == "PUSH_TO_TALK_DICTATION_SHORTCUT"
+        for entry in build_shortcut_map(ToolRunnerSettings(_env_file=None))
+    )
 
 
 def test_shortcut_map_can_filter_by_platform():

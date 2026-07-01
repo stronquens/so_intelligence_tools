@@ -50,14 +50,16 @@ LITELLM_MODEL=your/model
 ```env
 GNOME_SELECTED_TEXT_CORRECTION_BINDING=<Primary><Alt>c
 WINDOWS_SELECTED_TEXT_CORRECTION_SHORTCUT=<ctrl>+<alt>+c
-PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<alt>+<space>
-WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<space>
+PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<shift>+<space>
+WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT=<ctrl>+<shift>+<space>
 GNOME_SYSTEM_AUDIO_TRANSLATION_BINDING=<Primary><Alt>y
 GNOME_VOICE_TRANSLATION_BINDING=<Primary><Alt>u
 ```
 
 GNOME custom shortcuts launch wrapper scripts or CLI commands from the repository root so `.env` is loaded correctly.
-Windows selected text correction uses the local API plus a resident listener. Install both Startup launchers with `install-windows-api-startup` and `install-windows-shortcut-listener-startup`.
+Linux GNOME bindings are installed by `install-linux-desktop-integration`. Linux push-to-talk dictation uses the user service `so-intelligence-tools-push-to-talk-dictation.service`.
+
+Windows selected text correction uses the local API plus a resident listener. Install Windows Startup launchers with `install-windows-api-startup`, `install-windows-shortcut-listener-startup`, and `install-windows-dictation-startup`.
 
 ## System Audio Translation
 
@@ -102,7 +104,7 @@ PUSH_TO_TALK_DICTATION_POST_ROLL_SECONDS=0.35
 PUSH_TO_TALK_DICTATION_INSERTION_STRATEGY=final_segments
 ```
 
-The Windows route is validated with `faster_whisper_http`; Linux with the same Docker backend is the next validation target. See [Push-To-Talk Dictation](push-to-talk-dictation.md) and [Faster-Whisper Docker Server](whisper-docker.md).
+Linux and Windows both use `faster_whisper_http` for the current push-to-talk dictation route, but their installation paths differ. Linux installs a systemd user service and defaults to the CPU Docker profile; Windows uses a hidden Startup launcher and may use a CUDA Docker profile on GPU machines. See [Push-To-Talk Dictation](push-to-talk-dictation.md), [Linux Whisper Dictation](linux-whisper-dictation.md), [Windows Support](windows-support.md), and [Faster-Whisper Docker Server](whisper-docker.md).
 
 ## Keyboard Shortcuts
 
@@ -113,4 +115,3 @@ poetry run so-intelligence-tools show-shortcuts
 ```
 
 The full reference is in [Keyboard Shortcuts](keyboard-shortcuts.md).
-

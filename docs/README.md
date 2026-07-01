@@ -2,7 +2,7 @@
 
 This folder contains the public documentation for `so_intelligence_tools`.
 
-The project is Linux-first for audio-routing workflows, with working Windows support for selected text correction, the main overlay launcher, shortcut introspection and push-to-talk dictation through a warm faster-whisper Docker backend. The architecture keeps operating-system adapters separate from shared use cases.
+The project is Linux-first for audio-routing workflows, with working Linux CPU push-to-talk dictation through a warm faster-whisper Docker backend. Windows separately supports selected text correction, the main overlay launcher, shortcut introspection and push-to-talk dictation with Windows-specific Startup launchers and adapters. The architecture keeps operating-system adapters separate from shared use cases.
 
 ## Start Here
 
@@ -21,7 +21,10 @@ The project is Linux-first for audio-routing workflows, with working Windows sup
 - [Voice Translation Virtual Microphone](voice-translation-virtual-microphone.md)
 - [Windows Audio Routing Research](windows-audio-routing.md)
 - [Push-To-Talk Dictation](push-to-talk-dictation.md)
+- [Linux Whisper Dictation](linux-whisper-dictation.md)
 - [Faster-Whisper Docker Server](whisper-docker.md)
+- [Linux Whisper CPU Benchmark](whisper-cpu-benchmark-linux.md)
+- [Linux Nemotron Streaming Dictation](nemotron-dictation-backup.md)
 - [Desktop UI](desktop-ui.md)
 - [Local Inference API](local-inference-api.md)
 
@@ -35,4 +38,3 @@ The project is Linux-first for audio-routing workflows, with working Windows sup
 - `Working`: useful on a supported desktop today.
 - `Experimental`: implemented but still being stabilized.
 - `Planned`: specified or intended, but not yet polished for daily use.
-

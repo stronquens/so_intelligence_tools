@@ -85,7 +85,7 @@ const defaultDesktopSettings: DesktopSettings = {
     { id: "screenshot-ocr", label: "OCR pantalla", value: "Ctrl + Alt + O" },
     { id: "system-audio-translation", label: "Traducir audio", value: "Ctrl + Alt + T" },
     { id: "voice-translation-microphone", label: "Microfono traducido", value: "Ctrl + Alt + M" },
-    { id: "push-to-talk-dictation", label: "Dictado", value: "Ctrl + Space" },
+    { id: "push-to-talk-dictation", label: "Dictado", value: "Ctrl + Shift + Space" },
     { id: "assistant", label: "Asistente", value: "Sin asignar" },
     { id: "summary", label: "Resumen", value: "Ctrl + Alt + R" },
     { id: "intelligent-capture", label: "Captura inteligente", value: "Ctrl + Alt + I" },
@@ -600,13 +600,14 @@ function migrateLegacyShortcutDefaults(incomingShortcuts: Map<ShortcutActionId, 
   }
 
   if (
+    normalizeShortcutValue(dictation?.value) === "Ctrl + Space" ||
     normalizeShortcutValue(dictation?.value) === "Ctrl + Shift + D" ||
     normalizeShortcutValue(dictation?.value) === "Ctrl + Alt + Space"
   ) {
     incomingShortcuts.set("push-to-talk-dictation", {
       id: "push-to-talk-dictation",
       label: dictation?.label ?? "Dictado",
-      value: "Ctrl + Space",
+      value: "Ctrl + Shift + Space",
     });
   }
 }

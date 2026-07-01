@@ -79,12 +79,16 @@ This creates:
 - `docker/whisper-server/.env` from `.env.example` if it does not exist
 - a running `docker/whisper-server` faster-whisper container through `docker compose up -d`
 
+The default Whisper container profile is CPU-oriented (`WHISPER_DEVICE=cpu`, `WHISPER_COMPUTE_TYPE=int8`). Machines with NVIDIA GPU support can opt into the CUDA override documented in [Faster-Whisper Docker Server](whisper-docker.md).
+
+On CPU-only Linux, the current recommended Whisper model remains `large-v3-turbo`. A July 1, 2026 benchmark on the current i7-12700H workstation found `base` and `small` faster but too lossy for Spanish dictation, and `medium` only modestly faster with visible quality loss. See [Linux Whisper CPU Benchmark](whisper-cpu-benchmark-linux.md).
+
 Default shortcuts:
 
 | Tool | Shortcut |
 | --- | --- |
 | Correct selected text | `Ctrl + Alt + C` |
-| Push-to-talk dictation | `Ctrl + Alt + Space` |
+| Push-to-talk dictation | `Ctrl + Shift + Space` |
 | System audio translation | `Ctrl + Alt + Y` |
 | Voice translation virtual microphone | `Ctrl + Alt + U` |
 
@@ -93,6 +97,14 @@ To inspect the effective shortcut map after editing `.env`:
 ```bash
 poetry run so-intelligence-tools show-shortcuts --platform linux
 ```
+
+If `Ctrl + Space` still opens an input-method or launcher search bar, make sure the dictation service has restarted after the move to `Ctrl + Shift + Space`:
+
+```bash
+systemctl --user restart so-intelligence-tools-push-to-talk-dictation.service
+```
+
+The installer also clears known old `Ctrl + Space` IBus/GNOME and Ulauncher bindings where possible, but Linux desktop shortcuts are best-effort and can depend on the user's session.
 
 ## Verify Services
 
@@ -140,3 +152,4 @@ poetry run so-intelligence-tools check-push-to-talk-dictation-runtime
 
 See [Faster-Whisper Docker Server](whisper-docker.md) for GPU and CPU porting notes.
 
+Linux dictation records while the shortcut is held, then sends the captured utterance to `/v1/audio/transcriptions` after release. The Docker server is warm, so the first dictation avoids model startup, but CPU transcription can still add a visible delay after release.

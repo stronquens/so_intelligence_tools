@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import json
 
 import pytest
 
@@ -133,6 +134,7 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
         service_dir=service_dir,
         user_systemctl_bin="systemctl",
     )
+    monkeypatch.setattr(installer, "_wait_for_whisper_server", lambda _env_file: None)
 
     service_path, started_now = installer.install_push_to_talk_dictation_service(
         enable_now=True
@@ -147,13 +149,33 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
     assert "run-push-to-talk-dictation-service" in service_text
     assert calls == [
         (["docker", "compose", "up", "-d"], str(whisper_dir)),
+        (["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "trigger"], None),
+        (["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "triggers"], None),
+        (["gsettings", "get", "org.gnome.desktop.wm.keybindings", "switch-input-source"], None),
+        (
+            [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.wm.keybindings",
+                "switch-input-source-backward",
+            ],
+            None,
+        ),
         (["systemctl", "--user", "daemon-reload"], None),
         (
             [
                 "systemctl",
                 "--user",
                 "enable",
-                "--now",
+                "so-intelligence-tools-push-to-talk-dictation.service",
+            ],
+            None,
+        ),
+        (
+            [
+                "systemctl",
+                "--user",
+                "restart",
                 "so-intelligence-tools-push-to-talk-dictation.service",
             ],
             None,
@@ -166,3 +188,99 @@ def test_ensure_whisper_server_requires_compose_file(tmp_path):
 
     with pytest.raises(ToolRunnerConfigurationError, match="whisper-server"):
         installer.ensure_whisper_server()
+
+
+def test_read_simple_env_parses_whisper_startup_settings(tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "# comment",
+                "WHISPER_PORT=9000",
+                "WHISPER_STARTUP_TIMEOUT_SECONDS='120'",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    values = LocalApiUserServiceInstaller._read_simple_env(env_file)
+
+    assert values["WHISPER_PORT"] == "9000"
+    assert values["WHISPER_STARTUP_TIMEOUT_SECONDS"] == "120"
+
+
+def test_release_linux_ctrl_space_conflicts_removes_ibus_trigger(tmp_path, monkeypatch):
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        if command == ["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "trigger"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                "['Control+space', 'Zenkaku_Hankaku', 'Alt+Release+Alt_R']\n",
+                "",
+            )
+        if command == ["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "triggers"]:
+            return subprocess.CompletedProcess(command, 0, "['<Super>space']\n", "")
+        if command == ["gsettings", "get", "org.gnome.desktop.wm.keybindings", "switch-input-source"]:
+            return subprocess.CompletedProcess(command, 0, "['<Control>space', '<Super>space']\n", "")
+        if command == [
+            "gsettings",
+            "get",
+            "org.gnome.desktop.wm.keybindings",
+            "switch-input-source-backward",
+        ]:
+            return subprocess.CompletedProcess(command, 0, "['<Shift><Super>space']\n", "")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    installer = LocalApiUserServiceInstaller(project_dir=tmp_path / "project")
+
+    installer.release_linux_ctrl_space_conflicts()
+
+    assert [
+        "gsettings",
+        "set",
+        "org.freedesktop.ibus.general.hotkey",
+        "trigger",
+        "['Zenkaku_Hankaku', 'Alt+Release+Alt_R']",
+    ] in calls
+    assert [
+        "gsettings",
+        "set",
+        "org.freedesktop.ibus.general.hotkey",
+        "triggers",
+        "['<Super>space']",
+    ] not in calls
+    assert [
+        "gsettings",
+        "set",
+        "org.gnome.desktop.wm.keybindings",
+        "switch-input-source",
+        "['<Super>space']",
+    ] in calls
+
+
+def test_clear_ulauncher_ctrl_space_hotkey(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(
+        json.dumps(
+            {
+                "hotkey-show-app": "<Primary>space",
+                "theme-name": "light",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    changed = LocalApiUserServiceInstaller._clear_ulauncher_ctrl_space_hotkey(
+        settings_path
+    )
+
+    assert changed is True
+    assert json.loads(settings_path.read_text(encoding="utf-8")) == {
+        "hotkey-show-app": "",
+        "theme-name": "light",
+    }

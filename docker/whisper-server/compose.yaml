@@ -1,6 +1,6 @@
 services:
   whisper:
-    image: hwdsl2/whisper-server:cuda
+    image: ${WHISPER_IMAGE:-hwdsl2/whisper-server:latest}
     container_name: whisper-server
     restart: unless-stopped
     ports:
@@ -9,13 +9,6 @@ services:
       - whisper-data:/var/lib/whisper
     env_file:
       - .env
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
 volumes:
   whisper-data:

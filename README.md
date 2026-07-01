@@ -47,7 +47,7 @@ The project is intentionally practical: open a desktop overlay, select text and 
 | Desktop translation UI | Electron/Vue interface for realtime transcript and translation sessions. | Both | 🟡 In progress |
 | Main overlay launcher | Electron/Vue overlay with tool cards, settings and Windows single-instance toggle. | Local | 🟢 Useful now on Windows |
 | Translated virtual microphone | Expose `so_ai_translated_mic` to Slack/Meet/Zoom with passthrough or translated voice. | API | 🟢 Useful now |
-| Push-to-talk dictation | Hold a shortcut and dictate text locally through a warm faster-whisper HTTP Docker server. | Local/on-prem | 🟢 Useful now on Windows |
+| Push-to-talk dictation | Hold a shortcut and dictate text locally through a warm faster-whisper HTTP Docker server. | Local/on-prem | 🟢 Useful now on Linux and Windows |
 | Local inference API | FastAPI gateway over Ollama or OpenAI-compatible remote providers. | Both | 🟢 Useful now |
 | Overlay agent chat | Conversational OS tool launcher and assistant overlay. | Planned | 🔴 Roadmap |
 
@@ -76,9 +76,9 @@ Status legend: 🟢 working/useful now, 🟡 partial or experimental, 🔴 not i
 | Desktop overlay/settings UI | 🟡 | 🔴 | 🟢 |
 | Desktop translation UI | 🟡 | 🔴 | 🟡 |
 | Virtual translated microphone | 🟢 | 🔴 | 🔴 |
-| Push-to-talk dictation | 🟡 | 🔴 | 🟢 |
+| Push-to-talk dictation | 🟢 | 🔴 | 🟢 |
 
-Linux remains the most complete target for audio routing. Windows now supports selected-text correction, hidden Startup launchers, the main overlay launcher, shortcut introspection and push-to-talk dictation with a warm faster-whisper Docker backend. The architecture keeps OS-specific code behind adapters so macOS and additional Windows capabilities can be added without rewriting the product model.
+Linux remains the most complete target for audio routing and now has a working CPU-oriented push-to-talk dictation path through the warm faster-whisper Docker backend. Windows separately supports selected-text correction, hidden Startup launchers, the main overlay launcher, shortcut introspection and push-to-talk dictation with the same HTTP backend shape. The architecture keeps OS-specific code behind adapters so macOS and additional Windows capabilities can be added without rewriting the product model.
 
 ## How It Works
 
@@ -101,7 +101,7 @@ The project currently uses:
 - **Ollama** for local model serving.
 - **LiteLLM/OpenAI-compatible providers** when a remote backend is configured.
 - **OpenAI Realtime** for realtime audio translation workflows.
-- **faster-whisper HTTP in Docker** for the preferred validated Windows dictation backend.
+- **faster-whisper HTTP in Docker** for the preferred Linux and Windows dictation backend.
 - **PulseAudio/PipeWire compatibility tools** for audio routing on Linux.
 - **Electron + Vue** for the main overlay, settings and desktop translation UI.
 - **OpenSpec** for change proposals, specs, tasks and validation evidence.
@@ -127,7 +127,7 @@ Default shortcuts:
 | Tool | Shortcut |
 | --- | --- |
 | Correct selected text | `Ctrl + Alt + C` |
-| Push-to-talk dictation | `Ctrl + Alt + Space` |
+| Push-to-talk dictation | `Ctrl + Shift + Space` |
 | System audio translation | `Ctrl + Alt + Y` |
 | Voice translation virtual microphone | `Ctrl + Alt + U` |
 
@@ -165,7 +165,7 @@ Useful Windows shortcuts today:
 | --- | --- |
 | Open/toggle main overlay | `Ctrl + Alt + A` |
 | Correct selected text | `Ctrl + Alt + C` |
-| Push-to-talk dictation | `Ctrl + Space` |
+| Push-to-talk dictation | `Ctrl + Shift + Space` |
 
 Selected text correction tries to select and correct the whole focused text input when no text is selected. Dictation is validated with the faster-whisper HTTP Docker backend documented in [Faster-Whisper Docker Server](docs/whisper-docker.md).
 
@@ -201,7 +201,7 @@ Realtime audio features require their own API key configuration. Keep real secre
 
 ### Now
 
-- Validate faster-whisper HTTP push-to-talk dictation end to end on Linux after the Docker backend is started by the desktop bootstrap.
+- Collect more Linux CPU dictation samples with human references before changing the default Whisper model.
 - Wire the remaining overlay tool cards to their production workflows.
 - Improve debug traces for audio timing, ASR emissions and inserted text.
 - Finish the realtime translation desktop UI flow.
@@ -224,7 +224,7 @@ Realtime audio features require their own API key configuration. Keep real secre
 
 - The project is Linux-first for audio-routing workflows, while Windows is already useful for selected-text correction, overlay launch/settings and push-to-talk dictation.
 - Some audio workflows depend on PulseAudio/PipeWire compatibility tools such as `pactl`, `parec` and virtual sink/source modules.
-- Push-to-talk dictation is working on Windows with faster-whisper HTTP; Linux bootstrap now starts the same Docker backend and still needs end-to-end desktop validation.
+- Push-to-talk dictation uses `Ctrl + Shift + Space` on Linux and Windows. Linux currently defaults to CPU `large-v3-turbo` and has local CPU benchmark evidence; Windows is validated separately with faster-whisper HTTP and Startup launchers.
 - Realtime translation can require paid provider API keys depending on the selected backend.
 
 ## Development

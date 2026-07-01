@@ -7,7 +7,7 @@ The system SHALL provide local push-to-talk dictation on Windows using the confi
 
 #### Scenario: User holds the Windows dictation shortcut
 - **WHEN** the Windows dictation listener is running
-- **AND** the user holds `Ctrl + Space`
+- **AND** the user holds `Ctrl + Shift + Space`
 - **THEN** the system SHALL start capturing microphone audio
 - **AND** it SHALL stream or buffer captured audio chunks for the configured local ASR transcriber.
 
@@ -118,3 +118,62 @@ The system SHALL prepare the faster-whisper Docker backend when installing Linux
 - **WHEN** the user runs the standalone push-to-talk dictation service installer
 - **THEN** the system SHALL ensure the faster-whisper Docker backend is started before enabling the service.
 
+### Requirement: Linux push-to-talk dictation shortcut and runtime
+The system SHALL provide a Linux push-to-talk dictation listener that records while the configured shortcut is held and inserts recognized Spanish text into the focused field after release.
+
+#### Scenario: Linux default shortcut starts dictation
+- **WHEN** the Linux desktop integration is installed with default settings
+- **THEN** the push-to-talk dictation listener SHALL use `Ctrl + Shift + Space`.
+
+#### Scenario: Whisper runtime is checked before listening
+- **WHEN** the Linux dictation service is installed
+- **THEN** the faster-whisper Docker server SHALL be ensured before the listener is enabled.
+
+#### Scenario: Legacy native Ubuntu shortcut conflict is cleared
+- **WHEN** the Linux desktop integration is installed on a system exposing old `Ctrl + Space` input-source hotkeys
+- **THEN** the installer SHALL clear those conflicting hotkeys as best-effort cleanup for users who previously had dictation on `Ctrl + Space`.
+
+### Requirement: Dictation shortcut includes Shift support
+The press-and-hold dictation listener SHALL support shortcuts that include the `Shift` modifier.
+
+#### Scenario: User holds Ctrl Shift Space
+- **WHEN** the dictation listener is configured with `Ctrl + Shift + Space`
+- **AND** the user holds Ctrl, Shift, and Space together
+- **THEN** the system SHALL start dictation capture.
+
+### Requirement: Dictation sessions do not overlap
+The push-to-talk dictation runner SHALL prevent a new dictation session from starting while a previous session is still finalizing transcription or text insertion.
+
+#### Scenario: User presses again while previous release is finalizing
+- **WHEN** a dictation release is still finalizing
+- **AND** the user presses the dictation shortcut again
+- **THEN** the runner SHALL NOT start a second capture
+- **AND** text from the previous recording SHALL NOT be inserted into the new recording's result state.
+
+### Requirement: Faster-whisper HTTP warm runtime semantics
+The system SHALL keep the faster-whisper HTTP runtime warm before listening, while treating each dictation as a buffered transcription finalized after release.
+
+#### Scenario: Dictation listener starts
+- **WHEN** the dictation listener starts
+- **THEN** it SHALL check the faster-whisper HTTP server readiness before accepting shortcut input.
+
+#### Scenario: User releases the dictation shortcut
+- **WHEN** the user releases the dictation shortcut
+- **THEN** the runner SHALL stop capture after post-roll
+- **AND** it SHALL send the captured utterance for final transcription.
+
+### Requirement: CPU model benchmark evidence
+The project SHALL evaluate CPU dictation model changes with measured latency and quality evidence before changing the default model.
+
+#### Scenario: Benchmark runs candidate models
+- **WHEN** a CPU dictation model benchmark is run
+- **THEN** it SHALL record model name, startup readiness time, transcription time, audio duration, realtime factor, and transcript text.
+
+#### Scenario: Benchmark avoids persistent model cache pollution
+- **WHEN** candidate models are benchmarked in Docker
+- **THEN** temporary benchmark containers and volumes SHALL be removed after each candidate
+- **AND** the existing production `whisper-server` container and volume SHALL remain unchanged.
+
+#### Scenario: Reference transcript is unavailable
+- **WHEN** no human reference transcript is provided
+- **THEN** the benchmark SHALL label quality metrics against the current large model as pseudo-reference evidence.

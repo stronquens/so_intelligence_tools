@@ -83,7 +83,7 @@ def build_shortcut_map(settings: ToolRunnerSettings) -> list[ShortcutMapEntry]:
             env_var="WINDOWS_PUSH_TO_TALK_DICTATION_SHORTCUT",
             mechanism="press-and-hold listener",
             status="active",
-            notes="Uses Ctrl+Space on this Windows setup after disabling the conflicting Codex integrated dictation shortcut.",
+            notes="Default uses Ctrl+Shift+Space to avoid common Ctrl+Space OS shortcut collisions.",
         ),
         ShortcutMapEntry(
             feature="Open overlay",
@@ -133,7 +133,7 @@ def build_shortcut_map(settings: ToolRunnerSettings) -> list[ShortcutMapEntry]:
         ShortcutMapEntry(
             feature="Push-to-talk dictation",
             platform="desktop",
-            shortcut="Ctrl + Space",
+            shortcut="Ctrl + Shift + Space",
             env_var="desktop-settings.json",
             mechanism="Electron desktop setting",
             status="planned",

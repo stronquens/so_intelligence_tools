@@ -157,46 +157,53 @@ class PressAndHoldDictationRunner:
         self._audio_capture_factory = audio_capture_factory
         self._post_roll_seconds = post_roll_seconds
         self._capture = None
+        self._operation_lock = Lock()
 
     def press(self) -> None:
-        if self._controller.active:
+        if not self._operation_lock.acquire(blocking=False):
             return
-        pending_audio: list[bytes] = []
-        pending_audio_lock = Lock()
-
-        def accept_or_buffer(pcm_s16le: bytes) -> None:
-            if self._controller.active:
-                self._controller.accept_audio(pcm_s16le)
-                return
-            with pending_audio_lock:
-                pending_audio.append(pcm_s16le)
-
-        capture = self._audio_capture_factory(accept_or_buffer)
-        start = getattr(capture, "start")
         try:
-            start()
-            self._controller.start()
-        except Exception:
-            stop = getattr(capture, "stop")
-            stop()
-            self._controller.abort()
-            raise
-        self._capture = capture
-        with pending_audio_lock:
-            buffered_audio = list(pending_audio)
-            pending_audio.clear()
-        for chunk in buffered_audio:
-            self._controller.accept_audio(chunk)
+            if self._controller.active:
+                return
+            pending_audio: list[bytes] = []
+            pending_audio_lock = Lock()
+
+            def accept_or_buffer(pcm_s16le: bytes) -> None:
+                if self._controller.active:
+                    self._controller.accept_audio(pcm_s16le)
+                    return
+                with pending_audio_lock:
+                    pending_audio.append(pcm_s16le)
+
+            capture = self._audio_capture_factory(accept_or_buffer)
+            start = getattr(capture, "start")
+            try:
+                start()
+                self._controller.start()
+            except Exception:
+                stop = getattr(capture, "stop")
+                stop()
+                self._controller.abort()
+                raise
+            self._capture = capture
+            with pending_audio_lock:
+                buffered_audio = list(pending_audio)
+                pending_audio.clear()
+            for chunk in buffered_audio:
+                self._controller.accept_audio(chunk)
+        finally:
+            self._operation_lock.release()
 
     def release(self) -> DictationSessionResult:
-        capture = self._capture
-        self._capture = None
-        if capture is not None:
-            if self._post_roll_seconds > 0:
-                time.sleep(self._post_roll_seconds)
-            stop = getattr(capture, "stop")
-            stop()
-        return self._controller.stop()
+        with self._operation_lock:
+            capture = self._capture
+            self._capture = None
+            if capture is not None:
+                if self._post_roll_seconds > 0:
+                    time.sleep(self._post_roll_seconds)
+                stop = getattr(capture, "stop")
+                stop()
+            return self._controller.stop()
 
     def abort(self) -> None:
         capture = self._capture

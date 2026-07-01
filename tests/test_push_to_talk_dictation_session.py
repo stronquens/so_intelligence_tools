@@ -197,3 +197,58 @@ def test_press_and_hold_runner_applies_post_roll_before_stopping_capture(monkeyp
 
     assert sleeps == [0.35]
     assert captures[0].stopped is True
+
+
+class FinishPressingAsrSession:
+    def __init__(self, on_finish) -> None:
+        self.on_finish = on_finish
+
+    def accept_audio(self, pcm_s16le: bytes):
+        return []
+
+    def finish(self):
+        self.on_finish()
+        return [StreamingAsrEvent(kind="final", text="primero")]
+
+    def close(self) -> None:
+        pass
+
+
+class FinishPressingTranscriber:
+    def __init__(self) -> None:
+        self.on_finish = lambda: None
+
+    def check_ready(self) -> None:
+        pass
+
+    def start_session(self):
+        return FinishPressingAsrSession(self.on_finish)
+
+
+def test_press_and_hold_runner_ignores_press_while_release_is_finalizing():
+    transcriber = FinishPressingTranscriber()
+    insertion = MemoryTextInsertionAdapter()
+    controller = StreamingDictationController(
+        transcriber=transcriber,
+        text_insertion=insertion,
+        insertion_strategy="final_on_release",
+    )
+    captures: list[FakeCapture] = []
+
+    def capture_factory(callback):
+        capture = FakeCapture(callback)
+        captures.append(capture)
+        return capture
+
+    runner = PressAndHoldDictationRunner(
+        controller=controller,
+        audio_capture_factory=capture_factory,
+    )
+    transcriber.on_finish = runner.press
+
+    runner.press()
+    result = runner.release()
+
+    assert len(captures) == 1
+    assert result.inserted_text == "primero"
+    assert insertion.last_text == "primero"
