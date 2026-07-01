@@ -44,6 +44,23 @@ poetry install
 
 The repository uses `poetry.toml` to keep the virtual environment inside the project as `.venv`.
 
+## Optional Global CLI Shortcut
+
+For commands that you want to run from any terminal or any VS Code project window, create a persistent `so-ai` command in `~/.local/bin`:
+
+```bash
+mkdir -p ~/.local/bin
+ln -sfn /home/sciling/Escritorio/so_intelligence_tools/.venv/bin/so-intelligence-tools ~/.local/bin/so-ai
+```
+
+`~/.local/bin` is included in the Linux user `PATH` on this workstation, so new terminals can call:
+
+```bash
+so-ai --help
+```
+
+Use `so-ai` instead of `poetry run so-intelligence-tools` when the terminal is opened in another project. This matters for per-window Codex voice controls because the command targets the active Codex voice session by the terminal's current working directory.
+
 ## Configure Environment
 
 ```bash
@@ -175,10 +192,10 @@ poetry run so-intelligence-tools stop-piper-tts-server
 The default spoken detail for Codex is `actions`: task start/end plus tool, function and command lifecycle. Per-window controls can mute one VS Code/Codex window, change detail, or switch between the configured `male` and `female` Piper aliases:
 
 ```bash
-poetry run so-intelligence-tools codex-voice-sessions
-poetry run so-intelligence-tools codex-voice-off
-poetry run so-intelligence-tools codex-voice-detail minimal
-poetry run so-intelligence-tools codex-voice-voice female
+so-ai codex-voice-sessions
+so-ai codex-voice-off
+so-ai codex-voice-detail minimal
+so-ai codex-voice-voice female
 ```
 
 See [Piper TTS Voice Output](piper-tts-voice-output.md) for the VS Code wrapper, multi-voice container configuration, privacy boundary and troubleshooting.

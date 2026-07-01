@@ -8,22 +8,43 @@ This page documents the Linux-validated setup. The HTTP API and Docker runtime a
 
 ## Start Or Stop Voice Output
 
+If the global `so-ai` command is installed, the examples below can be run from any project:
+
+```bash
+so-ai status-piper-tts-server
+```
+
+`so-ai` is a persistent shortcut to this repository's Poetry-managed CLI:
+
+```text
+~/.local/bin/so-ai -> /home/sciling/Escritorio/so_intelligence_tools/.venv/bin/so-intelligence-tools
+```
+
+Create or refresh it with:
+
+```bash
+mkdir -p ~/.local/bin
+ln -sfn /home/sciling/Escritorio/so_intelligence_tools/.venv/bin/so-intelligence-tools ~/.local/bin/so-ai
+```
+
+Use `so-ai` for per-window voice controls when the VS Code terminal is opened in another project. Use `poetry run so-intelligence-tools` only when the terminal is inside this repo.
+
 Start the warm Piper service:
 
 ```bash
-poetry run so-intelligence-tools ensure-piper-tts-server
+so-ai ensure-piper-tts-server
 ```
 
 Check whether speech is enabled:
 
 ```bash
-poetry run so-intelligence-tools status-piper-tts-server
+so-ai status-piper-tts-server
 ```
 
 Stop speech:
 
 ```bash
-poetry run so-intelligence-tools stop-piper-tts-server
+so-ai stop-piper-tts-server
 ```
 
 When the Piper container is stopped, clients treat voice output as disabled and continue silently.
@@ -31,7 +52,7 @@ When the Piper container is stopped, clients treat voice output as disabled and 
 ## Smoke Test
 
 ```bash
-poetry run so-intelligence-tools speak-text --text "Hola, esto es una prueba de voz local con Piper."
+so-ai speak-text --text "Hola, esto es una prueba de voz local con Piper."
 ```
 
 The command sends text to `http://127.0.0.1:9010/v1/audio/speech`, plays the returned WAV through `paplay`, `pw-play`, or `aplay`, and deletes its temporary WAV after playback.
@@ -64,12 +85,14 @@ Codex lifecycle hooks are useful for turn-level automation, but they do not expo
 - `codex exec --json` emits event lines such as `item.completed` with `agent_message` text.
 - `codex app-server` emits notifications such as `item/agentMessage/delta` and `item/completed`; this is the protocol used by rich clients such as the VS Code extension.
 
-To read the visible Codex CLI cycle aloud:
+To read the visible Codex CLI cycle aloud from a piped JSONL stream:
 
 ```bash
 codex exec --json "resume el estado del repo" \
-  | poetry run so-intelligence-tools listen-codex-visible-events
+  | so-ai listen-codex-visible-events
 ```
+
+Do not run `listen-codex-visible-events` by itself to change a VS Code window setting. It is a listener and waits for newline-delimited JSON on stdin.
 
 By default, the listener reads the visible cycle, not only the final answer:
 
@@ -84,18 +107,18 @@ To reduce speech to final visible assistant messages only:
 
 ```bash
 codex exec --json "resume el estado del repo" \
-  | poetry run so-intelligence-tools listen-codex-visible-events --final-only
+  | so-ai listen-codex-visible-events --final-only
 ```
 
 For the Codex IDE extension, the integration point is the same event shape: a stable hook or adapter in the extension should forward visible app-server notifications to:
 
 ```bash
-poetry run so-intelligence-tools listen-codex-visible-events
+so-ai listen-codex-visible-events
 ```
 
 The listener accepts newline-delimited JSON on stdin. It reads visible assistant messages and app-server assistant deltas, chunks them into readable segments, and sends them to the Piper service.
 
-Speech detail is configurable with `CODEX_VOICE_DETAIL` in the repo `.env`, per command with `--detail`, or per active VS Code/Codex window with `codex-voice-detail`:
+Speech detail is configurable with `CODEX_VOICE_DETAIL` in the repo `.env`, per piped listener command with `--detail`, or per active VS Code/Codex window with `codex-voice-detail`:
 
 ```bash
 CODEX_VOICE_DETAIL=actions
@@ -103,7 +126,14 @@ CODEX_VOICE_DETAIL=actions
 
 ```bash
 codex exec --json "resume el estado del repo" \
-  | poetry run so-intelligence-tools listen-codex-visible-events --detail actions
+  | so-ai listen-codex-visible-events --detail actions
+```
+
+To change the active VS Code/Codex window, use:
+
+```bash
+so-ai codex-voice-detail actions
+so-ai codex-voice-detail minimal
 ```
 
 Available detail modes:
@@ -143,13 +173,13 @@ Add that setting in VS Code User Settings JSON, then run **Developer: Reload Win
 Before opening a Codex thread, make sure Piper is running:
 
 ```bash
-poetry run so-intelligence-tools ensure-piper-tts-server
+so-ai ensure-piper-tts-server
 ```
 
 To disable speech without changing VS Code settings:
 
 ```bash
-poetry run so-intelligence-tools stop-piper-tts-server
+so-ai stop-piper-tts-server
 ```
 
 ### Per-Window Voice Toggle
@@ -159,7 +189,7 @@ Stopping Piper disables speech everywhere. To mute only one VS Code/Codex window
 From the integrated terminal in the VS Code window you want to control:
 
 ```bash
-poetry run so-intelligence-tools codex-voice-toggle
+so-ai codex-voice-toggle
 ```
 
 The default target is the most recent active Codex voice session for the current working directory. This makes it suitable for separate VS Code windows opened on different projects.
@@ -167,15 +197,16 @@ The default target is the most recent active Codex voice session for the current
 Useful commands:
 
 ```bash
-poetry run so-intelligence-tools codex-voice-sessions
-poetry run so-intelligence-tools codex-voice-off
-poetry run so-intelligence-tools codex-voice-on
-poetry run so-intelligence-tools codex-voice-detail minimal
-poetry run so-intelligence-tools codex-voice-detail full
-poetry run so-intelligence-tools codex-voice-voice male
-poetry run so-intelligence-tools codex-voice-voice female
-poetry run so-intelligence-tools codex-voice-off --all
-poetry run so-intelligence-tools codex-voice-on --pid 12345
+so-ai codex-voice-sessions
+so-ai codex-voice-off
+so-ai codex-voice-on
+so-ai codex-voice-detail minimal
+so-ai codex-voice-detail actions
+so-ai codex-voice-detail full
+so-ai codex-voice-voice male
+so-ai codex-voice-voice female
+so-ai codex-voice-off --all
+so-ai codex-voice-on --pid 12345
 ```
 
 These commands target the most recent active Codex voice session for the current working directory by default, which is usually the current VS Code window when run from its integrated terminal. Speech that is already playing may finish.
@@ -199,9 +230,9 @@ PIPER_TTS_VOICES_JSON={"default":{"model_file":"es/es_ES/davefx/medium/es_ES-dav
 Then restart:
 
 ```bash
-poetry run so-intelligence-tools ensure-piper-tts-server
-poetry run so-intelligence-tools speak-text --voice male --text "Prueba de voz masculina."
-poetry run so-intelligence-tools speak-text --voice female --text "Prueba de voz femenina."
+so-ai ensure-piper-tts-server
+so-ai speak-text --voice male --text "Prueba de voz masculina."
+so-ai speak-text --voice female --text "Prueba de voz femenina."
 ```
 
 Verify the loaded aliases:
@@ -213,8 +244,8 @@ curl http://127.0.0.1:9010/health
 The selected voice can then be changed per VS Code window:
 
 ```bash
-poetry run so-intelligence-tools codex-voice-voice male
-poetry run so-intelligence-tools codex-voice-voice female
+so-ai codex-voice-voice male
+so-ai codex-voice-voice female
 ```
 
 The retained default is the benchmarked Spanish `davefx/medium` voice. The female `daniela/high` alias is available for manual selection, but it is not the default because the CPU benchmark and daily-use selection favored `davefx/medium`.
@@ -245,14 +276,14 @@ By default it also strips code blocks and long inline code before speech, so it 
 If nothing is spoken:
 
 ```bash
-poetry run so-intelligence-tools status-piper-tts-server
+so-ai status-piper-tts-server
 curl http://127.0.0.1:9010/health
 ```
 
 If the status is `disabled`, start the server with:
 
 ```bash
-poetry run so-intelligence-tools ensure-piper-tts-server
+so-ai ensure-piper-tts-server
 ```
 
 If the service is ready but playback is silent, verify at least one playback command is available:

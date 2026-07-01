@@ -40,3 +40,8 @@ The repository SHALL distinguish Linux and Windows operational state when a feat
 #### Scenario: Dictation documentation mentions validation or performance
 - **WHEN** push-to-talk dictation documentation describes validation, latency, model choice, or runtime setup
 - **THEN** it SHALL state whether the evidence applies to Linux, Windows, or both.
+
+#### Scenario: Linux user controls voice from another project
+- **WHEN** a Linux user needs to run local tool commands from a terminal whose current project is not `so_intelligence_tools`
+- **THEN** the documentation SHALL show the persistent `so-ai` command
+- **AND** it SHALL explain that the command points to the repository-managed CLI.
