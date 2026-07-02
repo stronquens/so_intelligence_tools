@@ -1,0 +1,27 @@
+﻿{
+    "status":  "ok",
+    "backend":  "chatterbox",
+    "model_repo":  "ResembleAI/chatterbox",
+    "es_es_repo":  "ResembleAI/Chatterbox-Multilingual-es-es",
+    "device":  "cuda",
+    "sample_rate":  24000,
+    "default_voice":  "female",
+    "voices":  {
+                   "male":  {
+                                "description":  "Built-in Chatterbox es-ES conditioning.",
+                                "has_audio_prompt":  false,
+                                "exaggeration":  0.5,
+                                "cfg_weight":  0.5,
+                                "temperature":  0.8
+                            },
+                   "female":  {
+                                  "description":  "User-selected Common Voice female Spanish clone, warm preset.",
+                                  "has_audio_prompt":  true,
+                                  "exaggeration":  0.65,
+                                  "cfg_weight":  0.35,
+                                  "temperature":  0.75
+                              }
+               },
+    "load_notes":  "Loaded es-ES single-language pack with S3Gen strict=False; missing=[\u0027tokenizer._mel_filters\u0027, \u0027tokenizer.window\u0027] unexpected=[].",
+    "vram_mib":  4303
+}

@@ -45,6 +45,9 @@ from so_intelligence_tools.local_tts.codex_voice import (
     run_codex_visible_event_listener,
     speak_text,
 )
+from so_intelligence_tools.local_tts.codex_desktop import (
+    run_codex_desktop_session_listener,
+)
 from so_intelligence_tools.local_tts.codex_voice_control import (
     format_sessions,
     list_sessions,
@@ -55,6 +58,7 @@ from so_intelligence_tools.local_tts.codex_voice_control import (
 )
 from so_intelligence_tools.infrastructure.windows_startup import (
     WindowsApiStartupInstaller,
+    WindowsCodexDesktopTtsStartupInstaller,
     WindowsDictationStartupInstaller,
     WindowsShortcutStartupInstaller,
 )
@@ -94,6 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("install-windows-dictation-startup")
     subparsers.add_parser("install-windows-shortcut-listener-startup")
     subparsers.add_parser("install-windows-api-startup")
+    subparsers.add_parser("install-windows-codex-desktop-tts-startup")
     shortcut_map_parser = subparsers.add_parser("show-shortcuts")
     shortcut_map_parser.add_argument(
         "--platform",
@@ -114,9 +119,9 @@ def build_parser() -> argparse.ArgumentParser:
     voice_shortcut_parser.add_argument("--binding", default=None)
     subparsers.add_parser("install-push-to-talk-dictation-service")
     subparsers.add_parser("ensure-whisper-docker-server")
-    subparsers.add_parser("ensure-piper-tts-server")
-    subparsers.add_parser("stop-piper-tts-server")
-    subparsers.add_parser("status-piper-tts-server")
+    subparsers.add_parser("ensure-chatterbox-tts-server")
+    subparsers.add_parser("stop-chatterbox-tts-server")
+    subparsers.add_parser("status-chatterbox-tts-server")
     speak_parser = subparsers.add_parser("speak-text")
     speak_parser.add_argument("--text", default=None)
     speak_parser.add_argument("--base-url", default=None)
@@ -132,6 +137,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     codex_voice_parser.add_argument("--max-segment-chars", type=int, default=None)
+    codex_desktop_parser = subparsers.add_parser("listen-codex-desktop-session-events")
+    codex_desktop_parser.add_argument("--sessions-dir", default=None)
+    codex_desktop_parser.add_argument("--base-url", default=None)
+    codex_desktop_parser.add_argument("--voice", default=None)
+    codex_desktop_parser.add_argument(
+        "--detail",
+        choices=["minimal", "actions", "standard", "no-code", "full"],
+        default=None,
+    )
+    codex_desktop_parser.add_argument("--max-segment-chars", type=int, default=None)
+    codex_desktop_parser.add_argument("--poll-interval-seconds", type=float, default=0.5)
+    codex_desktop_parser.add_argument("--start-at-beginning", action="store_true")
+    codex_desktop_parser.add_argument("--idle-timeout-seconds", type=float, default=None)
     subparsers.add_parser("codex-voice-sessions")
     codex_voice_on_parser = subparsers.add_parser("codex-voice-on")
     _add_codex_voice_target_args(codex_voice_on_parser)
@@ -294,6 +312,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
+        if args.command == "install-windows-codex-desktop-tts-startup":
+            installer = WindowsCodexDesktopTtsStartupInstaller(project_dir=Path.cwd())
+            launcher_path = installer.install()
+            print(f"Windows Codex Desktop TTS startup installed: {launcher_path}")
+            print(
+                "Start it now with: poetry run so-intelligence-tools "
+                "listen-codex-desktop-session-events or sign out and back in."
+            )
+            return 0
+
         if args.command == "install-gnome-selected-text-shortcut":
             manager = GnomeShortcutManager(project_dir=Path.cwd())
             binding = args.binding or settings.gnome_selected_text_correction_binding
@@ -351,33 +379,33 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Faster-whisper Docker server ensured: {whisper_env_path}")
             return 0
 
-        if args.command == "ensure-piper-tts-server":
+        if args.command == "ensure-chatterbox-tts-server":
             installer = LocalApiUserServiceInstaller(
                 project_dir=Path.cwd(),
                 host=settings.local_inference_api_host,
                 port=settings.local_inference_api_port,
             )
-            piper_env_path = installer.ensure_piper_tts_server()
-            print(f"Piper TTS Docker server ensured: {piper_env_path}")
+            chatterbox_env_path = installer.ensure_chatterbox_tts_server()
+            print(f"Chatterbox TTS Docker server ensured: {chatterbox_env_path}")
             return 0
 
-        if args.command == "stop-piper-tts-server":
+        if args.command == "stop-chatterbox-tts-server":
             installer = LocalApiUserServiceInstaller(
                 project_dir=Path.cwd(),
                 host=settings.local_inference_api_host,
                 port=settings.local_inference_api_port,
             )
-            installer.stop_piper_tts_server()
-            print("Piper TTS Docker server stopped. Voice output is disabled.")
+            installer.stop_chatterbox_tts_server()
+            print("Chatterbox TTS Docker server stopped. GPU voice output is disabled.")
             return 0
 
-        if args.command == "status-piper-tts-server":
+        if args.command == "status-chatterbox-tts-server":
             installer = LocalApiUserServiceInstaller(
                 project_dir=Path.cwd(),
                 host=settings.local_inference_api_host,
                 port=settings.local_inference_api_port,
             )
-            ready = installer.piper_tts_server_ready()
+            ready = installer.chatterbox_tts_server_ready()
             print("ready" if ready else "disabled")
             return 0
 
@@ -408,6 +436,24 @@ def main(argv: list[str] | None = None) -> int:
                 max_segment_chars=(
                     args.max_segment_chars or settings.codex_voice_max_segment_chars
                 ),
+            )
+
+        if args.command == "listen-codex-desktop-session-events":
+            client = _build_local_tts_client(
+                settings,
+                base_url=args.base_url,
+                voice=args.voice,
+            )
+            return run_codex_desktop_session_listener(
+                client=client,
+                sessions_dir=Path(args.sessions_dir) if args.sessions_dir else None,
+                poll_interval_seconds=args.poll_interval_seconds,
+                speech_detail=_codex_desktop_detail(args.detail or settings.codex_voice_detail),
+                max_segment_chars=(
+                    args.max_segment_chars or settings.codex_voice_max_segment_chars
+                ),
+                start_at_end=not args.start_at_beginning,
+                idle_timeout_seconds=args.idle_timeout_seconds,
             )
 
         if args.command == "codex-voice-sessions":
@@ -543,6 +589,10 @@ def _format_codex_voice_update(action: str, sessions) -> str:
     return f"Codex voice {action}:\n{format_sessions(sessions)}"
 
 
+def _codex_desktop_detail(value: str | None) -> str:
+    return value if value in {"minimal", "actions", "standard", "no-code", "full"} else "standard"
+
+
 def _build_local_tts_client(
     settings,
     *,
@@ -554,6 +604,6 @@ def _build_local_tts_client(
             base_url=base_url or settings.local_tts_base_url,
             timeout_seconds=settings.local_tts_timeout_seconds,
             playback_command=settings.local_tts_playback_command,
-            voice=voice or "default",
+            voice=voice or settings.local_tts_voice,
         )
     )

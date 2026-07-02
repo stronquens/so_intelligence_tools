@@ -1,0 +1,11 @@
+﻿{
+    "command":  "scripts\\\\codex-tts-wrapper.cmd app-server --stdio",
+    "fake_real_codex":  "C:\\Users\\arman\\AppData\\Local\\Temp\\so-ai-fake-codex-app-server.cmd",
+    "exit_code":  0,
+    "elapsed_seconds":  23.7,
+    "stdout":  [
+                   "{\"method\":\"item/agentMessage/delta\",\"params\":{\"delta\":\"Prueba real del wrapper de Codex con Chatterbox en Windows.\"}}"
+               ],
+    "configured_vscode_setting":  "chatgpt.cliExecutable",
+    "configured_vscode_value":  "C:\\Dev\\Active\\so_intelligence_tools\\scripts\\codex-tts-wrapper.cmd"
+}

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import subprocess
+import sys
+import types
 
 import httpx
 
@@ -27,6 +29,7 @@ def test_local_tts_client_speaks_returned_wav(monkeypatch, tmp_path):
         assert command[1].endswith(".wav")
         return subprocess.CompletedProcess(command, 0)
 
+    monkeypatch.setattr("so_intelligence_tools.local_tts.client.sys.platform", "linux")
     monkeypatch.setattr("shutil.which", fake_which)
     monkeypatch.setattr("subprocess.run", fake_run)
     client = LocalTtsClient(
@@ -67,9 +70,26 @@ def test_wav_player_removes_temp_file(monkeypatch):
         temp_paths.append(command[1])
         return subprocess.CompletedProcess(command, 0)
 
+    monkeypatch.setattr("so_intelligence_tools.local_tts.client.sys.platform", "linux")
     monkeypatch.setattr("shutil.which", fake_which)
     monkeypatch.setattr("subprocess.run", fake_run)
 
     assert WavPlayer().play(b"RIFFfakewav") is True
     assert temp_paths
     assert not any(path for path in temp_paths if __import__("pathlib").Path(path).exists())
+
+
+def test_wav_player_uses_winsound_on_windows(monkeypatch):
+    played_paths: list[str] = []
+
+    fake_winsound = types.SimpleNamespace(
+        SND_FILENAME=1,
+        PlaySound=lambda path, flags: played_paths.append(path),
+    )
+
+    monkeypatch.setattr("so_intelligence_tools.local_tts.client.sys.platform", "win32")
+    monkeypatch.setitem(sys.modules, "winsound", fake_winsound)
+
+    assert WavPlayer().play(b"RIFFfakewav") is True
+    assert played_paths
+    assert not any(path for path in played_paths if __import__("pathlib").Path(path).exists())

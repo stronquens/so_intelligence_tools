@@ -1,0 +1,27 @@
+﻿{
+    "requests_total":  2,
+    "successful_requests_total":  2,
+    "failures_total":  0,
+    "synthesis_seconds_total":  24.74028205599825,
+    "audio_seconds_total":  7.48,
+    "realtime_factor_total":  6.730106811563098,
+    "last_synthesis_seconds":  7.093437261999497,
+    "last_audio_seconds":  3.88,
+    "last_realtime_factor":  1.8282054798967777,
+    "last_voice":  "female",
+    "last_vram_mib":  6857,
+    "voices":  {
+                   "male":  {
+                                "requests":  0,
+                                "failures":  0
+                            },
+                   "female":  {
+                                  "requests":  2,
+                                  "failures":  0
+                              }
+               },
+    "average_synthesis_seconds":  12.370141027999125,
+    "average_audio_seconds":  3.74,
+    "average_realtime_factor":  3.365053405781549,
+    "current_vram_mib":  6857
+}

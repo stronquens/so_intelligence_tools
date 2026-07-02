@@ -1,0 +1,10 @@
+﻿{
+    "command":  "listen-codex-desktop-session-events --sessions-dir \u003ctemp\u003e --start-at-beginning",
+    "synthetic_session_file":  "C:\\Users\\arman\\AppData\\Local\\Temp\\so-ai-codex-desktop-session-smoke\\2026\\07\\02\\rollout-smoke.jsonl",
+    "exit_code":  0,
+    "elapsed_seconds":  12.601,
+    "before_requests":  1,
+    "after_requests":  2,
+    "after_last_voice":  "female",
+    "after_last_realtime_factor":  1.8282054798967777
+}

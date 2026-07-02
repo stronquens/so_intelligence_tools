@@ -134,40 +134,40 @@ class LocalApiUserServiceInstaller:
         self._wait_for_whisper_server(env_file)
         return env_file
 
-    def ensure_piper_tts_server(self) -> Path:
-        compose_dir = self._project_dir / "docker" / "piper-tts"
+    def ensure_chatterbox_tts_server(self) -> Path:
+        compose_dir = self._project_dir / "docker" / "chatterbox-tts"
         compose_file = compose_dir / "compose.yaml"
         env_file = compose_dir / ".env"
         env_example = compose_dir / ".env.example"
         if not compose_file.exists():
             raise ToolRunnerConfigurationError(
-                "No se encontro `docker/piper-tts/compose.yaml`."
+                "No se encontro `docker/chatterbox-tts/compose.yaml`."
             )
         if not env_file.exists():
             if not env_example.exists():
                 raise ToolRunnerConfigurationError(
-                    "No se encontro `docker/piper-tts/.env.example`."
+                    "No se encontro `docker/chatterbox-tts/.env.example`."
                 )
             env_file.write_text(env_example.read_text(encoding="utf-8"), encoding="utf-8")
         self._run_docker_compose(compose_dir, ["up", "-d", "--build"])
-        self._wait_for_piper_tts_server(env_file)
+        self._wait_for_chatterbox_tts_server(env_file)
         return env_file
 
-    def stop_piper_tts_server(self) -> None:
-        compose_dir = self._project_dir / "docker" / "piper-tts"
+    def stop_chatterbox_tts_server(self) -> None:
+        compose_dir = self._project_dir / "docker" / "chatterbox-tts"
         compose_file = compose_dir / "compose.yaml"
         if not compose_file.exists():
             raise ToolRunnerConfigurationError(
-                "No se encontro `docker/piper-tts/compose.yaml`."
+                "No se encontro `docker/chatterbox-tts/compose.yaml`."
             )
         self._run_docker_compose(compose_dir, ["down"])
 
-    def piper_tts_server_ready(self) -> bool:
-        env_file = self._project_dir / "docker" / "piper-tts" / ".env"
+    def chatterbox_tts_server_ready(self) -> bool:
+        env_file = self._project_dir / "docker" / "chatterbox-tts" / ".env"
         if not env_file.exists():
             return False
         env_values = self._read_simple_env(env_file)
-        port = env_values.get("PIPER_TTS_PORT", "9010")
+        port = env_values.get("CHATTERBOX_TTS_PORT", "9011")
         try:
             with urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as response:
                 return 200 <= response.status < 300
@@ -301,10 +301,12 @@ class LocalApiUserServiceInstaller:
             f"URL: {url}. Ultimo error: {last_error or 'sin respuesta'}"
         )
 
-    def _wait_for_piper_tts_server(self, env_file: Path) -> None:
+    def _wait_for_chatterbox_tts_server(self, env_file: Path) -> None:
         env_values = self._read_simple_env(env_file)
-        port = env_values.get("PIPER_TTS_PORT", "9010")
-        timeout_seconds = float(env_values.get("PIPER_TTS_STARTUP_TIMEOUT_SECONDS", "180"))
+        port = env_values.get("CHATTERBOX_TTS_PORT", "9011")
+        timeout_seconds = float(
+            env_values.get("CHATTERBOX_TTS_STARTUP_TIMEOUT_SECONDS", "600")
+        )
         deadline = time.monotonic() + timeout_seconds
         url = f"http://127.0.0.1:{port}/health"
         last_error = ""
@@ -317,7 +319,7 @@ class LocalApiUserServiceInstaller:
                 last_error = str(exc)
             time.sleep(2)
         raise ToolRunnerConfigurationError(
-            "El servidor Piper TTS no estuvo listo a tiempo. "
+            "El servidor Chatterbox TTS no estuvo listo a tiempo. "
             f"URL: {url}. Ultimo error: {last_error or 'sin respuesta'}"
         )
 

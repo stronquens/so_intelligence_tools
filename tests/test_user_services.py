@@ -190,12 +190,15 @@ def test_ensure_whisper_server_requires_compose_file(tmp_path):
         installer.ensure_whisper_server()
 
 
-def test_ensure_piper_tts_server_copies_env_and_starts_compose(tmp_path, monkeypatch):
+def test_ensure_chatterbox_tts_server_copies_env_and_starts_compose(tmp_path, monkeypatch):
     project_dir = tmp_path / "project"
-    piper_dir = project_dir / "docker" / "piper-tts"
-    piper_dir.mkdir(parents=True)
-    (piper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
-    (piper_dir / ".env.example").write_text("PIPER_TTS_PORT=9010\n", encoding="utf-8")
+    chatterbox_dir = project_dir / "docker" / "chatterbox-tts"
+    chatterbox_dir.mkdir(parents=True)
+    (chatterbox_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (chatterbox_dir / ".env.example").write_text(
+        "CHATTERBOX_TTS_PORT=9011\n",
+        encoding="utf-8",
+    )
     calls: list[tuple[list[str], str | None]] = []
 
     def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
@@ -205,20 +208,20 @@ def test_ensure_piper_tts_server_copies_env_and_starts_compose(tmp_path, monkeyp
 
     monkeypatch.setattr("subprocess.run", fake_run)
     installer = LocalApiUserServiceInstaller(project_dir=project_dir)
-    monkeypatch.setattr(installer, "_wait_for_piper_tts_server", lambda _env_file: None)
+    monkeypatch.setattr(installer, "_wait_for_chatterbox_tts_server", lambda _env_file: None)
 
-    env_path = installer.ensure_piper_tts_server()
+    env_path = installer.ensure_chatterbox_tts_server()
 
-    assert env_path == piper_dir / ".env"
-    assert env_path.read_text(encoding="utf-8") == "PIPER_TTS_PORT=9010\n"
-    assert calls == [(["docker", "compose", "up", "-d", "--build"], str(piper_dir))]
+    assert env_path == chatterbox_dir / ".env"
+    assert env_path.read_text(encoding="utf-8") == "CHATTERBOX_TTS_PORT=9011\n"
+    assert calls == [(["docker", "compose", "up", "-d", "--build"], str(chatterbox_dir))]
 
 
-def test_stop_piper_tts_server_runs_compose_down(tmp_path, monkeypatch):
+def test_stop_chatterbox_tts_server_runs_compose_down(tmp_path, monkeypatch):
     project_dir = tmp_path / "project"
-    piper_dir = project_dir / "docker" / "piper-tts"
-    piper_dir.mkdir(parents=True)
-    (piper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    chatterbox_dir = project_dir / "docker" / "chatterbox-tts"
+    chatterbox_dir.mkdir(parents=True)
+    (chatterbox_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
     calls: list[tuple[list[str], str | None]] = []
 
     def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
@@ -229,9 +232,9 @@ def test_stop_piper_tts_server_runs_compose_down(tmp_path, monkeypatch):
     monkeypatch.setattr("subprocess.run", fake_run)
     installer = LocalApiUserServiceInstaller(project_dir=project_dir)
 
-    installer.stop_piper_tts_server()
+    installer.stop_chatterbox_tts_server()
 
-    assert calls == [(["docker", "compose", "down"], str(piper_dir))]
+    assert calls == [(["docker", "compose", "down"], str(chatterbox_dir))]
 
 
 def test_read_simple_env_parses_whisper_startup_settings(tmp_path):

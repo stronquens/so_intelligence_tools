@@ -20,6 +20,7 @@ def main(argv: list[str] | None = None) -> int:
 
     subparsers.add_parser("shortcuts")
     subparsers.add_parser("dictation")
+    subparsers.add_parser("codex-desktop-tts")
 
     args = parser.parse_args(argv)
     project_dir = Path.cwd()
@@ -41,9 +42,17 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "shortcuts":
         command = [str(python), "-m", "so_intelligence_tools", "listen-shortcuts"]
         log_name = "so-intelligence-tools-shortcuts.log"
-    else:
+    elif args.command == "dictation":
         command = [str(python), "-m", "so_intelligence_tools", "listen-dictation-shortcut"]
         log_name = "so-intelligence-tools-dictation.log"
+    else:
+        command = [
+            str(python),
+            "-m",
+            "so_intelligence_tools",
+            "listen-codex-desktop-session-events",
+        ]
+        log_name = "so-intelligence-tools-codex-desktop-tts.log"
 
     log_dir = _log_dir()
     log_dir.mkdir(parents=True, exist_ok=True)

@@ -110,9 +110,7 @@ def test_parse_codex_event_announces_tool_lifecycle_without_arguments():
 def test_minimal_detail_only_speaks_task_boundaries():
     extractor = CodexVisibleEventExtractor(include_progress=True, speech_detail="minimal")
 
-    assert extractor.feed({"method": "turn/started", "params": {}}) == [
-        "Empiezo a trabajar."
-    ]
+    assert extractor.feed({"method": "turn/started", "params": {}}) == ["Inicio de tarea."]
     assert extractor.feed({"method": "item/agentMessage/delta", "params": {"delta": "Hola."}}) == []
     assert (
         extractor.feed(
@@ -241,7 +239,7 @@ def test_clean_visible_text_summarizes_non_shell_code_blocks():
 def test_clean_visible_text_announces_bash_code_blocks_without_reading_commands():
     text = clean_visible_text(
         "Ejecuta esto:\n```bash\npoetry run pytest\n"
-        "docker compose up -d && curl http://127.0.0.1:9010/health\n```"
+        "docker compose up -d && curl http://127.0.0.1:9011/health\n```"
     )
 
     assert text == "Ejecuta esto: Bloque de código bash omitido."

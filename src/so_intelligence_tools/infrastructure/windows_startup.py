@@ -106,6 +106,40 @@ class WindowsDictationStartupInstaller(WindowsShortcutStartupInstaller):
         return self.launcher_path
 
 
+class WindowsCodexDesktopTtsStartupInstaller(WindowsShortcutStartupInstaller):
+    @property
+    def launcher_name(self) -> str:
+        return "so-intelligence-tools-codex-desktop-tts.vbs"
+
+    @property
+    def legacy_launcher_name(self) -> str:
+        return "so-intelligence-tools-codex-desktop-tts.cmd"
+
+    def install(self) -> Path:
+        python = self._project_dir / ".venv" / "Scripts" / "python.exe"
+        pythonw = self._project_dir / ".venv" / "Scripts" / "pythonw.exe"
+        if not python.exists() or not pythonw.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontro `.venv\\Scripts\\python.exe` ni `.venv\\Scripts\\pythonw.exe`. "
+                "Ejecuta `poetry install` antes de instalar el listener TTS de Codex Desktop."
+            )
+
+        self._startup_dir.mkdir(parents=True, exist_ok=True)
+        self._remove_legacy_launcher()
+        self.launcher_path.write_text(
+            _build_hidden_vbs_launcher(
+                project_dir=self._project_dir,
+                executable=pythonw,
+                arguments=(
+                    "-m so_intelligence_tools.infrastructure.windows_background_launcher "
+                    "codex-desktop-tts"
+                ),
+            ),
+            encoding="utf-8",
+        )
+        return self.launcher_path
+
+
 class WindowsApiStartupInstaller:
     def __init__(
         self,

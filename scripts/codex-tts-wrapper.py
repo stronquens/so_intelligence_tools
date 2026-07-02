@@ -85,11 +85,7 @@ def resolve_real_codex() -> Path:
     if configured:
         return Path(configured).expanduser().resolve()
 
-    extension_candidates = sorted(
-        Path.home().glob(".vscode/extensions/openai.chatgpt-*/bin/linux-x86_64/codex"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
+    extension_candidates = sorted(_extension_codex_candidates(), key=_mtime, reverse=True)
     if extension_candidates:
         return extension_candidates[0].resolve()
 
@@ -107,25 +103,7 @@ def resolve_real_codex() -> Path:
 def start_tts_listener(session: CodexVoiceSession) -> subprocess.Popen[str] | None:
     if os.getenv("SO_AI_CODEX_TTS_DISABLED") == "1":
         return None
-    command_env = os.getenv("SO_AI_CODEX_TTS_LISTENER")
-    if command_env:
-        command = shlex.split(command_env)
-    else:
-        local_cli = REPO_ROOT / ".venv" / "bin" / "so-intelligence-tools"
-        if local_cli.exists():
-            command = [str(local_cli), "listen-codex-visible-events"]
-        else:
-            command = ["poetry", "run", "so-intelligence-tools", "listen-codex-visible-events"]
-    command = [
-        *command,
-        "--detail",
-        session.detail,
-        "--voice",
-        session.voice,
-    ]
-    if session.base_url:
-        command.extend(["--base-url", session.base_url])
-
+    command = build_tts_listener_command(session)
     try:
         return subprocess.Popen(
             command,
@@ -140,6 +118,24 @@ def start_tts_listener(session: CodexVoiceSession) -> subprocess.Popen[str] | No
         return None
 
 
+def build_tts_listener_command(session: CodexVoiceSession) -> list[str]:
+    command_env = os.getenv("SO_AI_CODEX_TTS_LISTENER")
+    if command_env:
+        command = shlex.split(command_env, posix=os.name != "nt")
+    else:
+        command = _default_tts_listener_command()
+    command = [
+        *command,
+        "--detail",
+        session.detail,
+        "--voice",
+        session.voice,
+    ]
+    if session.base_url:
+        command.extend(["--base-url", session.base_url])
+    return command
+
+
 def stop_tts_listener(tts: subprocess.Popen[str] | None) -> subprocess.Popen[str] | None:
     if tts is None:
         return None
@@ -148,7 +144,10 @@ def stop_tts_listener(tts: subprocess.Popen[str] | None) -> subprocess.Popen[str
             tts.stdin.close() if tts.stdin is not None else None
         except (BrokenPipeError, OSError):
             pass
-        terminate_process(tts)
+        try:
+            tts.wait(timeout=_tts_stop_timeout_seconds())
+        except subprocess.TimeoutExpired:
+            terminate_process(tts)
     return None
 
 
@@ -213,6 +212,47 @@ def terminate_process(process: subprocess.Popen[str]) -> None:
         process.wait(timeout=2)
     except Exception:
         process.kill()
+
+
+def _extension_codex_candidates() -> list[Path]:
+    suffixes = _extension_codex_suffixes()
+    candidates: list[Path] = []
+    for suffix in suffixes:
+        candidates.extend(Path.home().glob(f".vscode/extensions/openai.chatgpt-*/{suffix}"))
+    return [path for path in candidates if path.exists()]
+
+
+def _extension_codex_suffixes() -> tuple[str, ...]:
+    if sys.platform == "win32":
+        return ("bin/windows-x86_64/codex.exe",)
+    if sys.platform == "darwin":
+        return ("bin/macos-aarch64/codex", "bin/macos-x86_64/codex")
+    return ("bin/linux-x86_64/codex",)
+
+
+def _mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _default_tts_listener_command() -> list[str]:
+    if os.name == "nt":
+        local_cli = REPO_ROOT / ".venv" / "Scripts" / "so-intelligence-tools.exe"
+    else:
+        local_cli = REPO_ROOT / ".venv" / "bin" / "so-intelligence-tools"
+    if local_cli.exists():
+        return [str(local_cli), "listen-codex-visible-events"]
+    return ["poetry", "run", "so-intelligence-tools", "listen-codex-visible-events"]
+
+
+def _tts_stop_timeout_seconds() -> float:
+    value = os.getenv("SO_AI_CODEX_TTS_STOP_TIMEOUT_SECONDS", "30")
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        return 30.0
 
 
 if __name__ == "__main__":

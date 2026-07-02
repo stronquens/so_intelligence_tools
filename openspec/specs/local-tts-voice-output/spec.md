@@ -2,21 +2,21 @@
 
 ## Purpose
 
-Define the local Piper-backed voice-output path for reading visible assistant activity aloud while keeping text workflows usable when speech is disabled.
+Define the local Chatterbox-backed voice-output path for reading visible assistant activity aloud while keeping text workflows usable when speech is disabled.
 
 ## Requirements
 
-### Requirement: Warm Piper TTS Runtime
-The system SHALL provide a local Dockerized Piper TTS runtime that loads the configured voice at startup and remains warm while the container is running.
+### Requirement: Warm Chatterbox TTS Runtime
+The system SHALL provide a local Dockerized Chatterbox TTS runtime that loads the configured es-ES model and voice presets at startup and remains warm while the container is running.
 
 #### Scenario: Service starts and becomes ready
-- **WHEN** the user starts the Piper TTS Docker service
-- **THEN** the service SHALL load the configured Piper voice before reporting ready
+- **WHEN** the user starts the Chatterbox TTS Docker service
+- **THEN** the service SHALL load the configured Chatterbox es-ES model and voice presets before reporting ready
 - **AND** the service SHALL expose a health endpoint that reports readiness.
 
 #### Scenario: Service is stopped
-- **WHEN** the Piper TTS Docker service is stopped
-- **THEN** voice output SHALL be considered disabled
+- **WHEN** the Chatterbox TTS Docker service is stopped
+- **THEN** GPU-backed voice output SHALL be considered disabled
 - **AND** normal text-only assistant workflows SHALL continue without blocking.
 
 ### Requirement: Local Speech API
@@ -24,11 +24,11 @@ The system SHALL expose a local HTTP API for converting visible text to speech a
 
 #### Scenario: Text is synthesized
 - **WHEN** a client sends valid text to the local speech endpoint
-- **THEN** the service SHALL synthesize the text with Piper
+- **THEN** the service SHALL synthesize the text with Chatterbox
 - **AND** the service SHALL return playable audio with a content type and status code that clients can handle deterministically.
 
 #### Scenario: Voice is selected per request
-- **WHEN** the Piper service is configured with multiple voice aliases
+- **WHEN** the Chatterbox service is configured with multiple voice aliases
 - **THEN** clients SHALL be able to select a voice by passing a `voice` parameter to the local speech endpoint
 - **AND** the service SHALL use the requested voice without requiring a separate container per voice.
 
@@ -48,7 +48,7 @@ The system SHALL treat TTS service availability as the primary voice-output togg
 #### Scenario: TTS service is available
 - **WHEN** a client attempts to speak text and the local TTS service is ready
 - **THEN** the client SHALL submit the text for synthesis
-- **AND** the resulting audio SHALL be played through the local audio output.
+- **AND** the resulting audio SHALL be played through the local audio output when playback is configured for the current platform.
 
 #### Scenario: One Codex window is muted
 - **WHEN** multiple Codex voice bridge sessions are active and the user disables one session
@@ -123,13 +123,23 @@ Generated speech audio SHALL be ephemeral by default.
 - **THEN** the generated audio SHALL NOT be retained as a durable file by default
 - **AND** any temporary playback files SHALL be removed after playback or process exit.
 
-### Requirement: Linux Operational Documentation
-The system SHALL document how Linux users install, start, stop, verify, and troubleshoot the Piper TTS runtime and voice-output bridge.
+### Requirement: Platform-Aware Operational Documentation
+The system SHALL document how users install, start, stop, verify, and troubleshoot the Chatterbox TTS runtime and voice-output bridge with separate Linux and Windows status.
+
+#### Scenario: Linux user wants Codex speech
+- **WHEN** a Linux user wants Codex visible events read aloud
+- **THEN** the documentation SHALL explain the Chatterbox service lifecycle and the Codex wrapper/listener path.
+
+#### Scenario: Windows user wants to test TTS
+- **WHEN** a Windows user wants to test local TTS
+- **THEN** the documentation SHALL explain the Chatterbox HTTP endpoint smoke-test path
+- **AND** it SHALL explain the validated Windows Codex wrapper command when the extension is configured through `chatgpt.cliExecutable`
+- **AND** it SHALL explain the standalone Codex Desktop session monitor path when the desktop app writes local session transcripts.
 
 #### Scenario: User wants speech disabled
 - **WHEN** the user wants to stop assistant speech
-- **THEN** the documentation SHALL explain that stopping the Piper TTS container disables voice output while leaving text workflows unchanged.
+- **THEN** the documentation SHALL explain that stopping the Chatterbox TTS container disables GPU voice output while leaving text workflows unchanged.
 
 #### Scenario: User wants a different voice
-- **WHEN** the user wants to change the Piper voice
-- **THEN** the documentation SHALL explain where the voice is configured and how to verify the selected voice with a smoke-test phrase.
+- **WHEN** the user wants to change the voice
+- **THEN** the documentation SHALL explain how to select Chatterbox `male` or `female` and how to verify the selected voice with a smoke-test phrase.

@@ -1,0 +1,19 @@
+﻿{
+    "startup_launcher":  "C:\\Users\\arman\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\so-intelligence-tools-codex-desktop-tts.vbs",
+    "startup_launcher_exists":  true,
+    "listener_processes":  [
+                               {
+                                   "ProcessId":  10752,
+                                   "ParentProcessId":  19336,
+                                   "Name":  "python.exe",
+                                   "CommandLine":  "C:\\Dev\\Active\\so_intelligence_tools\\.venv\\Scripts\\python.exe -m so_intelligence_tools listen-codex-desktop-session-events"
+                               },
+                               {
+                                   "ProcessId":  12408,
+                                   "ParentProcessId":  10752,
+                                   "Name":  "python.exe",
+                                   "CommandLine":  "\"C:\\Python311\\python.exe\" -m so_intelligence_tools listen-codex-desktop-session-events"
+                               }
+                           ],
+    "note":  "The venv launcher process may spawn the base C:\\Python311 child process; together they represent one logical listener."
+}

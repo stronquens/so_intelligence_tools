@@ -12,8 +12,8 @@ Este índice ordena las capabilities por prioridad de ejecución recomendada y a
 | 6 | `selected-text-correction` | No | `text` | `local/remote` | Corrección de texto seleccionado preservando idioma y reemplazando el contenido original, con adapters Linux y Windows para flujos de texto. |
 | 7 | `screenshot-text-extraction` | No | `image` | `local` | Captura de una región de pantalla y extracción exacta de texto al portapapeles. |
 | 8 | `push-to-talk-dictation` | Si | `audio` | `local/on-prem` | Dictado temporal mientras se mantiene un atajo y escritura directa donde está el cursor, validado en Windows con faster-whisper HTTP. |
-| 9 | `local-tts-api` | No | `audio` | `local` | Evidencia comparativa y forma estable de servicio para backends locales de texto a voz en CPU. |
-| 10 | `local-tts-voice-output` | No | `audio/system` | `local` | Servicio Piper Docker y puente de voz para leer eventos visibles de Codex, validado en Linux con control por ventana. |
+| 9 | `local-tts-api` | No | `audio` | `local` | Servicio HTTP local para texto a voz con backend Chatterbox es-ES, health, metricas y seleccion parametrica de voz. |
+| 10 | `local-tts-voice-output` | No | `audio/system` | `local` | Servicio Chatterbox Docker y puente de voz para leer eventos visibles de Codex, con endpoint comun para OpenClaw. |
 | 11 | `overlay-agent-chat` | No | `text` | `local` | Agente conversacional dentro del overlay con acceso a herramientas y búsqueda en archivos. |
 | 12 | `system-audio-transcription` | Si | `audio` | `local/remote` | Traducción en vivo del audio de salida del sistema en una ventana dedicada, con primera iteración validada sobre proveedor remoto y apertura futura a rutas locales. |
 | 13 | `overlay-launcher-desktop-ui` | No | `system-ui` | `none` | Implementación Electron/Vue del overlay principal con superficie translúcida, catálogo de herramientas y ventanas independientes para ajustes y traductor. |

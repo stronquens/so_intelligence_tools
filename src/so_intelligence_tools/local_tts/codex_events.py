@@ -253,7 +253,7 @@ def _extract_progress_text(
     if (
         event_type == "turn.started" or method == "turn/started"
     ) and _detail_allows_lifecycle(speech_detail):
-        return "Empiezo a trabajar."
+        return "Inicio de tarea."
     if (
         event_type == "turn.failed" or method == "turn/failed"
     ) and _detail_allows_lifecycle(speech_detail):

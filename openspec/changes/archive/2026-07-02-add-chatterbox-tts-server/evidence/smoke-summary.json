@@ -1,0 +1,17 @@
+﻿{
+    "female_wall_seconds":  17.336,
+    "female_wav_bytes":  207404,
+    "male_wall_seconds":  5.962,
+    "male_wav_bytes":  213164,
+    "nvidia_smi":  "NVIDIA GeForce RTX 3070, 4683, 8192",
+    "health_status":  "ok",
+    "default_voice":  "female",
+    "voices":  [
+                   "male",
+                   "female"
+               ],
+    "requests_total":  2,
+    "successful_requests_total":  2,
+    "average_realtime_factor":  2.629127183126763,
+    "current_vram_mib":  4683
+}

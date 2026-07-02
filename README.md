@@ -48,6 +48,7 @@ The project is intentionally practical: open a desktop overlay, select text and 
 | Main overlay launcher | Electron/Vue overlay with tool cards, settings and Windows single-instance toggle. | Local | 🟢 Useful now on Windows |
 | Translated virtual microphone | Expose `so_ai_translated_mic` to Slack/Meet/Zoom with passthrough or translated voice. | API | 🟢 Useful now |
 | Push-to-talk dictation | Hold a shortcut and dictate text locally through a warm faster-whisper HTTP Docker server. | Local/on-prem | 🟢 Useful now on Linux and Windows |
+| Local TTS voice output | Read Codex/OpenClaw progress aloud through a pausable Chatterbox es-ES GPU Docker service. | Local/on-prem | 🟡 Experimental on Windows |
 | Local inference API | FastAPI gateway over Ollama or OpenAI-compatible remote providers. | Both | 🟢 Useful now |
 | Overlay agent chat | Conversational OS tool launcher and assistant overlay. | Planned | 🔴 Roadmap |
 
@@ -77,8 +78,9 @@ Status legend: 🟢 working/useful now, 🟡 partial or experimental, 🔴 not i
 | Desktop translation UI | 🟡 | 🔴 | 🟡 |
 | Virtual translated microphone | 🟢 | 🔴 | 🔴 |
 | Push-to-talk dictation | 🟢 | 🔴 | 🟢 |
+| Local TTS voice output | 🟡 | 🔴 | 🟡 |
 
-Linux remains the most complete target for audio routing and now has a working CPU-oriented push-to-talk dictation path through the warm faster-whisper Docker backend. Windows separately supports selected-text correction, hidden Startup launchers, the main overlay launcher, shortcut introspection and push-to-talk dictation with the same HTTP backend shape. The architecture keeps OS-specific code behind adapters so macOS and additional Windows capabilities can be added without rewriting the product model.
+Linux remains the most complete target for audio routing and now has a working CPU-oriented push-to-talk dictation path through the warm faster-whisper Docker backend. Windows separately supports selected-text correction, hidden Startup launchers, the main overlay launcher, shortcut introspection, push-to-talk dictation with the same HTTP backend shape, and experimental Chatterbox TTS voice output for Codex Desktop, VS Code/Codex and OpenClaw HTTP integrations. The architecture keeps OS-specific code behind adapters so macOS and additional Windows capabilities can be added without rewriting the product model.
 
 ## How It Works
 
@@ -102,6 +104,7 @@ The project currently uses:
 - **LiteLLM/OpenAI-compatible providers** when a remote backend is configured.
 - **OpenAI Realtime** for realtime audio translation workflows.
 - **faster-whisper HTTP in Docker** for the preferred Linux and Windows dictation backend.
+- **Chatterbox es-ES in Docker** for experimental local TTS voice output through a pausable GPU service.
 - **PulseAudio/PipeWire compatibility tools** for audio routing on Linux.
 - **Electron + Vue** for the main overlay, settings and desktop translation UI.
 - **OpenSpec** for change proposals, specs, tasks and validation evidence.
@@ -167,7 +170,7 @@ Useful Windows shortcuts today:
 | Correct selected text | `Ctrl + Alt + C` |
 | Push-to-talk dictation | `Ctrl + Shift + Space` |
 
-Selected text correction tries to select and correct the whole focused text input when no text is selected. Dictation is validated with the faster-whisper HTTP Docker backend documented in [Faster-Whisper Docker Server](docs/whisper-docker.md).
+Selected text correction tries to select and correct the whole focused text input when no text is selected. Dictation is validated with the faster-whisper HTTP Docker backend documented in [Faster-Whisper Docker Server](docs/whisper-docker.md). Windows Chatterbox TTS voice output is documented in [Windows Support](docs/windows-support.md) and [Chatterbox TTS Voice Output](docs/chatterbox-tts-voice-output.md), including Codex Desktop hooks, voice selection, latency measurements and VRAM coexistence with Whisper.
 
 ## Configuration
 

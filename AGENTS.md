@@ -60,10 +60,15 @@ Los nombres de capability deben describir la funciÃ³n y mantenerse estables en
 - Atajos Windows actuales: `Ctrl + Alt + A` abre o alterna el overlay principal, `Ctrl + Alt + C` corrige texto seleccionado, `Ctrl + Shift + Space` activa dictado push-to-talk mientras se mantiene pulsado.
 - `Ctrl + Shift + Space` se usa para el dictado de `so_intelligence_tools` para evitar colisiones con el buscador o metodo de entrada del sistema operativo asociado a `Ctrl + Space`.
 - El dictado usa `faster_whisper_http` contra un servidor Docker warm en `http://127.0.0.1:9000`; no debe tratarse ningun runtime ASR anterior como fallback activo.
+- El TTS local retenido usa `docker/chatterbox-tts` en `http://127.0.0.1:9011`; Piper/Kokoro/Qwen/NeuTTS y runners de benchmark TTS no deben tratarse como backends activos.
+- Windows tiene TTS experimental validado con Chatterbox es-ES en Docker Desktop, voz `female` por defecto basada en `cv_female_es_ref_01 / warm`, voz `male` disponible, endpoints `/health`, `/metrics` y `/v1/audio/speech`.
+- La integracion TTS de Codex Desktop en Windows usa un monitor de sesiones en `%USERPROFILE%\.codex\sessions`; lee inicio/fin de tarea, progreso ligero de tools y mensajes visibles/finales. En `task_complete` debe decir `Fin de tarea.` y despues leer el mensaje final si existe.
+- La cola TTS de Codex Desktop sintetiza el siguiente segmento mientras reproduce el WAV actual, descarta progreso blando repetido como `Ejecutando comando.` cuando llega un mensaje visible, y limpia audio viejo al empezar o terminar tarea.
+- Whisper y Chatterbox caben juntos en la RTX 3070 de 8 GiB si el modelo `qwen3-embedding:0.6b` de Memanto esta descargado de VRAM; no se recomienda mantener residentes Whisper, Chatterbox y Qwen embeddings a la vez.
 - En Linux, `install-linux-desktop-integration` y `install-push-to-talk-dictation-service` deben preparar `docker/whisper-server` con `docker compose up -d` antes de habilitar el listener de dictado.
 - El overlay Electron/Vue guarda settings en `desktop-settings.json`; esos settings visuales no implican por si solos que todos los atajos esten registrados a nivel del sistema operativo.
 - Para consultar el mapa efectivo de atajos, usa `poetry run so-intelligence-tools show-shortcuts` con `--platform linux`, `--platform windows` o `--platform desktop`.
-- Las notas operativas detalladas viven en `docs/windows-support.md`, `docs/keyboard-shortcuts.md`, `docs/push-to-talk-dictation.md`, `docs/whisper-docker.md` y `docs/desktop-ui.md`.
+- Las notas operativas detalladas viven en `docs/windows-support.md`, `docs/chatterbox-tts-voice-output.md`, `docs/keyboard-shortcuts.md`, `docs/push-to-talk-dictation.md`, `docs/whisper-docker.md` y `docs/desktop-ui.md`.
 
 ## Recommended Skills
 

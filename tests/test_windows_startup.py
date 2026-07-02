@@ -8,6 +8,7 @@ from so_intelligence_tools.domain.errors import ToolRunnerConfigurationError
 from so_intelligence_tools.infrastructure import windows_background_launcher
 from so_intelligence_tools.infrastructure.windows_startup import (
     WindowsApiStartupInstaller,
+    WindowsCodexDesktopTtsStartupInstaller,
     WindowsDictationStartupInstaller,
     WindowsShortcutStartupInstaller,
 )
@@ -87,6 +88,38 @@ def test_windows_dictation_startup_installer_writes_launcher(tmp_path: Path):
     assert "shell.Run command, 0, False" in content
 
 
+def test_windows_codex_desktop_tts_startup_installer_writes_launcher(tmp_path: Path):
+    project_dir = tmp_path / "project"
+    scripts_dir = project_dir / ".venv" / "Scripts"
+    scripts_dir.mkdir(parents=True)
+    python = scripts_dir / "python.exe"
+    python.write_text("", encoding="utf-8")
+    pythonw = scripts_dir / "pythonw.exe"
+    pythonw.write_text("", encoding="utf-8")
+    startup_dir = tmp_path / "Startup"
+    legacy_launcher = startup_dir / "so-intelligence-tools-codex-desktop-tts.cmd"
+    startup_dir.mkdir()
+    legacy_launcher.write_text("old", encoding="utf-8")
+    installer = WindowsCodexDesktopTtsStartupInstaller(
+        project_dir=project_dir,
+        startup_dir=startup_dir,
+    )
+
+    launcher_path = installer.install()
+
+    assert launcher_path == startup_dir / "so-intelligence-tools-codex-desktop-tts.vbs"
+    assert not legacy_launcher.exists()
+    content = launcher_path.read_text(encoding="utf-8")
+    assert "WScript.Shell" in content
+    assert f'projectDir = "{project_dir.resolve()}"' in content
+    assert f'executable = "{pythonw.resolve()}"' in content
+    assert (
+        'arguments = "-m so_intelligence_tools.infrastructure.windows_background_launcher '
+        'codex-desktop-tts"'
+    ) in content
+    assert "shell.Run command, 0, False" in content
+
+
 def test_windows_api_startup_installer_writes_launcher(tmp_path: Path):
     project_dir = tmp_path / "project"
     scripts_dir = project_dir / ".venv" / "Scripts"
@@ -159,6 +192,11 @@ def test_windows_api_startup_installer_requires_project_venv(tmp_path: Path):
             ["dictation"],
             ["-m", "so_intelligence_tools", "listen-dictation-shortcut"],
             "so-intelligence-tools-dictation.log",
+        ),
+        (
+            ["codex-desktop-tts"],
+            ["-m", "so_intelligence_tools", "listen-codex-desktop-session-events"],
+            "so-intelligence-tools-codex-desktop-tts.log",
         ),
     ],
 )

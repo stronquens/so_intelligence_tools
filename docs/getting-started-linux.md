@@ -34,7 +34,7 @@ The script installs desktop and audio tooling such as `xclip`, `xdotool`, `wl-cl
 
 Docker is also required for push-to-talk dictation because the supported ASR backend is the faster-whisper server in `docker/whisper-server`.
 
-Docker is also used for local text-to-speech voice output when the Piper service is enabled.
+Docker is also used for local text-to-speech voice output when the Chatterbox service is enabled.
 
 ## Install Python Dependencies
 
@@ -173,29 +173,34 @@ See [Faster-Whisper Docker Server](whisper-docker.md) for GPU and CPU porting no
 
 Linux dictation records while the shortcut is held, then sends the captured utterance to `/v1/audio/transcriptions` after release. The Docker server is warm, so the first dictation avoids model startup, but CPU transcription can still add a visible delay after release.
 
-## Piper TTS Voice Output
+## Chatterbox TTS Voice Output
 
-Linux can also run a warm Piper text-to-speech container for reading visible Codex activity aloud:
-
-```bash
-poetry run so-intelligence-tools ensure-piper-tts-server
-poetry run so-intelligence-tools status-piper-tts-server
-poetry run so-intelligence-tools speak-text --text "Hola, esto es una prueba de voz local."
-```
-
-Stopping the Piper container disables voice output everywhere while leaving text workflows unchanged:
+For more natural Spanish voice output on an NVIDIA GPU, run the experimental Chatterbox es-ES container. This is the retained local TTS backend; older Piper/Kokoro benchmark paths have been removed from the active setup.
 
 ```bash
-poetry run so-intelligence-tools stop-piper-tts-server
+poetry run so-intelligence-tools ensure-chatterbox-tts-server
+poetry run so-intelligence-tools status-chatterbox-tts-server
+poetry run so-intelligence-tools speak-text \
+  --base-url http://127.0.0.1:9011 \
+  --voice female \
+  --text "Hola, esta es la voz femenina local de Chatterbox."
 ```
 
-The default spoken detail for Codex is `actions`: task start/end plus tool, function and command lifecycle. Per-window controls can mute one VS Code/Codex window, change detail, or switch between the configured `male` and `female` Piper aliases:
+The Chatterbox service exposes `GET /health`, `GET /metrics`, and `POST /v1/audio/speech`. The default voice is the selected `chatterbox-es-es female clone / cv_female_es_ref_01 / warm`; `male` and `female` can be selected per request or per Codex voice session.
+
+The default spoken detail for Codex is `actions`: task start/end plus tool, function and command lifecycle. Per-window controls can mute one VS Code/Codex window, change detail, or switch between the Chatterbox `male` and `female` presets:
 
 ```bash
 so-ai codex-voice-sessions
 so-ai codex-voice-off
 so-ai codex-voice-detail minimal
-so-ai codex-voice-voice female
+so-ai codex-voice-voice female --base-url http://127.0.0.1:9011
 ```
 
-See [Piper TTS Voice Output](piper-tts-voice-output.md) for the VS Code wrapper, multi-voice container configuration, privacy boundary and troubleshooting.
+Stop it when you want to free GPU memory:
+
+```bash
+poetry run so-intelligence-tools stop-chatterbox-tts-server
+```
+
+See [Chatterbox TTS Voice Output](chatterbox-tts-voice-output.md) for voice selection, metrics, Codex/OpenClaw integration and GPU notes.

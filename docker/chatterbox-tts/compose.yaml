@@ -1,0 +1,23 @@
+services:
+  chatterbox-tts:
+    build:
+      context: .
+    container_name: chatterbox-tts
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CHATTERBOX_TTS_PORT:-9011}:9011"
+    volumes:
+      - chatterbox-tts-data:/var/lib/chatterbox-tts
+    env_file:
+      - .env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+
+volumes:
+  chatterbox-tts-data:

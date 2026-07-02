@@ -1,0 +1,27 @@
+﻿{
+    "requests_total":  0,
+    "successful_requests_total":  0,
+    "failures_total":  0,
+    "synthesis_seconds_total":  0.0,
+    "audio_seconds_total":  0.0,
+    "realtime_factor_total":  0.0,
+    "last_synthesis_seconds":  null,
+    "last_audio_seconds":  null,
+    "last_realtime_factor":  null,
+    "last_voice":  null,
+    "last_vram_mib":  null,
+    "voices":  {
+                   "male":  {
+                                "requests":  0,
+                                "failures":  0
+                            },
+                   "female":  {
+                                  "requests":  0,
+                                  "failures":  0
+                              }
+               },
+    "average_synthesis_seconds":  null,
+    "average_audio_seconds":  null,
+    "average_realtime_factor":  null,
+    "current_vram_mib":  6567
+}

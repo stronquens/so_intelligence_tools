@@ -1,0 +1,58 @@
+{
+  "backend": "onnx-community/chatterbox-multilingual-ONNX",
+  "onnxruntime": "1.22.0",
+  "available_providers": [
+    "TensorrtExecutionProvider",
+    "CUDAExecutionProvider",
+    "CPUExecutionProvider"
+  ],
+  "voice_path": "/app/voices/common_voice_female_es_ref_01_row_410.wav",
+  "vram_before_mib": 957,
+  "results": [
+    {
+      "label": "onnx_medium_measured_exag_0.5",
+      "exaggeration": 0.5,
+      "elapsed_seconds": 15.603190294001251,
+      "audio_seconds": 15.34,
+      "rtf": 1.01715712477192,
+      "generated_tokens": 383,
+      "stopped": false,
+      "text_chars": 132,
+      "wav_path": "/evidence/onnx_medium_measured_exag_0.5.wav",
+      "vram_mib": 5739
+    },
+    {
+      "label": "onnx_medium_measured_exag_0.7",
+      "exaggeration": 0.7,
+      "elapsed_seconds": 15.741373174998444,
+      "audio_seconds": 15.34,
+      "rtf": 1.0261651352671737,
+      "generated_tokens": 383,
+      "stopped": false,
+      "text_chars": 132,
+      "wav_path": "/evidence/onnx_medium_measured_exag_0.7.wav",
+      "vram_mib": 5732
+    }
+  ],
+  "model_cache_dir": "/tmp/chatterbox-onnx-cache",
+  "load_seconds": 145.37333136799862,
+  "session_providers": {
+    "speech_encoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "embed_tokens": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "language_model": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "decoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ]
+  },
+  "vram_after_load_mib": 5505
+}

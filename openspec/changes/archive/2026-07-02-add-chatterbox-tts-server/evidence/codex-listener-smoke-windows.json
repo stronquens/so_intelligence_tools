@@ -1,0 +1,13 @@
+﻿{
+    "command":  "listen-codex-visible-events --base-url http://127.0.0.1:9011 --voice female --detail standard",
+    "input_event":  "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Prueba visible de Codex con Chatterbox en Windows.\"}}",
+    "stdout":  {
+
+               },
+    "exit_code":  0,
+    "before_requests":  0,
+    "after_requests":  1,
+    "after_last_voice":  "female",
+    "after_last_rtf":  5.133615957831616,
+    "windows_playback_note":  "The listener reached the Chatterbox endpoint; local playback is not expected on Windows unless LOCAL_TTS_PLAYBACK_COMMAND points to a WAV player."
+}

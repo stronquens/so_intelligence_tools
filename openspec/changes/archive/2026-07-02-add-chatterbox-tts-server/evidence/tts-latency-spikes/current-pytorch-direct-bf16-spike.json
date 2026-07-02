@@ -1,0 +1,41 @@
+{
+  "backend": "current_chatterbox_pytorch_direct",
+  "torch": "2.6.0+cu124",
+  "cuda": true,
+  "device": "NVIDIA GeForce RTX 3070",
+  "results": [
+    {
+      "label": "current_direct_none_cfg_0.35",
+      "cfg_weight": 0.35,
+      "elapsed_seconds": 13.201334011002473,
+      "audio_seconds": 8.84,
+      "rtf": 1.493363575905257,
+      "wav_path": "/evidence/current_direct_none_cfg_0.35.wav",
+      "text_chars": 178
+    },
+    {
+      "label": "current_direct_none_cfg_0.25",
+      "cfg_weight": 0.25,
+      "elapsed_seconds": 11.420596665997437,
+      "audio_seconds": 8.96,
+      "rtf": 1.2746201636157852,
+      "wav_path": "/evidence/current_direct_none_cfg_0.25.wav",
+      "text_chars": 178
+    },
+    {
+      "label": "current_direct_none_cfg_0.15",
+      "cfg_weight": 0.15,
+      "elapsed_seconds": 12.483533496997552,
+      "audio_seconds": 9.0,
+      "rtf": 1.3870592774441723,
+      "wav_path": "/evidence/current_direct_none_cfg_0.15.wav",
+      "text_chars": 178
+    }
+  ],
+  "load_seconds": 21.3650633799989,
+  "load_notes": "Loaded es-ES single-language pack with S3Gen strict=False; missing=['tokenizer._mel_filters', 'tokenizer.window'] unexpected=[].",
+  "optimize_none": "none",
+  "optimize_bf16_t3": "t3+conds.t3 bf16",
+  "error": "RuntimeError('mat1 and mat2 must have the same dtype, but got Float and BFloat16')",
+  "traceback": "Traceback (most recent call last):\n  File \"/evidence/spike_current_runtime.py\", line 85, in main\n    synth(runtime, f\"current_direct_{mode}_warmup_cfg_{cfg}\", cfg)\n  File \"/evidence/spike_current_runtime.py\", line 44, in synth\n    wav = runtime._model.generate(\n          ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/chatterbox/mtl_tts.py\", line 325, in generate\n    speech_tokens = self.t3.inference(\n                    ^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/torch/utils/_contextlib.py\", line 116, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/chatterbox/models/t3/t3.py\", line 262, in inference\n    embeds, len_cond = self.prepare_input_embeds(\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/chatterbox/models/t3/t3.py\", line 111, in prepare_input_embeds\n    cond_emb = self.prepare_conditioning(t3_cond)  # (B, len_cond, dim)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/chatterbox/models/t3/t3.py\", line 100, in prepare_conditioning\n    return self.cond_enc(t3_cond)  # (B, len_cond, dim)\n           ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py\", line 1739, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py\", line 1750, in _call_impl\n    return forward_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/chatterbox/models/t3/modules/cond_enc.py\", line 70, in forward\n    cond_spkr = self.spkr_enc(cond.speaker_emb.view(-1, self.hp.speaker_embed_size))[:, None]  # (B, 1, dim)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py\", line 1739, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py\", line 1750, in _call_impl\n    return forward_call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/conda/lib/python3.11/site-packages/torch/nn/modules/linear.py\", line 125, in forward\n    return F.linear(input, self.weight, self.bias)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nRuntimeError: mat1 and mat2 must have the same dtype, but got Float and BFloat16\n"
+}
