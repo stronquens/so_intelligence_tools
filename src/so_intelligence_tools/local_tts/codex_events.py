@@ -43,6 +43,9 @@ class CodexVisibleEventExtractor:
     skip_code_blocks: bool = True
     _delta_buffer: str = field(default="", init=False)
     _saw_agent_delta: bool = field(default=False, init=False)
+    _turn_active: bool = field(default=False, init=False)
+    _turn_start_spoken: bool = field(default=False, init=False)
+    _saw_agent_message_in_turn: bool = field(default=False, init=False)
 
     def feed_line(self, line: str) -> list[str]:
         stripped = line.strip()
@@ -57,24 +60,43 @@ class CodexVisibleEventExtractor:
     def feed(self, payload: dict[str, Any]) -> list[str]:
         method = str(payload.get("method") or "")
         event_type = str(payload.get("type") or "")
+        if _is_turn_start_event(method, event_type):
+            self._begin_turn()
+            if (
+                self.include_progress
+                and _detail_allows_lifecycle(self.speech_detail)
+                and not self._turn_start_spoken
+            ):
+                self._turn_start_spoken = True
+                return self._prepare_text("Inicio de tarea.")
+            return []
         if method == "item/agentMessage/delta":
+            self._mark_agent_message_seen()
             if not _detail_allows_messages(self.speech_detail):
                 return []
             return self._feed_delta(_extract_text(payload.get("params")))
-        if method in {"turn/completed", "turn/failed"} or event_type in {
-            "turn.completed",
-            "turn.failed",
-        }:
+        if _is_turn_completion_event(method, event_type):
             segments = self.flush()
-            if self.include_progress and _detail_allows_lifecycle(self.speech_detail):
+            should_end_turn = self._should_end_turn(
+                method=method, event_type=event_type
+            )
+            should_speak_completion = self._should_speak_turn_completion(
+                method=method,
+                event_type=event_type,
+            )
+            if should_speak_completion:
                 completion_text = _turn_completion_text(method, event_type)
                 if completion_text:
                     segments.extend(self._prepare_text(completion_text))
-            self._saw_agent_delta = False
+            if should_end_turn:
+                self._end_turn()
             return segments
 
         if self._saw_agent_delta and _is_completed_agent_message(payload):
+            self._mark_agent_message_seen()
             return self.flush()
+        if _is_completed_agent_message(payload):
+            self._mark_agent_message_seen()
         text = parse_visible_text_from_codex_event(
             payload,
             include_progress=self.include_progress,
@@ -113,6 +135,39 @@ class CodexVisibleEventExtractor:
         if not cleaned:
             return []
         return list(chunk_text(cleaned, max_chars=self.max_segment_chars))
+
+    def _begin_turn(self) -> None:
+        if self._turn_active:
+            return
+        self._turn_active = True
+        self._turn_start_spoken = False
+        self._saw_agent_message_in_turn = False
+
+    def _end_turn(self) -> None:
+        self._turn_active = False
+        self._turn_start_spoken = False
+        self._saw_agent_message_in_turn = False
+        self._saw_agent_delta = False
+
+    def _mark_agent_message_seen(self) -> None:
+        if not self._turn_active:
+            self._begin_turn()
+        self._saw_agent_message_in_turn = True
+
+    def _should_speak_turn_completion(self, *, method: str, event_type: str) -> bool:
+        if not self.include_progress or not _detail_allows_lifecycle(
+            self.speech_detail
+        ):
+            return False
+        return self._should_end_turn(method=method, event_type=event_type)
+
+    def _should_end_turn(self, *, method: str, event_type: str) -> bool:
+        if method in {"turn/failed", "codex/event/turn_aborted"} or event_type in {
+            "turn.failed",
+            "codex/event/turn_aborted",
+        }:
+            return True
+        return not self._turn_active or self._saw_agent_message_in_turn
 
 
 def parse_visible_text_from_codex_event(
@@ -226,6 +281,33 @@ def _is_completed_agent_message(payload: dict[str, Any]) -> bool:
     return str(_extract_item(payload).get("type") or "") == "agent_message"
 
 
+def is_turn_completion_event(payload: dict[str, Any]) -> bool:
+    method = str(payload.get("method") or "")
+    event_type = str(payload.get("type") or "")
+    return _is_turn_completion_event(method, event_type)
+
+
+def _is_turn_start_event(method: str, event_type: str) -> bool:
+    return method in {"turn/started", "codex/event/task_started"} or event_type in {
+        "turn.started",
+        "codex/event/task_started",
+    }
+
+
+def _is_turn_completion_event(method: str, event_type: str) -> bool:
+    return method in {
+        "turn/completed",
+        "turn/failed",
+        "codex/event/task_complete",
+        "codex/event/turn_aborted",
+    } or event_type in {
+        "turn.completed",
+        "turn.failed",
+        "codex/event/task_complete",
+        "codex/event/turn_aborted",
+    }
+
+
 def _extract_progress_text(
     event_type: str,
     method: str,
@@ -250,12 +332,13 @@ def _extract_progress_text(
         )
     if item_type in VISIBLE_PROGRESS_TYPES and _detail_allows_status(speech_detail):
         return _extract_text(item)
-    if (
-        event_type == "turn.started" or method == "turn/started"
-    ) and _detail_allows_lifecycle(speech_detail):
+    if _is_turn_start_event(method, event_type) and _detail_allows_lifecycle(
+        speech_detail
+    ):
         return "Inicio de tarea."
     if (
-        event_type == "turn.failed" or method == "turn/failed"
+        method in {"turn/failed", "codex/event/turn_aborted"}
+        or event_type in {"turn.failed", "codex/event/turn_aborted"}
     ) and _detail_allows_lifecycle(speech_detail):
         return "El turno terminó con error."
     if _detail_allows_status(speech_detail):
@@ -264,9 +347,15 @@ def _extract_progress_text(
 
 
 def _turn_completion_text(method: str, event_type: str) -> str | None:
-    if method == "turn/completed" or event_type == "turn.completed":
+    if method in {"turn/completed", "codex/event/task_complete"} or event_type in {
+        "turn.completed",
+        "codex/event/task_complete",
+    }:
         return "Fin de tarea."
-    if method == "turn/failed" or event_type == "turn.failed":
+    if method in {"turn/failed", "codex/event/turn_aborted"} or event_type in {
+        "turn.failed",
+        "codex/event/turn_aborted",
+    }:
         return "Fin de tarea con error."
     return None
 
@@ -288,7 +377,9 @@ def _started_progress_text(
             or item.get("tool")
             or item.get("raw_name")
         )
-        return f"Usando herramienta {tool_name}." if tool_name else "Usando herramienta."
+        return (
+            f"Usando herramienta {tool_name}." if tool_name else "Usando herramienta."
+        )
     if item_type == "web_search":
         return "Buscando en la web."
     if item_type == "file_change":
@@ -314,7 +405,9 @@ def _completed_progress_text(
             return "El comando terminó con error."
         return "Comando terminado."
     if item_type in {"tool_call", "mcp_tool_call"}:
-        return "La herramienta terminó con error." if failed else "Herramienta terminada."
+        return (
+            "La herramienta terminó con error." if failed else "Herramienta terminada."
+        )
     if item_type == "web_search":
         return "Búsqueda web completada."
     if item_type == "file_change":

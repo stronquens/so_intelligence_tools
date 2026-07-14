@@ -159,6 +159,11 @@ For the Codex IDE extension on Linux, the integration point is the same wrapper 
 }
 ```
 
+Task-boundary speech is stateful. Repeated `turn/started` notifications are
+deduplicated, tool/function/command lifecycle events do not end the active task,
+and `Fin de tarea` is spoken only for a real terminal turn event. This applies
+independently of whether Piper or Chatterbox serves the generated audio.
+
 Before opening a Codex thread, make sure Chatterbox is running:
 
 ```bash

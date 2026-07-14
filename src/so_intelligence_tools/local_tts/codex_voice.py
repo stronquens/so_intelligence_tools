@@ -10,6 +10,7 @@ from typing import TextIO
 from so_intelligence_tools.local_tts.client import LocalTtsClient
 from so_intelligence_tools.local_tts.codex_events import (
     CodexVisibleEventExtractor,
+    is_turn_completion_event,
     normalize_speech_detail,
 )
 
@@ -94,9 +95,4 @@ def _is_turn_completion_line(line: str) -> bool:
         payload = json.loads(line)
     except json.JSONDecodeError:
         return False
-    method = str(payload.get("method") or "")
-    event_type = str(payload.get("type") or "")
-    return method in {"turn/completed", "turn/failed"} or event_type in {
-        "turn.completed",
-        "turn.failed",
-    }
+    return is_turn_completion_event(payload)
