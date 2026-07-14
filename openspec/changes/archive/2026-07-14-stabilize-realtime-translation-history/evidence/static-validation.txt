@@ -1,0 +1,32 @@
+Validation date: 2026-07-14
+
+Scoped Ruff lint
+Command: poetry run ruff check src/so_intelligence_tools/system_audio_translation/openai_realtime.py tests/test_system_audio_translation_realtime.py
+Result: All checks passed.
+
+Scoped Ruff format
+Command: poetry run ruff format --check src/so_intelligence_tools/system_audio_translation/openai_realtime.py tests/test_system_audio_translation_realtime.py
+Result: 2 files already formatted.
+
+OpenSpec
+Command: openspec validate stabilize-realtime-translation-history --strict
+Result: Change 'stabilize-realtime-translation-history' is valid.
+
+Patch whitespace
+Command: git diff --check
+Result: passed with no output.
+
+Repository-wide Ruff note
+The repository-wide check was also attempted. It reports pre-existing issues outside this change: an unused pathlib.Path import in tests/test_codex_voice_control.py and 65 files that do not match the current Ruff formatter. Those unrelated files were not modified.
+
+Pre-archive focused tests
+Command: poetry run pytest tests/test_system_audio_translation_realtime.py -q
+Result: 19 passed in 0.41s.
+
+Pre-archive full OpenSpec validation
+Command: openspec validate --all --strict
+Result: 23 passed, 0 failed.
+
+Pre-archive patch whitespace
+Command: git diff --check
+Result: passed with no output.

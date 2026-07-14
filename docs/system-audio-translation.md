@@ -39,6 +39,27 @@ SYSTEM_AUDIO_TRANSLATION_OPENAI_REALTIME_CHUNK_MS=80
 SYSTEM_AUDIO_TRANSLATION_OPENAI_REALTIME_SILENCE_DURATION_MS=280
 ```
 
+`SYSTEM_AUDIO_TRANSLATION_OPENAI_REALTIME_SILENCE_DURATION_MS` controls how
+quickly the provider closes a spoken turn after silence. Lower values reduce
+latency but can produce shorter history blocks. Tune it conservatively because
+larger values delay every completed translation.
+
+## Realtime History Behavior
+
+Realtime history is tracked by provider turn identity rather than translated
+text. This means:
+
+- a complete later turn is published even if an earlier turn is still missing
+  its original transcript;
+- two distinct turns with identical translated text are both preserved;
+- original and translated finals may arrive in either order and still produce
+  one history block;
+- pending original-and-translation content is finalized when the receiver
+  stops, reconnects or is cancelled;
+- a translation-only residual is preserved as a fallback history block, while
+  an original-only residual is logged but is not presented as a completed
+  translation.
+
 ## Linux Audio
 
 The tool uses PulseAudio/PipeWire-compatible capture tooling. Make sure `pulseaudio-utils` is installed and that `pactl` and `parec` are available.
@@ -66,9 +87,19 @@ Default socket:
 ~/.cache/so_intelligence_tools/system_audio_translation.sock
 ```
 
+Realtime session logs include structured lifecycle events such as
+`block_published`, `residual_block_published`,
+`residual_original_without_translation` and `audio_chunk_dropped`. The last
+event reports a cumulative drop count and the pending-queue limit, making audio
+loss under backpressure visible instead of silent.
+
+At startup, a small number of dropped chunks can indicate that capture began
+before the realtime connection finished warming up. Repeated drops later in a
+session indicate sustained backpressure and should be investigated separately
+from history rendering.
+
 ## Limitations
 
 - Realtime translation can require a paid provider API key.
 - Speaker separation is not currently a polished feature.
 - Audio routing depends on the local Linux audio stack.
-

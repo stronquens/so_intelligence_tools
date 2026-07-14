@@ -1,0 +1,19 @@
+Validation date: 2026-07-14
+
+Focused realtime tests
+Command: poetry run pytest -q tests/test_system_audio_translation_realtime.py
+Result: 19 passed in 0.40s
+
+Full Python suite
+Command: poetry run pytest -q
+Result: 191 passed in 6.10s
+Warning: StarletteDeprecationWarning from the installed FastAPI TestClient compatibility layer.
+
+Regression scenarios covered by the focused suite:
+- incomplete first turn does not block a later complete turn while the stream remains open;
+- cancellation publishes pending original and translated partial content;
+- translation-only residual content is published and logged;
+- original-only residual content is logged without becoming a translated block;
+- identical translated text from distinct provider turns is preserved twice;
+- bounded audio queue overflow records cumulative dropped chunk counts;
+- short completed-transcript content is still translated on normal stream end.

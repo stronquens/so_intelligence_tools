@@ -12,9 +12,17 @@ import threading
 from openai import AsyncOpenAI
 
 from so_intelligence_tools.domain.errors import StreamingSessionError
-from so_intelligence_tools.domain.models import LivePartialUpdate, LiveSessionState, TranscriptBlock
-from so_intelligence_tools.system_audio_translation.audio_capture import LinuxParecAudioCapture
-from so_intelligence_tools.system_audio_translation.session import TranscriptSessionLogger
+from so_intelligence_tools.domain.models import (
+    LivePartialUpdate,
+    LiveSessionState,
+    TranscriptBlock,
+)
+from so_intelligence_tools.system_audio_translation.audio_capture import (
+    LinuxParecAudioCapture,
+)
+from so_intelligence_tools.system_audio_translation.session import (
+    TranscriptSessionLogger,
+)
 
 
 @dataclass(slots=True)
@@ -33,6 +41,14 @@ class _RealtimeTurn:
     @property
     def is_ready(self) -> bool:
         return bool(self.translation_final.strip() and self.best_original_text.strip())
+
+
+@dataclass(slots=True)
+class _RealtimeTurnStore:
+    turns: OrderedDict[str, _RealtimeTurn] = field(default_factory=OrderedDict)
+    response_to_input_item: dict[str, str] = field(default_factory=dict)
+    unassigned_input_items: deque[str] = field(default_factory=deque)
+    published_input_items: set[str] = field(default_factory=set)
 
 
 @dataclass(slots=True)
@@ -63,7 +79,7 @@ class OpenAIRealtimeTranslationController:
     _stop_event: threading.Event = field(init=False)
     _reconnect_request: threading.Event = field(init=False)
     _worker_thread: threading.Thread | None = field(init=False, default=None)
-    _last_translated_text: str | None = field(init=False, default=None)
+    _dropped_audio_chunks: int = field(init=False, default=0)
     _on_state_changed: Callable[[LiveSessionState, str], None] | None = field(
         init=False,
         default=None,
@@ -103,6 +119,7 @@ class OpenAIRealtimeTranslationController:
         self._reconnect_request.clear()
         self.history.clear()
         self._pending_audio.clear()
+        self._dropped_audio_chunks = 0
         self.session_logger.reset()
         self.session_logger.record_event(
             "session_started",
@@ -170,6 +187,13 @@ class OpenAIRealtimeTranslationController:
         if self.state not in {"active", "reconnecting"}:
             return
         with self._condition:
+            if len(self._pending_audio) == self.max_pending_audio_chunks:
+                self._dropped_audio_chunks += 1
+                self.session_logger.record_event(
+                    "audio_chunk_dropped",
+                    dropped_chunks=self._dropped_audio_chunks,
+                    pending_limit=self.max_pending_audio_chunks,
+                )
             self._pending_audio.append(chunk)
             self._condition.notify_all()
 
@@ -186,7 +210,7 @@ class OpenAIRealtimeTranslationController:
                     self._set_state("reconnecting", "Reiniciando sesion realtime…")
                     await asyncio.sleep(0.1)
                     continue
-            except Exception as exc:  # pragma: no cover - covered via callback-facing behavior
+            except Exception as exc:
                 if self._stop_event.is_set():
                     break
                 self._set_state("reconnecting", f"Reconectando OpenAI realtime… {exc}")
@@ -200,9 +224,7 @@ class OpenAIRealtimeTranslationController:
         async with client.realtime.connect(
             model=self.model,
         ) as connection:
-            await connection.send(
-                self._build_session_update_payload()
-            )
+            await connection.send(self._build_session_update_payload())
             self._set_state("active", "Escuchando y traduciendo… (OpenAI realtime)")
             sender = asyncio.create_task(self._sender_loop(connection))
             receiver = asyncio.create_task(self._receiver_loop(connection))
@@ -226,168 +248,177 @@ class OpenAIRealtimeTranslationController:
             if not chunk:
                 continue
             encoded = base64.b64encode(chunk).decode("ascii")
-            await connection.send({"type": "input_audio_buffer.append", "audio": encoded})
+            await connection.send(
+                {"type": "input_audio_buffer.append", "audio": encoded}
+            )
 
     async def _receiver_loop(self, connection: object) -> None:
-        turns: OrderedDict[str, _RealtimeTurn] = OrderedDict()
-        response_to_input_item: dict[str, str] = {}
-        unassigned_input_items: deque[str] = deque()
-        published_input_items: set[str] = set()
+        store = _RealtimeTurnStore()
         pending_transcript = ""
-        async for event in connection:
-            event_type = getattr(event, "type", "")
-            if event_type == "input_audio_buffer.committed":
-                input_item_id = getattr(event, "item_id", "") or ""
-                if input_item_id:
-                    _ensure_turn(turns, input_item_id)
-                    unassigned_input_items.append(input_item_id)
-                    self.session_logger.record_event(
-                        "input_committed",
-                        input_item_id=input_item_id,
-                    )
-            elif event_type == "response.created":
-                response_id = _extract_response_id(event)
-                input_item_id = _assign_response_to_next_turn(
-                    turns,
-                    unassigned_input_items,
-                    response_to_input_item,
-                    response_id,
-                )
-                if input_item_id and response_id:
-                    turns[input_item_id].response_id = response_id
-                    self.session_logger.record_event(
-                        "response_created",
-                        input_item_id=input_item_id,
-                        response_id=response_id,
-                    )
-            elif event_type == "response.output_text.delta":
-                if self.translate_completed_transcripts:
-                    continue
-                turn = _turn_for_response_event(
-                    turns,
-                    unassigned_input_items,
-                    response_to_input_item,
-                    event,
-                )
-                turn.translation_partial += getattr(event, "delta", "") or ""
-                if self._on_partial_text_changed is not None:
-                    self._on_partial_text_changed(
-                        LivePartialUpdate(
-                            kind="translation",
-                            text=turn.translation_partial,
+        try:
+            async for event in connection:
+                event_type = getattr(event, "type", "")
+                if event_type == "input_audio_buffer.committed":
+                    input_item_id = getattr(event, "item_id", "") or ""
+                    if input_item_id:
+                        _ensure_turn(store.turns, input_item_id)
+                        store.unassigned_input_items.append(input_item_id)
+                        self.session_logger.record_event(
+                            "input_committed",
+                            input_item_id=input_item_id,
                         )
-                    )
-                self._log_partial_if_needed(
-                    kind="translation",
-                    text=turn.translation_partial,
-                )
-            elif event_type == "response.output_text.done":
-                if self.translate_completed_transcripts:
-                    continue
-                final_text = getattr(event, "text", "").strip()
-                if not final_text or final_text == self._last_translated_text:
-                    continue
-                self._last_translated_text = final_text
-                turn = _turn_for_response_event(
-                    turns,
-                    unassigned_input_items,
-                    response_to_input_item,
-                    event,
-                )
-                turn.translation_final = final_text
-                self.session_logger.record_event(
-                    "translation_final",
-                    input_item_id=turn.input_item_id,
-                    response_id=turn.response_id,
-                    text=final_text,
-                )
-                self._publish_ready_turns(turns, published_input_items)
-                self._set_state("active", "Escuchando y traduciendo… (OpenAI realtime)")
-            elif event_type == "conversation.item.input_audio_transcription.delta":
-                input_item_id = getattr(event, "item_id", "") or ""
-                if input_item_id in published_input_items:
-                    continue
-                delta = getattr(event, "delta", "") or ""
-                turn = _ensure_turn(turns, input_item_id)
-                turn.original_partial += delta
-                if turn.original_partial.strip() and self._on_partial_text_changed is not None:
-                    self._on_partial_text_changed(
-                        LivePartialUpdate(kind="original", text=turn.original_partial)
-                    )
-                self._log_partial_if_needed(
-                    kind="original",
-                    text=turn.original_partial,
-                )
-            elif event_type == "conversation.item.input_audio_transcription.completed":
-                input_item_id = getattr(event, "item_id", "") or ""
-                if input_item_id in published_input_items:
-                    continue
-                transcript = _clean_transcript_text(getattr(event, "transcript", ""))
-                if transcript:
-                    self.session_logger.record_event(
-                        "transcription_final",
-                        input_item_id=input_item_id,
-                        text=transcript,
-                    )
+                elif event_type == "response.created":
+                    response_id = _extract_response_id(event)
+                    input_item_id = _assign_response_to_next_turn(store, response_id)
+                    if input_item_id and response_id:
+                        store.turns[input_item_id].response_id = response_id
+                        self.session_logger.record_event(
+                            "response_created",
+                            input_item_id=input_item_id,
+                            response_id=response_id,
+                        )
+                elif event_type == "response.output_text.delta":
                     if self.translate_completed_transcripts:
-                        previous_pending = bool(pending_transcript.strip())
-                        pending_transcript = _join_transcript_segments(
-                            pending_transcript,
+                        continue
+                    turn = _turn_for_response_event(store, event)
+                    turn.translation_partial += getattr(event, "delta", "") or ""
+                    if self._on_partial_text_changed is not None:
+                        self._on_partial_text_changed(
+                            LivePartialUpdate(
+                                kind="translation",
+                                text=turn.translation_partial,
+                            )
+                        )
+                    self._log_partial_if_needed(
+                        kind="translation",
+                        text=turn.translation_partial,
+                    )
+                elif event_type == "response.output_text.done":
+                    if self.translate_completed_transcripts:
+                        continue
+                    final_text = getattr(event, "text", "").strip()
+                    if not final_text:
+                        continue
+                    turn = _turn_for_response_event(store, event)
+                    turn.translation_final = final_text
+                    self.session_logger.record_event(
+                        "translation_final",
+                        input_item_id=turn.input_item_id,
+                        response_id=turn.response_id,
+                        text=final_text,
+                    )
+                    self._publish_ready_turns(store)
+                    self._set_state(
+                        "active", "Escuchando y traduciendo… (OpenAI realtime)"
+                    )
+                elif event_type == "conversation.item.input_audio_transcription.delta":
+                    input_item_id = getattr(event, "item_id", "") or ""
+                    if input_item_id in store.published_input_items:
+                        continue
+                    delta = getattr(event, "delta", "") or ""
+                    turn = _ensure_turn(store.turns, input_item_id)
+                    turn.original_partial += delta
+                    if (
+                        turn.original_partial.strip()
+                        and self._on_partial_text_changed is not None
+                    ):
+                        self._on_partial_text_changed(
+                            LivePartialUpdate(
+                                kind="original", text=turn.original_partial
+                            )
+                        )
+                    self._log_partial_if_needed(
+                        kind="original",
+                        text=turn.original_partial,
+                    )
+                elif (
+                    event_type
+                    == "conversation.item.input_audio_transcription.completed"
+                ):
+                    input_item_id = getattr(event, "item_id", "") or ""
+                    if input_item_id in store.published_input_items:
+                        continue
+                    transcript = _clean_transcript_text(
+                        getattr(event, "transcript", "")
+                    )
+                    if transcript:
+                        self.session_logger.record_event(
+                            "transcription_final",
+                            input_item_id=input_item_id,
+                            text=transcript,
+                        )
+                        if self.translate_completed_transcripts:
+                            previous_pending = bool(pending_transcript.strip())
+                            pending_transcript = _join_transcript_segments(
+                                pending_transcript,
+                                transcript,
+                            )
+                            if self._on_partial_text_changed is not None:
+                                self._on_partial_text_changed(
+                                    LivePartialUpdate(
+                                        kind="original",
+                                        text=pending_transcript,
+                                    )
+                                )
+                            if not _should_flush_transcript(
+                                pending_transcript,
+                                latest_segment=transcript,
+                                previous_pending=previous_pending,
+                            ):
+                                continue
+                            translated_text = await self._translate_text(
+                                pending_transcript
+                            )
+                            if translated_text:
+                                self._publish_translated_transcript_block(
+                                    original_text=pending_transcript,
+                                    translated_text=translated_text,
+                                )
+                            pending_transcript = ""
+                            continue
+                        turn = _ensure_turn(store.turns, input_item_id)
+                        turn.original_final = _pick_most_complete_text(
+                            turn.original_final,
+                            transcript,
+                        )
+                        turn.original_partial = _pick_most_complete_text(
+                            turn.original_partial,
                             transcript,
                         )
                         if self._on_partial_text_changed is not None:
                             self._on_partial_text_changed(
                                 LivePartialUpdate(
-                                    kind="original",
-                                    text=pending_transcript,
+                                    kind="original", text=turn.original_partial
                                 )
                             )
-                        if not _should_flush_transcript(
-                            pending_transcript,
-                            latest_segment=transcript,
-                            previous_pending=previous_pending,
-                        ):
-                            continue
-                        translated_text = await self._translate_text(pending_transcript)
-                        if translated_text:
-                            self._publish_translated_transcript_block(
-                                original_text=pending_transcript,
-                                translated_text=translated_text,
-                            )
-                        pending_transcript = ""
-                        continue
-                    turn = _ensure_turn(turns, input_item_id)
-                    turn.original_final = _pick_most_complete_text(
-                        turn.original_final,
-                        transcript,
+                        self._publish_ready_turns(store)
+                elif event_type == "input_audio_buffer.speech_started":
+                    self.session_logger.record_event("speech_started")
+                    self._set_state("active", "Voz detectada…")
+                elif event_type == "input_audio_buffer.speech_stopped":
+                    self.session_logger.record_event("speech_stopped")
+                    self._set_state("active", "Procesando traduccion…")
+                elif event_type == "error":
+                    detail = _extract_realtime_error_message(event)
+                    raise StreamingSessionError(detail)
+            if self.translate_completed_transcripts and pending_transcript.strip():
+                translated_text = await self._translate_text(pending_transcript)
+                if translated_text:
+                    self._publish_translated_transcript_block(
+                        original_text=pending_transcript,
+                        translated_text=translated_text,
                     )
-                    turn.original_partial = _pick_most_complete_text(
-                        turn.original_partial,
-                        transcript,
+                    pending_transcript = ""
+        finally:
+            if self.translate_completed_transcripts:
+                if pending_transcript.strip():
+                    self.session_logger.record_event(
+                        "residual_original_without_translation",
+                        original_text=pending_transcript.strip(),
+                        source="completed_transcript_translation",
                     )
-                    if self._on_partial_text_changed is not None:
-                        self._on_partial_text_changed(
-                            LivePartialUpdate(kind="original", text=turn.original_partial)
-                        )
-                    self._publish_ready_turns(turns, published_input_items)
-            elif event_type == "input_audio_buffer.speech_started":
-                self.session_logger.record_event("speech_started")
-                self._set_state("active", "Voz detectada…")
-            elif event_type == "input_audio_buffer.speech_stopped":
-                self.session_logger.record_event("speech_stopped")
-                self._set_state("active", "Procesando traduccion…")
-            elif event_type == "error":
-                detail = _extract_realtime_error_message(event)
-                raise StreamingSessionError(detail)
-        if self.translate_completed_transcripts and pending_transcript.strip():
-            translated_text = await self._translate_text(pending_transcript)
-            if translated_text:
-                self._publish_translated_transcript_block(
-                    original_text=pending_transcript,
-                    translated_text=translated_text,
-                )
-        if not self.translate_completed_transcripts:
-            self._flush_residual_turns(turns, published_input_items)
+            else:
+                self._flush_residual_turns(store)
 
     async def _control_loop(self) -> str:
         while True:
@@ -400,7 +431,11 @@ class OpenAIRealtimeTranslationController:
 
     def _next_audio_chunk_blocking(self) -> bytes | None:
         with self._condition:
-            while not self._pending_audio and not self._stop_event.is_set() and not self._reconnect_request.is_set():
+            while (
+                not self._pending_audio
+                and not self._stop_event.is_set()
+                and not self._reconnect_request.is_set()
+            ):
                 self._condition.wait(timeout=0.5)
             if self._stop_event.is_set() or self._reconnect_request.is_set():
                 return None
@@ -470,13 +505,11 @@ class OpenAIRealtimeTranslationController:
 
     def _publish_ready_turns(
         self,
-        turns: OrderedDict[str, _RealtimeTurn],
-        published_input_items: set[str],
+        store: _RealtimeTurnStore,
     ) -> None:
-        while turns:
-            input_item_id, turn = next(iter(turns.items()))
+        for input_item_id, turn in list(store.turns.items()):
             if not turn.is_ready:
-                return
+                continue
             block = TranscriptBlock(
                 timestamp=datetime.now(),
                 translated_text=turn.translation_final,
@@ -490,8 +523,8 @@ class OpenAIRealtimeTranslationController:
                 translated_text=turn.translation_final,
                 source="realtime_turn",
             )
-            turns.popitem(last=False)
-            published_input_items.add(input_item_id)
+            store.turns.pop(input_item_id, None)
+            store.published_input_items.add(input_item_id)
             if self._on_partial_text_changed is not None:
                 self._clear_partials()
             if self._on_block_ready is not None:
@@ -499,28 +532,36 @@ class OpenAIRealtimeTranslationController:
 
     def _flush_residual_turns(
         self,
-        turns: OrderedDict[str, _RealtimeTurn],
-        published_input_items: set[str],
+        store: _RealtimeTurnStore,
     ) -> None:
-        while turns:
-            input_item_id, turn = turns.popitem(last=False)
+        while store.turns:
+            input_item_id, turn = store.turns.popitem(last=False)
             fallback_translation = turn.translation_final or turn.translation_partial
             fallback_original = turn.best_original_text
-            if not fallback_original.strip() or not fallback_translation.strip():
+            if input_item_id in store.published_input_items:
+                continue
+            if not fallback_translation.strip():
+                if fallback_original.strip():
+                    self.session_logger.record_event(
+                        "residual_original_without_translation",
+                        input_item_id=input_item_id,
+                        original_text=fallback_original.strip(),
+                    )
                 continue
             block = TranscriptBlock(
                 timestamp=datetime.now(),
                 translated_text=fallback_translation.strip(),
-                original_text=fallback_original.strip(),
+                original_text=fallback_original.strip() or None,
             )
             self.history.append(block)
             self.session_logger.record_event(
                 "residual_block_published",
                 input_item_id=input_item_id,
-                original_text=fallback_original.strip(),
+                original_text=fallback_original.strip() or None,
                 translated_text=fallback_translation.strip(),
+                translation_only=not bool(fallback_original.strip()),
             )
-            published_input_items.add(input_item_id)
+            store.published_input_items.add(input_item_id)
             if self._on_block_ready is not None:
                 self._on_block_ready(block)
         if self._on_partial_text_changed is not None:
@@ -537,7 +578,11 @@ class OpenAIRealtimeTranslationController:
         if clean == previous:
             return
         # Log only meaningful growth to keep files readable during long sessions.
-        if previous and clean.startswith(previous) and (len(clean) - len(previous)) < 12:
+        if (
+            previous
+            and clean.startswith(previous)
+            and (len(clean) - len(previous)) < 12
+        ):
             return
         self.session_logger.record_event(
             "partial_update",
@@ -627,40 +672,35 @@ def _ensure_turn(
 
 
 def _assign_response_to_next_turn(
-    turns: OrderedDict[str, _RealtimeTurn],
-    unassigned_input_items: deque[str],
-    response_to_input_item: dict[str, str],
+    store: _RealtimeTurnStore,
     response_id: str,
 ) -> str:
     if not response_id:
-        return ""
-    if response_id in response_to_input_item:
-        return response_to_input_item[response_id]
-    if unassigned_input_items:
-        input_item_id = unassigned_input_items.popleft()
-    elif turns:
-        input_item_id = next(reversed(turns))
+        if store.response_to_input_item:
+            return next(reversed(store.response_to_input_item.values()))
+        if store.turns:
+            return next(reversed(store.turns))
+        return "__synthetic_current_turn__"
+    if response_id in store.response_to_input_item:
+        return store.response_to_input_item[response_id]
+    if store.unassigned_input_items:
+        input_item_id = store.unassigned_input_items.popleft()
+    elif store.turns:
+        input_item_id = next(reversed(store.turns))
     else:
         input_item_id = "__synthetic_current_turn__"
-    _ensure_turn(turns, input_item_id)
-    response_to_input_item[response_id] = input_item_id
+    _ensure_turn(store.turns, input_item_id)
+    store.response_to_input_item[response_id] = input_item_id
     return input_item_id
 
 
 def _turn_for_response_event(
-    turns: OrderedDict[str, _RealtimeTurn],
-    unassigned_input_items: deque[str],
-    response_to_input_item: dict[str, str],
+    store: _RealtimeTurnStore,
     event: object,
 ) -> _RealtimeTurn:
     response_id = getattr(event, "response_id", "") or ""
-    input_item_id = _assign_response_to_next_turn(
-        turns,
-        unassigned_input_items,
-        response_to_input_item,
-        response_id,
-    )
-    return _ensure_turn(turns, input_item_id)
+    input_item_id = _assign_response_to_next_turn(store, response_id)
+    return _ensure_turn(store.turns, input_item_id)
 
 
 def _extract_response_id(event: object) -> str:

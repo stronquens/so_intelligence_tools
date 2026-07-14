@@ -1,0 +1,195 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Legibilidad de la última sesión de traducción en vivo",
+    "description": "Diagnóstico agregado de segmentación, cadencia e historial, sin reproducir el contenido de la conversación.",
+    "generatedAt": "2026-07-14T10:49:57+02:00",
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# Legibilidad de la última sesión de traducción en vivo",
+        "layout": "full"
+      },
+      {
+        "id": "summary",
+        "type": "markdown",
+        "body": "## Resumen técnico\n\nEl historial recibió los **13 de 13 turnos traducidos**: en esta sesión no se reproduce el fallo de pérdida de mensajes. La dificultad de lectura sí aparece en los datos: **5 de 13 bloques (38,5 %) tenían cinco palabras o menos**, y los tres últimos se publicaron separados por solo 1,4–2,1 segundos.\n\nLa causa principal es la combinación de turnos hablados realmente cortos con una finalización muy rápida del VAD (`silence_duration_ms=280`). La interfaz expone esos turnos casi en bruto y no ofrece agrupación ni un tiempo mínimo de permanencia. Por eso, el ajuste más seguro es mejorar primero la presentación y usar el VAD como ajuste secundario.",
+        "layout": "full",
+        "sourceId": "latest-session-log"
+      },
+      {
+        "id": "metrics-block",
+        "type": "metric-strip",
+        "cardIds": ["history-card", "short-card", "latency-card"],
+        "layout": "full"
+      },
+      {
+        "id": "turn-lengths-intro",
+        "type": "markdown",
+        "body": "## La fragmentación se concentra al final\n\nLa sesión no muestra un corte uniforme: también hubo un turno largo de 54 palabras traducidas. El patrón corto se concentra en frases habladas de aproximadamente un segundo, lo que apunta a límites naturales detectados por el proveedor más que a una pérdida de texto.",
+        "layout": "full",
+        "sourceId": "latest-session-log"
+      },
+      {
+        "id": "turn-lengths-chart",
+        "type": "chart",
+        "chartId": "turn-lengths",
+        "layout": "full"
+      },
+      {
+        "id": "diagnosis",
+        "type": "markdown",
+        "body": "## Diagnóstico\n\n1. **Segmentación:** los últimos tres turnos duraron aproximadamente 1,22 s, 0,97 s y 1,13 s. Con 280 ms de silencio, el servidor los finaliza pronto.\n2. **Cadencia:** la publicación llega normalmente unos 0,41 s después de terminar el habla, así que los bloques cortos rotan casi de inmediato.\n3. **Interfaz:** no existe una capa visible de agrupación semántica, cola de lectura o permanencia mínima; cada turno del proveedor se convierte en una unidad visual.\n4. **Captura:** hubo siete descartes de chunks, unos 0,56 s, exclusivamente durante el arranque. Puede recortar el inicio, pero no explica los mensajes breves posteriores.\n5. **Pausa:** tras pulsar pausa siguieron llegando parciales ya almacenados por el proveedor. Al detener, quedó un original sin traducción y se registró como residual; es un comportamiento de ciclo de vida distinto del problema de legibilidad.",
+        "layout": "full",
+        "sourceId": "latest-session-log"
+      },
+      {
+        "id": "recommendations",
+        "type": "markdown",
+        "body": "## Mejoras recomendadas\n\n**Prioridad 1 — presentación:** conservar los turnos internos, pero agrupar visualmente bloques consecutivos cortos cuando el intervalo sea de hasta 1,5–2,0 s y el grupo no supere 25–35 palabras. Añadir una permanencia mínima de 2–3 s o una pequeña cola para que un bloque no desaparezca antes de poder leerse.\n\n**Prioridad 2 — VAD:** probar 450–500 ms de silencio. Puede reducir algunos cortes sin penalizar demasiado la latencia. Subir por encima de un segundo uniría más frases, pero retrasaría de forma perceptible toda la traducción.\n\n**Prioridad 3 — pausa:** al pausar, mostrar un estado de “finalizando” y drenar explícitamente el turno pendiente antes de declarar la sesión pausada.\n\nConviene validar estas opciones con una prueba A/B local midiendo bloques cortos, latencia de publicación y comprensión subjetiva. No se ha modificado ninguna configuración en este análisis.",
+        "layout": "full",
+        "sourceId": "latest-session-log"
+      },
+      {
+        "id": "method",
+        "type": "markdown",
+        "body": "## Alcance y método\n\nFuente: última sesión local iniciada el 14 de julio de 2026 a las 10:43:35. Se analizaron eventos de habla, finales de traducción, publicación de bloques, descartes de audio y cambios de estado. Las longitudes se calcularon por palabras y las duraciones por diferencias entre timestamps. El informe usa solo agregados; no incluye frases de la conversación.\n\nLimitación: una única conversación permite diagnosticar este caso, pero no estimar todavía la frecuencia general del patrón ni fijar el umbral óptimo para todas las voces y ritmos.",
+        "layout": "full",
+        "sourceId": "latest-session-log"
+      }
+    ],
+    "cards": [
+      {
+        "id": "history-card",
+        "description": "Correspondencia entre finales de traducción y bloques persistidos.",
+        "dataset": "headline",
+        "sourceId": "latest-session-log",
+        "metrics": [{"label": "Turnos en historial", "field": "history_ratio"}]
+      },
+      {
+        "id": "short-card",
+        "description": "Bloques traducidos con cinco palabras o menos.",
+        "dataset": "headline",
+        "sourceId": "latest-session-log",
+        "metrics": [{"label": "Bloques cortos", "field": "short_share"}]
+      },
+      {
+        "id": "latency-card",
+        "description": "Tiempo mediano desde fin del habla hasta publicación.",
+        "dataset": "headline",
+        "sourceId": "latest-session-log",
+        "metrics": [{"label": "Latencia mediana", "field": "median_publish_latency"}]
+      }
+    ],
+    "charts": [
+      {
+        "id": "turn-lengths",
+        "title": "Longitud de cada bloque publicado",
+        "subtitle": "Palabras de la traducción por turno; 13 bloques publicados en la sesión",
+        "intent": "comparison",
+        "question": "¿En qué turnos se concentra la dificultad de lectura por mensajes cortos?",
+        "rationale": "Las barras permiten comparar directamente la longitud discreta de cada turno y localizar la secuencia final de bloques breves.",
+        "comparisonContext": {"grain": "turno publicado", "unit": "palabras"},
+        "type": "horizontalBar",
+        "dataset": "turns",
+        "sourceId": "latest-session-log",
+        "encodings": {
+          "x": {"field": "turn", "type": "ordinal", "label": "Turno"},
+          "y": {"field": "translation_words", "type": "quantitative", "label": "Palabras traducidas", "unit": "palabras"},
+          "tooltip": [
+            {"field": "translation_words", "type": "quantitative", "label": "Palabras traducidas"},
+            {"field": "original_words", "type": "quantitative", "label": "Palabras originales"},
+            {"field": "speech_duration_s", "type": "quantitative", "label": "Duración hablada", "unit": "s"},
+            {"field": "publish_delay_s", "type": "quantitative", "label": "Retardo de publicación", "unit": "s"}
+          ]
+        },
+        "xAxisTitle": "Palabras traducidas",
+        "yAxisTitle": "Turno publicado",
+        "layout": "full",
+        "maxRows": 13,
+        "referenceLines": [{"axis": "x", "value": 5, "label": "umbral corto", "color": "neutral", "lineStyle": "dashed"}],
+        "surface": {"surface": "export", "viewMode": "visualization"}
+      }
+    ],
+    "sources": [
+      {
+        "id": "latest-session-log",
+        "label": "Log agregado de la última sesión local",
+        "query": {
+          "engine": "JSONL local",
+          "query": "Parsear las líneas JSONL; agrupar por type; emparejar speech_started con speech_stopped; emparejar cada speech_stopped con el siguiente block_published; contar palabras separadas por espacios en original y translation.",
+          "sql": "SELECT turn_no, original_words, translation_words, speech_duration_s, publish_delay_s FROM reviewed_turn_metrics ORDER BY turn_no;",
+          "description": "Conteo de eventos y agregación temporal de la sesión más reciente de traducción OpenAI Realtime.",
+          "executed_at": "2026-07-14T10:49:57+02:00",
+          "language": "jq/awk",
+          "tables_used": ["system-audio-session-20260714-104517.log"],
+          "filters": ["sesión iniciada 2026-07-14T10:43:35.673", "eventos hasta 2026-07-14T10:45:17.756"],
+          "metric_definitions": [
+            "Bloque corto = traducción publicada con <= 5 palabras.",
+            "Duración hablada = timestamp speech_stopped - timestamp speech_started.",
+            "Latencia de publicación = timestamp block_published - timestamp speech_stopped.",
+            "Audio descartado aproximado = 7 chunks x 80 ms = 0,56 s."
+          ]
+        }
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-14T10:49:57+02:00",
+    "status": "ready",
+    "datasets": {
+      "headline": [
+        {"history_ratio": "13/13", "short_share": "38,5 %", "median_publish_latency": "0,41 s"}
+      ],
+      "turns": [
+        {"turn": "1", "original_words": 15, "translation_words": 12, "speech_duration_s": 3.532, "publish_delay_s": 0.390, "publish_gap_s": null},
+        {"turn": "2", "original_words": 4, "translation_words": 4, "speech_duration_s": 2.010, "publish_delay_s": 0.539, "publish_gap_s": 2.629},
+        {"turn": "3", "original_words": 1, "translation_words": 1, "speech_duration_s": 1.049, "publish_delay_s": 0.358, "publish_gap_s": 0.941},
+        {"turn": "4", "original_words": 13, "translation_words": 15, "speech_duration_s": 4.008, "publish_delay_s": 0.510, "publish_gap_s": 4.390},
+        {"turn": "5", "original_words": 14, "translation_words": 9, "speech_duration_s": 4.865, "publish_delay_s": 0.407, "publish_gap_s": 4.773},
+        {"turn": "6", "original_words": 13, "translation_words": 15, "speech_duration_s": 4.881, "publish_delay_s": 0.508, "publish_gap_s": 5.221},
+        {"turn": "7", "original_words": 10, "translation_words": 9, "speech_duration_s": 4.328, "publish_delay_s": 0.390, "publish_gap_s": 4.288},
+        {"turn": "8", "original_words": 18, "translation_words": 15, "speech_duration_s": 6.566, "publish_delay_s": 0.532, "publish_gap_s": 7.507},
+        {"turn": "9", "original_words": 16, "translation_words": 13, "speech_duration_s": 3.690, "publish_delay_s": 0.460, "publish_gap_s": 5.524},
+        {"turn": "10", "original_words": 68, "translation_words": 54, "speech_duration_s": 19.691, "publish_delay_s": 0.996, "publish_gap_s": 20.459},
+        {"turn": "11", "original_words": 5, "translation_words": 5, "speech_duration_s": 1.218, "publish_delay_s": 0.398, "publish_gap_s": 1.559},
+        {"turn": "12", "original_words": 4, "translation_words": 4, "speech_duration_s": 0.973, "publish_delay_s": 0.386, "publish_gap_s": 2.072},
+        {"turn": "13", "original_words": 2, "translation_words": 2, "speech_duration_s": 1.125, "publish_delay_s": 0.365, "publish_gap_s": 1.412}
+      ],
+      "metrics": [
+        {"metric": "Traducciones persistidas", "value": "13/13", "interpretation": "No hubo pérdida de bloques traducidos."},
+        {"metric": "Bloques de <= 5 palabras", "value": "5 (38,5 %)", "interpretation": "Una proporción relevante resulta difícil de leer si rota inmediatamente."},
+        {"metric": "Mediana de longitud", "value": "9 palabras", "interpretation": "El turno típico es breve, aunque existe gran variabilidad."},
+        {"metric": "Mediana de duración hablada", "value": "4,01 s", "interpretation": "Los bloques finales cortos son una concentración, no toda la sesión."},
+        {"metric": "Mediana de publicación", "value": "0,41 s", "interpretation": "La baja latencia acelera la rotación visual."},
+        {"metric": "Descartes al arrancar", "value": "7 chunks (~0,56 s)", "interpretation": "Riesgo de recorte inicial, sin relación con la fragmentación posterior."}
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "latest-session-log",
+      "label": "Log agregado de la última sesión local",
+      "query": {
+        "engine": "JSONL local",
+        "query": "Parsear las líneas JSONL; agrupar por type; emparejar speech_started con speech_stopped; emparejar cada speech_stopped con el siguiente block_published; contar palabras separadas por espacios en original y translation.",
+        "sql": "SELECT turn_no, original_words, translation_words, speech_duration_s, publish_delay_s FROM reviewed_turn_metrics ORDER BY turn_no;",
+        "description": "Conteo de eventos y agregación temporal de la sesión más reciente de traducción OpenAI Realtime.",
+        "executed_at": "2026-07-14T10:49:57+02:00",
+        "language": "jq/awk",
+        "tables_used": ["system-audio-session-20260714-104517.log"],
+        "filters": ["sesión iniciada 2026-07-14T10:43:35.673", "eventos hasta 2026-07-14T10:45:17.756"],
+        "metric_definitions": [
+          "Bloque corto = traducción publicada con <= 5 palabras.",
+          "Duración hablada = timestamp speech_stopped - timestamp speech_started.",
+          "Latencia de publicación = timestamp block_published - timestamp speech_stopped.",
+          "Audio descartado aproximado = 7 chunks x 80 ms = 0,56 s."
+        ]
+      }
+    }
+  ]
+}
