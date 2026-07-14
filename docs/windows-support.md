@@ -193,7 +193,7 @@ Current Windows validation status: working with `faster_whisper_http` and the lo
 
 Status: working experimental GPU TTS path for Codex Desktop, the VS Code/Codex extension wrapper, and OpenClaw HTTP integrations.
 
-The retained local TTS backend is Chatterbox es-ES. Earlier Piper/Kokoro/Qwen/NeuTTS experiment paths were cleaned from the active project; keep this section as the Windows source of truth for local voice output.
+The retained Windows local TTS backend is Chatterbox es-ES. Piper remains available as the Linux CPU backend, while earlier Kokoro/Qwen/NeuTTS experiment paths were cleaned from the active project; keep this section as the Windows source of truth for local voice output.
 
 ### Service Lifecycle
 

@@ -111,6 +111,25 @@ VOICE_TRANSLATION_OUTPUT_VOLUME=0.75
 
 This is a known experimental limitation. See [Push-To-Talk Dictation](push-to-talk-dictation.md).
 
+## Local TTS Uses The Wrong Backend Or Port
+
+Check the resolved configuration in `.env`:
+
+```env
+LOCAL_TTS_BACKEND=auto
+LOCAL_TTS_BASE_URL=
+```
+
+On Linux, `auto` starts Piper on port `9010`. Set
+`LOCAL_TTS_BACKEND=chatterbox` only when this host should start the GPU service
+on port `9011`. A non-empty `LOCAL_TTS_BASE_URL` always overrides those defaults.
+
+```bash
+so-ai ensure-linux-voice-runtimes
+so-ai status-piper-tts-server
+systemctl --user status so-intelligence-tools-voice-runtimes.service
+```
+
 For now:
 
 - start speaking slightly after pressing the shortcut
@@ -120,4 +139,3 @@ For now:
 ```bash
 systemctl --user restart so-intelligence-tools-push-to-talk-dictation.service
 ```
-

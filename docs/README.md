@@ -2,7 +2,7 @@
 
 This folder contains the public documentation for `so_intelligence_tools`.
 
-The project is Linux-first for audio-routing workflows, with working Linux CPU push-to-talk dictation through a warm faster-whisper Docker backend and an experimental GPU Chatterbox TTS service for more natural Spanish Codex/OpenClaw voice output. Windows separately supports selected text correction, the main overlay launcher, shortcut introspection, push-to-talk dictation, local Chatterbox TTS through Docker Desktop, VS Code/Codex voice wrapping, and a standalone Codex Desktop session monitor. The architecture keeps operating-system adapters separate from shared use cases.
+The project is Linux-first for audio-routing workflows, with working Linux CPU push-to-talk dictation through faster-whisper and lightweight Piper TTS as the automatic Linux voice backend. Chatterbox remains available for Linux GPU hosts and is the validated Windows TTS path through Docker Desktop. Windows separately supports selected text correction, the main overlay launcher, shortcut introspection, push-to-talk dictation, VS Code/Codex voice wrapping, and a standalone Codex Desktop session monitor. The architecture keeps operating-system adapters separate from shared use cases.
 
 ## Start Here
 
@@ -25,6 +25,7 @@ The project is Linux-first for audio-routing workflows, with working Linux CPU p
 - [Faster-Whisper Docker Server](whisper-docker.md)
 - [Linux Whisper CPU Benchmark](whisper-cpu-benchmark-linux.md)
 - [Chatterbox TTS Voice Output](chatterbox-tts-voice-output.md)
+- [Piper TTS Voice Output](piper-tts-voice-output.md)
 - [Linux Nemotron Streaming Dictation](nemotron-dictation-backup.md)
 - [Desktop UI](desktop-ui.md)
 - [Local Inference API](local-inference-api.md)

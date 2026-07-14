@@ -16,7 +16,9 @@ def test_install_api_service_writes_unit_and_enables(tmp_path, monkeypatch):
     service_dir = tmp_path / "systemd-user"
     (project_dir / ".venv" / "bin").mkdir(parents=True)
     (project_dir / "src").mkdir(parents=True)
-    (project_dir / ".env").write_text("LOCAL_INFERENCE_API_PORT=8000\n", encoding="utf-8")
+    (project_dir / ".env").write_text(
+        "LOCAL_INFERENCE_API_PORT=8000\n", encoding="utf-8"
+    )
     (project_dir / ".venv" / "bin" / "uvicorn").write_text("", encoding="utf-8")
 
     calls: list[list[str]] = []
@@ -26,7 +28,9 @@ def test_install_api_service_writes_unit_and_enables(tmp_path, monkeypatch):
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr("subprocess.run", fake_run)
-    monkeypatch.setattr(LocalApiUserServiceInstaller, "_is_port_in_use", staticmethod(lambda *_: False))
+    monkeypatch.setattr(
+        LocalApiUserServiceInstaller, "_is_port_in_use", staticmethod(lambda *_: False)
+    )
     installer = LocalApiUserServiceInstaller(
         project_dir=project_dir,
         service_dir=service_dir,
@@ -53,18 +57,24 @@ def test_install_api_service_writes_unit_and_enables(tmp_path, monkeypatch):
 def test_install_api_service_requires_project_venv(tmp_path):
     project_dir = tmp_path / "project"
     project_dir.mkdir()
-    installer = LocalApiUserServiceInstaller(project_dir=project_dir, service_dir=tmp_path / "user")
+    installer = LocalApiUserServiceInstaller(
+        project_dir=project_dir, service_dir=tmp_path / "user"
+    )
 
     with pytest.raises(ToolRunnerConfigurationError, match="poetry install"):
         installer.install_api_service()
 
 
-def test_install_api_service_enables_without_start_when_port_is_busy(tmp_path, monkeypatch):
+def test_install_api_service_enables_without_start_when_port_is_busy(
+    tmp_path, monkeypatch
+):
     project_dir = tmp_path / "project"
     service_dir = tmp_path / "systemd-user"
     (project_dir / ".venv" / "bin").mkdir(parents=True)
     (project_dir / "src").mkdir(parents=True)
-    (project_dir / ".env").write_text("LOCAL_INFERENCE_API_PORT=8000\n", encoding="utf-8")
+    (project_dir / ".env").write_text(
+        "LOCAL_INFERENCE_API_PORT=8000\n", encoding="utf-8"
+    )
     (project_dir / ".venv" / "bin" / "uvicorn").write_text("", encoding="utf-8")
 
     calls: list[list[str]] = []
@@ -74,7 +84,9 @@ def test_install_api_service_enables_without_start_when_port_is_busy(tmp_path, m
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr("subprocess.run", fake_run)
-    monkeypatch.setattr(LocalApiUserServiceInstaller, "_is_port_in_use", staticmethod(lambda *_: True))
+    monkeypatch.setattr(
+        LocalApiUserServiceInstaller, "_is_port_in_use", staticmethod(lambda *_: True)
+    )
     installer = LocalApiUserServiceInstaller(
         project_dir=project_dir,
         service_dir=service_dir,
@@ -104,7 +116,9 @@ def test_install_desktop_health_autostart_writes_desktop_entry(tmp_path):
 
     autostart_path = installer.install_desktop_health_autostart()
 
-    assert autostart_path == autostart_dir / "so-intelligence-tools-desktop-health.desktop"
+    assert (
+        autostart_path == autostart_dir / "so-intelligence-tools-desktop-health.desktop"
+    )
     desktop_entry = autostart_path.read_text(encoding="utf-8")
     assert "Type=Application" in desktop_entry
     assert f"Exec={script_path}" in desktop_entry
@@ -115,11 +129,15 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
     project_dir = tmp_path / "project"
     service_dir = tmp_path / "systemd-user"
     (project_dir / ".venv" / "bin").mkdir(parents=True)
-    (project_dir / ".venv" / "bin" / "so-intelligence-tools").write_text("", encoding="utf-8")
+    (project_dir / ".venv" / "bin" / "so-intelligence-tools").write_text(
+        "", encoding="utf-8"
+    )
     whisper_dir = project_dir / "docker" / "whisper-server"
     whisper_dir.mkdir(parents=True)
     (whisper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
-    (whisper_dir / ".env.example").write_text("WHISPER_MODEL=large-v3-turbo\n", encoding="utf-8")
+    (whisper_dir / ".env.example").write_text(
+        "WHISPER_MODEL=large-v3-turbo\n", encoding="utf-8"
+    )
 
     calls: list[tuple[list[str], str | None]] = []
 
@@ -141,17 +159,46 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
     )
 
     assert started_now is True
-    assert service_path == service_dir / "so-intelligence-tools-push-to-talk-dictation.service"
-    assert (whisper_dir / ".env").read_text(encoding="utf-8") == "WHISPER_MODEL=large-v3-turbo\n"
+    assert (
+        service_path
+        == service_dir / "so-intelligence-tools-push-to-talk-dictation.service"
+    )
     service_text = service_path.read_text(encoding="utf-8")
     assert "push-to-talk dictation listener" in service_text
     assert f"WorkingDirectory={project_dir}" in service_text
+    assert "so-intelligence-tools-voice-runtimes.service" in service_text
     assert "run-push-to-talk-dictation-service" in service_text
     assert calls == [
-        (["docker", "compose", "up", "-d"], str(whisper_dir)),
+        (["systemctl", "--user", "daemon-reload"], None),
+        (
+            [
+                "systemctl",
+                "--user",
+                "enable",
+                "so-intelligence-tools-voice-runtimes.service",
+            ],
+            None,
+        ),
+        (
+            [
+                "systemctl",
+                "--user",
+                "restart",
+                "so-intelligence-tools-voice-runtimes.service",
+            ],
+            None,
+        ),
         (["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "trigger"], None),
         (["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "triggers"], None),
-        (["gsettings", "get", "org.gnome.desktop.wm.keybindings", "switch-input-source"], None),
+        (
+            [
+                "gsettings",
+                "get",
+                "org.gnome.desktop.wm.keybindings",
+                "switch-input-source",
+            ],
+            None,
+        ),
         (
             [
                 "gsettings",
@@ -183,6 +230,137 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
     ]
 
 
+def test_install_voice_runtimes_service_writes_unit(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    service_dir = tmp_path / "systemd-user"
+    (project_dir / ".venv" / "bin").mkdir(parents=True)
+    (project_dir / ".venv" / "bin" / "so-intelligence-tools").write_text(
+        "", encoding="utf-8"
+    )
+
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    installer = LocalApiUserServiceInstaller(
+        project_dir=project_dir,
+        service_dir=service_dir,
+        user_systemctl_bin="systemctl",
+    )
+
+    service_path, started_now = installer.install_voice_runtimes_service(
+        enable_now=True
+    )
+
+    assert started_now is True
+    assert service_path == service_dir / "so-intelligence-tools-voice-runtimes.service"
+    service_text = service_path.read_text(encoding="utf-8")
+    assert "Type=oneshot" in service_text
+    assert "Environment=DOCKER_CONTEXT=default" in service_text
+    assert "ensure-linux-voice-runtimes" in service_text
+    assert "Restart=on-failure" in service_text
+    assert "RestartSec=10" in service_text
+    assert calls == [
+        ["systemctl", "--user", "daemon-reload"],
+        [
+            "systemctl",
+            "--user",
+            "enable",
+            "so-intelligence-tools-voice-runtimes.service",
+        ],
+        [
+            "systemctl",
+            "--user",
+            "restart",
+            "so-intelligence-tools-voice-runtimes.service",
+        ],
+    ]
+
+
+def test_ensure_voice_runtimes_starts_whisper_and_piper(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    whisper_dir = project_dir / "docker" / "whisper-server"
+    piper_dir = project_dir / "docker" / "piper-tts"
+    whisper_dir.mkdir(parents=True)
+    piper_dir.mkdir(parents=True)
+    (whisper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (piper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (whisper_dir / ".env.example").write_text(
+        "WHISPER_MODEL=large-v3-turbo\n", encoding="utf-8"
+    )
+    (piper_dir / ".env.example").write_text("PIPER_TTS_PORT=9010\n", encoding="utf-8")
+    calls: list[tuple[list[str], str | None]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        cwd = kwargs.get("cwd")
+        calls.append((command, str(cwd) if cwd is not None else None))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    installer = LocalApiUserServiceInstaller(project_dir=project_dir)
+    monkeypatch.setattr(installer, "_wait_for_whisper_server", lambda _env_file: None)
+    monkeypatch.setattr(installer, "_wait_for_piper_tts_server", lambda _env_file: None)
+    monkeypatch.setattr(installer, "piper_tts_server_ready", lambda: False)
+
+    whisper_env, piper_env = installer.ensure_voice_runtimes()
+
+    assert whisper_env == whisper_dir / ".env"
+    assert piper_env == piper_dir / ".env"
+    assert "WHISPER_API_KEY=\n" in whisper_env.read_text(encoding="utf-8")
+    assert calls == [
+        (["docker", "compose", "up", "-d"], str(whisper_dir)),
+        (["docker", "compose", "up", "-d", "--build"], str(piper_dir)),
+    ]
+
+
+def test_ensure_voice_runtimes_can_select_chatterbox(tmp_path, monkeypatch):
+    installer = LocalApiUserServiceInstaller(
+        project_dir=tmp_path / "project",
+        local_tts_backend="chatterbox",
+        platform_name="linux",
+    )
+    whisper_env = tmp_path / "whisper.env"
+    chatterbox_env = tmp_path / "chatterbox.env"
+    monkeypatch.setattr(installer, "ensure_whisper_server", lambda: whisper_env)
+    monkeypatch.setattr(
+        installer,
+        "ensure_chatterbox_tts_server",
+        lambda: chatterbox_env,
+    )
+    monkeypatch.setattr(
+        installer,
+        "ensure_piper_tts_server",
+        lambda: pytest.fail("Piper must not start for explicit Chatterbox"),
+    )
+
+    assert installer.ensure_voice_runtimes() == (whisper_env, chatterbox_env)
+
+
+def test_ensure_voice_runtimes_can_disable_tts(tmp_path, monkeypatch):
+    installer = LocalApiUserServiceInstaller(
+        project_dir=tmp_path / "project",
+        local_tts_backend="none",
+        platform_name="linux",
+    )
+    whisper_env = tmp_path / "whisper.env"
+    monkeypatch.setattr(installer, "ensure_whisper_server", lambda: whisper_env)
+    monkeypatch.setattr(
+        installer,
+        "ensure_piper_tts_server",
+        lambda: pytest.fail("Piper must not start when TTS is disabled"),
+    )
+    monkeypatch.setattr(
+        installer,
+        "ensure_chatterbox_tts_server",
+        lambda: pytest.fail("Chatterbox must not start when TTS is disabled"),
+    )
+
+    assert installer.ensure_voice_runtimes() == (whisper_env, None)
+
+
 def test_ensure_whisper_server_requires_compose_file(tmp_path):
     installer = LocalApiUserServiceInstaller(project_dir=tmp_path / "project")
 
@@ -190,7 +368,9 @@ def test_ensure_whisper_server_requires_compose_file(tmp_path):
         installer.ensure_whisper_server()
 
 
-def test_ensure_chatterbox_tts_server_copies_env_and_starts_compose(tmp_path, monkeypatch):
+def test_ensure_chatterbox_tts_server_copies_env_and_starts_compose(
+    tmp_path, monkeypatch
+):
     project_dir = tmp_path / "project"
     chatterbox_dir = project_dir / "docker" / "chatterbox-tts"
     chatterbox_dir.mkdir(parents=True)
@@ -208,13 +388,35 @@ def test_ensure_chatterbox_tts_server_copies_env_and_starts_compose(tmp_path, mo
 
     monkeypatch.setattr("subprocess.run", fake_run)
     installer = LocalApiUserServiceInstaller(project_dir=project_dir)
-    monkeypatch.setattr(installer, "_wait_for_chatterbox_tts_server", lambda _env_file: None)
+    monkeypatch.setattr(installer, "chatterbox_tts_server_ready", lambda: False)
+    monkeypatch.setattr(
+        installer, "_wait_for_chatterbox_tts_server", lambda _env_file: None
+    )
 
     env_path = installer.ensure_chatterbox_tts_server()
 
     assert env_path == chatterbox_dir / ".env"
     assert env_path.read_text(encoding="utf-8") == "CHATTERBOX_TTS_PORT=9011\n"
-    assert calls == [(["docker", "compose", "up", "-d", "--build"], str(chatterbox_dir))]
+    assert calls == [
+        (["docker", "compose", "up", "-d", "--build"], str(chatterbox_dir))
+    ]
+
+
+def test_ensure_piper_tts_server_reuses_a_ready_runtime(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    piper_dir = project_dir / "docker" / "piper-tts"
+    piper_dir.mkdir(parents=True)
+    (piper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (piper_dir / ".env").write_text("PIPER_TTS_PORT=9010\n", encoding="utf-8")
+    installer = LocalApiUserServiceInstaller(project_dir=project_dir)
+    monkeypatch.setattr(installer, "piper_tts_server_ready", lambda: True)
+    monkeypatch.setattr(
+        installer,
+        "_run_docker_compose",
+        lambda *_args: pytest.fail("A ready Piper runtime must be reused"),
+    )
+
+    assert installer.ensure_piper_tts_server() == piper_dir / ".env"
 
 
 def test_stop_chatterbox_tts_server_runs_compose_down(tmp_path, monkeypatch):
@@ -262,24 +464,43 @@ def test_release_linux_ctrl_space_conflicts_removes_ibus_trigger(tmp_path, monke
 
     def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
         calls.append(command)
-        if command == ["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "trigger"]:
+        if command == [
+            "gsettings",
+            "get",
+            "org.freedesktop.ibus.general.hotkey",
+            "trigger",
+        ]:
             return subprocess.CompletedProcess(
                 command,
                 0,
                 "['Control+space', 'Zenkaku_Hankaku', 'Alt+Release+Alt_R']\n",
                 "",
             )
-        if command == ["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "triggers"]:
+        if command == [
+            "gsettings",
+            "get",
+            "org.freedesktop.ibus.general.hotkey",
+            "triggers",
+        ]:
             return subprocess.CompletedProcess(command, 0, "['<Super>space']\n", "")
-        if command == ["gsettings", "get", "org.gnome.desktop.wm.keybindings", "switch-input-source"]:
-            return subprocess.CompletedProcess(command, 0, "['<Control>space', '<Super>space']\n", "")
+        if command == [
+            "gsettings",
+            "get",
+            "org.gnome.desktop.wm.keybindings",
+            "switch-input-source",
+        ]:
+            return subprocess.CompletedProcess(
+                command, 0, "['<Control>space', '<Super>space']\n", ""
+            )
         if command == [
             "gsettings",
             "get",
             "org.gnome.desktop.wm.keybindings",
             "switch-input-source-backward",
         ]:
-            return subprocess.CompletedProcess(command, 0, "['<Shift><Super>space']\n", "")
+            return subprocess.CompletedProcess(
+                command, 0, "['<Shift><Super>space']\n", ""
+            )
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr("subprocess.run", fake_run)

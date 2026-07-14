@@ -34,7 +34,8 @@ The script installs desktop and audio tooling such as `xclip`, `xdotool`, `wl-cl
 
 Docker is also required for push-to-talk dictation because the supported ASR backend is the faster-whisper server in `docker/whisper-server`.
 
-Docker is also used for local text-to-speech voice output when the Chatterbox service is enabled.
+Docker is also used for local text-to-speech voice output. Piper is the default
+Linux CPU backend; Chatterbox remains an explicit GPU option.
 
 ## Install Python Dependencies
 
@@ -92,11 +93,14 @@ poetry run so-intelligence-tools install-linux-desktop-integration
 This creates:
 
 - `~/.config/systemd/user/so-intelligence-tools-api.service`
+- `~/.config/systemd/user/so-intelligence-tools-voice-runtimes.service`
 - `~/.config/systemd/user/so-intelligence-tools-push-to-talk-dictation.service`
 - `~/.config/autostart/so-intelligence-tools-desktop-health.desktop`
 - GNOME shortcuts for stable desktop tools
 - `docker/whisper-server/.env` from `.env.example` if it does not exist
 - a running `docker/whisper-server` faster-whisper container through `docker compose up -d`
+- a running local TTS container selected by `LOCAL_TTS_BACKEND` (`piper` for the
+  default Linux `auto` mode, Chatterbox only when explicitly selected)
 
 The default Whisper container profile is CPU-oriented (`WHISPER_DEVICE=cpu`, `WHISPER_COMPUTE_TYPE=int8`). Machines with NVIDIA GPU support can opt into the CUDA override documented in [Faster-Whisper Docker Server](whisper-docker.md).
 
@@ -173,9 +177,27 @@ See [Faster-Whisper Docker Server](whisper-docker.md) for GPU and CPU porting no
 
 Linux dictation records while the shortcut is held, then sends the captured utterance to `/v1/audio/transcriptions` after release. The Docker server is warm, so the first dictation avoids model startup, but CPU transcription can still add a visible delay after release.
 
-## Chatterbox TTS Voice Output
+The user service `so-intelligence-tools-voice-runtimes.service` starts the local
+voice runtimes after login. If Docker was left on the Docker Desktop context or
+the runtimes are not reachable after reboot, recover with:
 
-For more natural Spanish voice output on an NVIDIA GPU, run the experimental Chatterbox es-ES container. This is the retained local TTS backend; older Piper/Kokoro benchmark paths have been removed from the active setup.
+```bash
+docker context use default
+so-ai ensure-linux-voice-runtimes
+systemctl --user restart so-intelligence-tools-push-to-talk-dictation.service
+```
+
+## Linux TTS Voice Output
+
+With `LOCAL_TTS_BACKEND=auto`, the login service starts Piper on Linux and the
+shared TTS client uses `http://127.0.0.1:9010`. See
+[Piper TTS Voice Output](piper-tts-voice-output.md) for the CPU path.
+
+### Optional Chatterbox GPU Backend
+
+For more natural Spanish voice output on an NVIDIA GPU, set
+`LOCAL_TTS_BACKEND=chatterbox` and run the experimental Chatterbox es-ES
+container. This does not remove or replace the Linux Piper path.
 
 ```bash
 poetry run so-intelligence-tools ensure-chatterbox-tts-server

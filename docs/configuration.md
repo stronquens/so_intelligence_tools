@@ -61,6 +61,19 @@ Linux GNOME bindings are installed by `install-linux-desktop-integration`. Linux
 
 Windows selected text correction uses the local API plus a resident listener. Install Windows Startup launchers with `install-windows-api-startup`, `install-windows-shortcut-listener-startup`, and `install-windows-dictation-startup`.
 
+## Local Text-To-Speech
+
+```env
+LOCAL_TTS_BACKEND=auto
+LOCAL_TTS_BASE_URL=
+LOCAL_TTS_VOICE=female
+```
+
+`auto` selects Piper on Linux and Chatterbox on Windows. Linux machines with a
+suitable GPU can opt into `chatterbox`; `none` keeps TTS disabled while allowing
+Whisper dictation to start. An explicit `LOCAL_TTS_BASE_URL` overrides the
+backend default (`9010` for Piper and `9011` for Chatterbox).
+
 ## System Audio Translation
 
 ```env

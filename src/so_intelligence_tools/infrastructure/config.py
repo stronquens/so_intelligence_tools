@@ -32,7 +32,8 @@ class ToolRunnerSettings(BaseSettings):
     push_to_talk_dictation_chunk_ms: int = 560
     push_to_talk_dictation_insertion_strategy: str = "final_segments"
     push_to_talk_dictation_post_roll_seconds: float = 0.35
-    local_tts_base_url: str = "http://127.0.0.1:9011"
+    local_tts_backend: str = "auto"
+    local_tts_base_url: str | None = None
     local_tts_timeout_seconds: float = 20.0
     local_tts_playback_command: str | None = None
     local_tts_voice: str = "female"
@@ -54,7 +55,9 @@ class ToolRunnerSettings(BaseSettings):
     system_audio_translation_control_socket_path: str = (
         "~/.cache/so_intelligence_tools/system_audio_translation.sock"
     )
-    system_audio_translation_logs_dir: str = "~/.cache/so_intelligence_tools/system_audio_logs"
+    system_audio_translation_logs_dir: str = (
+        "~/.cache/so_intelligence_tools/system_audio_logs"
+    )
     system_audio_translation_reconnect_backoff_seconds: float = 2.0
     system_audio_translation_window_title: str = "System Audio Translation"
     system_audio_translation_openai_realtime_api_key: str | None = None
@@ -69,7 +72,9 @@ class ToolRunnerSettings(BaseSettings):
     system_audio_translation_openai_realtime_semantic_vad_eagerness: str = "medium"
     system_audio_translation_openai_realtime_interrupt_response: bool = False
     system_audio_translation_openai_realtime_max_output_tokens: int = 1024
-    system_audio_translation_openai_realtime_translate_completed_transcripts: bool = False
+    system_audio_translation_openai_realtime_translate_completed_transcripts: bool = (
+        False
+    )
     system_audio_translation_openai_realtime_text_translation_model: str = "gpt-4o-mini"
     gnome_voice_translation_binding: str = "<Primary><Alt>u"
     voice_translation_source_language: str = "Spanish"
@@ -94,7 +99,9 @@ class ToolRunnerSettings(BaseSettings):
     voice_translation_control_socket_path: str = (
         "~/.cache/so_intelligence_tools/voice_translation_virtual_microphone.sock"
     )
-    voice_translation_logs_dir: str = "~/.cache/so_intelligence_tools/voice_translation_logs"
+    voice_translation_logs_dir: str = (
+        "~/.cache/so_intelligence_tools/voice_translation_logs"
+    )
     voice_translation_debug_recording_enabled: bool = False
     voice_translation_debug_recordings_dir: str = (
         "~/.cache/so_intelligence_tools/voice_translation_debug_audio"

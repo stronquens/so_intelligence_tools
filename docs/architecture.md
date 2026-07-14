@@ -74,6 +74,10 @@ Audio features currently use different runtime strategies:
 - System audio translation uses system audio capture and either chunked transcription or OpenAI Realtime.
 - Voice translation virtual microphone uses realtime provider audio and PulseAudio virtual source routing.
 - Push-to-talk dictation uses the `faster_whisper_http` ASR runtime against a warm Docker server; the earlier Nemotron ONNX route was removed after Whisper produced better Spanish dictation.
+- Local TTS uses one backend-neutral HTTP client with platform-aware runtime
+  selection: Piper is the automatic Linux CPU path, Chatterbox is the automatic
+  Windows path and an explicit Linux GPU option, and `none` disables TTS without
+  disabling Whisper.
 
 ### Desktop UI
 
@@ -82,4 +86,3 @@ The Electron/Vue app under `desktop/` opens as the main overlay launcher by defa
 ## Portability
 
 Linux is still the most complete target for audio routing. Windows is supported for selected text correction, overlay launch/settings and push-to-talk dictation. The architecture keeps OS behavior behind adapters so macOS and broader Windows support can be added without replacing the product model.
-

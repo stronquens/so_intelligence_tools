@@ -12,7 +12,10 @@ from so_intelligence_tools.adapters.testing.fakes import (
     MemoryClipboardAdapter,
     MemoryTextInsertionAdapter,
 )
-from so_intelligence_tools.domain.errors import ToolRunnerError
+from so_intelligence_tools.domain.errors import (
+    ToolRunnerConfigurationError,
+    ToolRunnerError,
+)
 from so_intelligence_tools.application.actions.selected_text_correction import (
     run_selected_text_correction,
 )
@@ -36,11 +39,17 @@ from so_intelligence_tools.infrastructure.shortcut_map import (
 from so_intelligence_tools.infrastructure.shortcut_actions import (
     build_default_shortcut_registry,
 )
-from so_intelligence_tools.infrastructure.shortcut_listener import build_shortcut_listener
+from so_intelligence_tools.infrastructure.shortcut_listener import (
+    build_shortcut_listener,
+)
 from so_intelligence_tools.infrastructure.user_services import (
     LocalApiUserServiceInstaller,
 )
 from so_intelligence_tools.local_tts.client import LocalTtsClient, LocalTtsSettings
+from so_intelligence_tools.local_tts.backends import (
+    resolve_local_tts_backend,
+    resolve_local_tts_base_url,
+)
 from so_intelligence_tools.local_tts.codex_voice import (
     run_codex_visible_event_listener,
     speak_text,
@@ -118,7 +127,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     voice_shortcut_parser.add_argument("--binding", default=None)
     subparsers.add_parser("install-push-to-talk-dictation-service")
+    subparsers.add_parser("install-linux-voice-runtimes-service")
+    subparsers.add_parser("ensure-linux-voice-runtimes")
     subparsers.add_parser("ensure-whisper-docker-server")
+    subparsers.add_parser("ensure-local-tts-server")
+    subparsers.add_parser("ensure-piper-tts-server")
+    subparsers.add_parser("stop-piper-tts-server")
+    subparsers.add_parser("status-piper-tts-server")
     subparsers.add_parser("ensure-chatterbox-tts-server")
     subparsers.add_parser("stop-chatterbox-tts-server")
     subparsers.add_parser("status-chatterbox-tts-server")
@@ -147,9 +162,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     codex_desktop_parser.add_argument("--max-segment-chars", type=int, default=None)
-    codex_desktop_parser.add_argument("--poll-interval-seconds", type=float, default=0.5)
+    codex_desktop_parser.add_argument(
+        "--poll-interval-seconds", type=float, default=0.5
+    )
     codex_desktop_parser.add_argument("--start-at-beginning", action="store_true")
-    codex_desktop_parser.add_argument("--idle-timeout-seconds", type=float, default=None)
+    codex_desktop_parser.add_argument(
+        "--idle-timeout-seconds", type=float, default=None
+    )
     subparsers.add_parser("codex-voice-sessions")
     codex_voice_on_parser = subparsers.add_parser("codex-voice-on")
     _add_codex_voice_target_args(codex_voice_on_parser)
@@ -224,7 +243,9 @@ def main(argv: list[str] | None = None) -> int:
                     args.debug_log_path
                     or "~/.cache/so_intelligence_tools/selected_text_correction.log"
                 ).expanduser()
-            result = run_selected_text_correction(runtime, debug_log_path=debug_log_path)
+            result = run_selected_text_correction(
+                runtime, debug_log_path=debug_log_path
+            )
             print(result)
             return 0
 
@@ -355,18 +376,58 @@ def main(argv: list[str] | None = None) -> int:
                 host=settings.local_inference_api_host,
                 port=settings.local_inference_api_port,
             )
-            service_path, started_now = installer.install_push_to_talk_dictation_service(
-                enable_now=True
+            service_path, started_now = (
+                installer.install_push_to_talk_dictation_service(enable_now=True)
             )
             print(
-                "Faster-whisper Docker server ensured: "
-                f"{Path.cwd() / 'docker' / 'whisper-server' / '.env'}"
+                "Linux voice runtimes service ensured: "
+                f"{Path.home() / '.config' / 'systemd' / 'user' / installer.voice_runtimes_service_name}"
             )
             print(f"Push-to-talk dictation service installed: {service_path}")
             print(
                 "Push-to-talk dictation service state: "
-                + ("enabled and started now" if started_now else "enabled for next login")
+                + (
+                    "enabled and started now"
+                    if started_now
+                    else "enabled for next login"
+                )
             )
+            return 0
+
+        if args.command == "install-linux-voice-runtimes-service":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            service_path, started_now = installer.install_voice_runtimes_service(
+                enable_now=True
+            )
+            print(f"Linux voice runtimes service installed: {service_path}")
+            print(
+                "Linux voice runtimes service state: "
+                + (
+                    "enabled and started now"
+                    if started_now
+                    else "enabled for next login"
+                )
+            )
+            return 0
+
+        if args.command == "ensure-linux-voice-runtimes":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+                local_tts_backend=settings.local_tts_backend,
+            )
+            backend = resolve_local_tts_backend(settings.local_tts_backend)
+            whisper_env_path, tts_env_path = installer.ensure_voice_runtimes()
+            print(f"Faster-whisper Docker server ensured: {whisper_env_path}")
+            if tts_env_path is None:
+                print("Local TTS startup disabled: LOCAL_TTS_BACKEND=none")
+            else:
+                print(f"{backend.title()} TTS Docker server ensured: {tts_env_path}")
             return 0
 
         if args.command == "ensure-whisper-docker-server":
@@ -377,6 +438,41 @@ def main(argv: list[str] | None = None) -> int:
             )
             whisper_env_path = installer.ensure_whisper_server()
             print(f"Faster-whisper Docker server ensured: {whisper_env_path}")
+            return 0
+
+        if args.command == "ensure-local-tts-server":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+                local_tts_backend=settings.local_tts_backend,
+            )
+            backend = resolve_local_tts_backend(settings.local_tts_backend)
+            env_path = installer.ensure_local_tts_server()
+            if env_path is None:
+                print("Local TTS startup disabled: LOCAL_TTS_BACKEND=none")
+            else:
+                print(f"{backend.title()} TTS Docker server ensured: {env_path}")
+            return 0
+
+        if args.command == "ensure-piper-tts-server":
+            installer = LocalApiUserServiceInstaller(project_dir=Path.cwd())
+            piper_env_path = installer.ensure_piper_tts_server()
+            print(f"Piper TTS Docker server ensured: {piper_env_path}")
+            return 0
+
+        if args.command == "stop-piper-tts-server":
+            installer = LocalApiUserServiceInstaller(project_dir=Path.cwd())
+            installer.stop_piper_tts_server()
+            print(
+                "Piper TTS Docker server stopped. Linux CPU voice output is disabled."
+            )
+            return 0
+
+        if args.command == "status-piper-tts-server":
+            installer = LocalApiUserServiceInstaller(project_dir=Path.cwd())
+            ready = installer.piper_tts_server_ready()
+            print("ready" if ready else "disabled")
             return 0
 
         if args.command == "ensure-chatterbox-tts-server":
@@ -448,7 +544,9 @@ def main(argv: list[str] | None = None) -> int:
                 client=client,
                 sessions_dir=Path(args.sessions_dir) if args.sessions_dir else None,
                 poll_interval_seconds=args.poll_interval_seconds,
-                speech_detail=_codex_desktop_detail(args.detail or settings.codex_voice_detail),
+                speech_detail=_codex_desktop_detail(
+                    args.detail or settings.codex_voice_detail
+                ),
                 max_segment_chars=(
                     args.max_segment_chars or settings.codex_voice_max_segment_chars
                 ),
@@ -507,11 +605,16 @@ def main(argv: list[str] | None = None) -> int:
                 project_dir=Path.cwd(),
                 host=settings.local_inference_api_host,
                 port=settings.local_inference_api_port,
+                local_tts_backend=settings.local_tts_backend,
             )
-            service_path, service_started_now = installer.install_api_service(enable_now=True)
+            service_path, service_started_now = installer.install_api_service(
+                enable_now=True
+            )
             dictation_service_path, dictation_service_started_now = (
                 installer.install_push_to_talk_dictation_service(enable_now=True)
             )
+            voice_runtimes_path = installer.voice_runtimes_service_path
+            voice_runtimes_started_now = dictation_service_started_now
             autostart_path = installer.install_desktop_health_autostart()
             manager = GnomeShortcutManager(project_dir=Path.cwd())
             binding = args.binding or settings.gnome_selected_text_correction_binding
@@ -526,6 +629,7 @@ def main(argv: list[str] | None = None) -> int:
                 binding=settings.gnome_voice_translation_binding,
             )
             print(f"User service installed: {service_path}")
+            print(f"Linux voice runtimes service installed: {voice_runtimes_path}")
             print(
                 "Faster-whisper Docker server ensured: "
                 f"{Path.cwd() / 'docker' / 'whisper-server' / '.env'}"
@@ -563,6 +667,14 @@ def main(argv: list[str] | None = None) -> int:
                     else "enabled for next login"
                 )
             )
+            print(
+                "Linux voice runtimes service state: "
+                + (
+                    "enabled and started now"
+                    if voice_runtimes_started_now
+                    else "enabled for next login"
+                )
+            )
             return 0
     except ToolRunnerError as exc:
         print(str(exc), file=sys.stderr)
@@ -590,7 +702,11 @@ def _format_codex_voice_update(action: str, sessions) -> str:
 
 
 def _codex_desktop_detail(value: str | None) -> str:
-    return value if value in {"minimal", "actions", "standard", "no-code", "full"} else "standard"
+    return (
+        value
+        if value in {"minimal", "actions", "standard", "no-code", "full"}
+        else "standard"
+    )
 
 
 def _build_local_tts_client(
@@ -599,9 +715,17 @@ def _build_local_tts_client(
     base_url: str | None = None,
     voice: str | None = None,
 ) -> LocalTtsClient:
+    resolved_base_url = resolve_local_tts_base_url(
+        settings.local_tts_backend,
+        explicit_base_url=base_url or settings.local_tts_base_url,
+    )
+    if resolved_base_url is None:
+        raise ToolRunnerConfigurationError(
+            "Local TTS is disabled. Set LOCAL_TTS_BACKEND to piper or chatterbox."
+        )
     return LocalTtsClient(
         LocalTtsSettings(
-            base_url=base_url or settings.local_tts_base_url,
+            base_url=resolved_base_url,
             timeout_seconds=settings.local_tts_timeout_seconds,
             playback_command=settings.local_tts_playback_command,
             voice=voice or settings.local_tts_voice,

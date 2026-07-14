@@ -10,6 +10,7 @@ from urllib.request import urlopen
 from pathlib import Path
 
 from so_intelligence_tools.domain.errors import ToolRunnerConfigurationError
+from so_intelligence_tools.local_tts.backends import resolve_local_tts_backend
 
 
 class LocalApiUserServiceInstaller:
@@ -22,13 +23,23 @@ class LocalApiUserServiceInstaller:
         user_systemctl_bin: str = "systemctl",
         host: str = "127.0.0.1",
         port: int = 8000,
+        local_tts_backend: str = "auto",
+        platform_name: str | None = None,
     ) -> None:
         self._project_dir = (project_dir or Path.cwd()).resolve()
-        self._service_dir = (service_dir or Path.home() / ".config" / "systemd" / "user").resolve()
-        self._autostart_dir = (autostart_dir or Path.home() / ".config" / "autostart").resolve()
+        self._service_dir = (
+            service_dir or Path.home() / ".config" / "systemd" / "user"
+        ).resolve()
+        self._autostart_dir = (
+            autostart_dir or Path.home() / ".config" / "autostart"
+        ).resolve()
         self._user_systemctl_bin = user_systemctl_bin
         self._host = host
         self._port = port
+        self._local_tts_backend = resolve_local_tts_backend(
+            local_tts_backend,
+            platform_name=platform_name,
+        )
 
     @property
     def service_name(self) -> str:
@@ -39,12 +50,20 @@ class LocalApiUserServiceInstaller:
         return "so-intelligence-tools-push-to-talk-dictation.service"
 
     @property
+    def voice_runtimes_service_name(self) -> str:
+        return "so-intelligence-tools-voice-runtimes.service"
+
+    @property
     def service_path(self) -> Path:
         return self._service_dir / self.service_name
 
     @property
     def dictation_service_path(self) -> Path:
         return self._service_dir / self.dictation_service_name
+
+    @property
+    def voice_runtimes_service_path(self) -> Path:
+        return self._service_dir / self.voice_runtimes_service_name
 
     @property
     def autostart_path(self) -> Path:
@@ -68,14 +87,16 @@ class LocalApiUserServiceInstaller:
             self._run_systemctl(["--user", "enable", self.service_name])
         return self.service_path, start_now
 
-    def install_push_to_talk_dictation_service(self, *, enable_now: bool = True) -> tuple[Path, bool]:
+    def install_push_to_talk_dictation_service(
+        self, *, enable_now: bool = True
+    ) -> tuple[Path, bool]:
         cli = self._project_dir / ".venv" / "bin" / "so-intelligence-tools"
         if not cli.exists():
             raise ToolRunnerConfigurationError(
                 "No se encontró `.venv/bin/so-intelligence-tools`. Ejecuta `poetry install` antes de instalar el servicio."
             )
 
-        self.ensure_whisper_server()
+        self.install_voice_runtimes_service(enable_now=True)
         self.release_linux_ctrl_space_conflicts()
         self._service_dir.mkdir(parents=True, exist_ok=True)
         self.dictation_service_path.write_text(
@@ -91,8 +112,45 @@ class LocalApiUserServiceInstaller:
             self._run_systemctl(["--user", "enable", self.dictation_service_name])
         return self.dictation_service_path, enable_now
 
+    def install_voice_runtimes_service(
+        self, *, enable_now: bool = True
+    ) -> tuple[Path, bool]:
+        cli = self._project_dir / ".venv" / "bin" / "so-intelligence-tools"
+        if not cli.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontró `.venv/bin/so-intelligence-tools`. Ejecuta `poetry install` antes de instalar el servicio."
+            )
+
+        self._service_dir.mkdir(parents=True, exist_ok=True)
+        self.voice_runtimes_service_path.write_text(
+            self._build_voice_runtimes_service_contents(),
+            encoding="utf-8",
+        )
+
+        self._run_systemctl(["--user", "daemon-reload"])
+        if enable_now:
+            self._run_systemctl(["--user", "enable", self.voice_runtimes_service_name])
+            self._run_systemctl(["--user", "restart", self.voice_runtimes_service_name])
+        else:
+            self._run_systemctl(["--user", "enable", self.voice_runtimes_service_name])
+        return self.voice_runtimes_service_path, enable_now
+
+    def ensure_voice_runtimes(self) -> tuple[Path, Path | None]:
+        whisper_env_path = self.ensure_whisper_server()
+        tts_env_path = self.ensure_local_tts_server()
+        return whisper_env_path, tts_env_path
+
+    def ensure_local_tts_server(self) -> Path | None:
+        if self._local_tts_backend == "piper":
+            return self.ensure_piper_tts_server()
+        if self._local_tts_backend == "chatterbox":
+            return self.ensure_chatterbox_tts_server()
+        return None
+
     def install_desktop_health_autostart(self) -> Path:
-        script_path = self._project_dir / "scripts" / "ensure-linux-desktop-integration.sh"
+        script_path = (
+            self._project_dir / "scripts" / "ensure-linux-desktop-integration.sh"
+        )
         if not script_path.exists():
             raise ToolRunnerConfigurationError(
                 "No se encontró el script de autostart de integración Linux."
@@ -129,7 +187,10 @@ class LocalApiUserServiceInstaller:
                 raise ToolRunnerConfigurationError(
                     "No se encontro `docker/whisper-server/.env.example`."
                 )
-            env_file.write_text(env_example.read_text(encoding="utf-8"), encoding="utf-8")
+            env_file.write_text(
+                env_example.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        self._ensure_env_key_exists(env_file, "WHISPER_API_KEY", "")
         self._run_docker_compose(compose_dir, ["up", "-d"])
         self._wait_for_whisper_server(env_file)
         return env_file
@@ -148,9 +209,36 @@ class LocalApiUserServiceInstaller:
                 raise ToolRunnerConfigurationError(
                     "No se encontro `docker/chatterbox-tts/.env.example`."
                 )
-            env_file.write_text(env_example.read_text(encoding="utf-8"), encoding="utf-8")
+            env_file.write_text(
+                env_example.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        if self.chatterbox_tts_server_ready():
+            return env_file
         self._run_docker_compose(compose_dir, ["up", "-d", "--build"])
         self._wait_for_chatterbox_tts_server(env_file)
+        return env_file
+
+    def ensure_piper_tts_server(self) -> Path:
+        compose_dir = self._project_dir / "docker" / "piper-tts"
+        compose_file = compose_dir / "compose.yaml"
+        env_file = compose_dir / ".env"
+        env_example = compose_dir / ".env.example"
+        if not compose_file.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontro `docker/piper-tts/compose.yaml`."
+            )
+        if not env_file.exists():
+            if not env_example.exists():
+                raise ToolRunnerConfigurationError(
+                    "No se encontro `docker/piper-tts/.env.example`."
+                )
+            env_file.write_text(
+                env_example.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        if self.piper_tts_server_ready():
+            return env_file
+        self._run_docker_compose(compose_dir, ["up", "-d", "--build"])
+        self._wait_for_piper_tts_server(env_file)
         return env_file
 
     def stop_chatterbox_tts_server(self) -> None:
@@ -162,12 +250,32 @@ class LocalApiUserServiceInstaller:
             )
         self._run_docker_compose(compose_dir, ["down"])
 
+    def stop_piper_tts_server(self) -> None:
+        compose_dir = self._project_dir / "docker" / "piper-tts"
+        if not (compose_dir / "compose.yaml").exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontro `docker/piper-tts/compose.yaml`."
+            )
+        self._run_docker_compose(compose_dir, ["down"])
+
     def chatterbox_tts_server_ready(self) -> bool:
         env_file = self._project_dir / "docker" / "chatterbox-tts" / ".env"
         if not env_file.exists():
             return False
         env_values = self._read_simple_env(env_file)
         port = env_values.get("CHATTERBOX_TTS_PORT", "9011")
+        try:
+            with urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as response:
+                return 200 <= response.status < 300
+        except (HTTPError, URLError, TimeoutError, OSError):
+            return False
+
+    def piper_tts_server_ready(self) -> bool:
+        env_file = self._project_dir / "docker" / "piper-tts" / ".env"
+        if not env_file.exists():
+            return False
+        env_values = self._read_simple_env(env_file)
+        port = env_values.get("PIPER_TTS_PORT", "9010")
         try:
             with urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as response:
                 return 200 <= response.status < 300
@@ -238,8 +346,8 @@ class LocalApiUserServiceInstaller:
             [
                 "[Unit]",
                 "Description=so_intelligence_tools push-to-talk dictation listener",
-                "After=graphical-session.target",
-                "Wants=graphical-session.target",
+                f"After=graphical-session.target {self.voice_runtimes_service_name}",
+                f"Wants=graphical-session.target {self.voice_runtimes_service_name}",
                 "",
                 "[Service]",
                 "Type=simple",
@@ -247,6 +355,32 @@ class LocalApiUserServiceInstaller:
                 f"ExecStart={cli} run-push-to-talk-dictation-service",
                 "Restart=on-failure",
                 "RestartSec=2",
+                "",
+                "[Install]",
+                "WantedBy=default.target",
+                "",
+            ]
+        )
+
+    def _build_voice_runtimes_service_contents(self) -> str:
+        project_dir = self._project_dir
+        cli = project_dir / ".venv" / "bin" / "so-intelligence-tools"
+        return "\n".join(
+            [
+                "[Unit]",
+                "Description=so_intelligence_tools local voice runtimes",
+                "After=graphical-session.target docker.service snap.docker.dockerd.service",
+                "Wants=graphical-session.target",
+                "",
+                "[Service]",
+                "Type=oneshot",
+                "RemainAfterExit=yes",
+                f"WorkingDirectory={project_dir}",
+                "Environment=DOCKER_CONTEXT=default",
+                f"ExecStart={cli} ensure-linux-voice-runtimes",
+                "TimeoutStartSec=420",
+                "Restart=on-failure",
+                "RestartSec=10",
                 "",
                 "[Install]",
                 "WantedBy=default.target",
@@ -284,7 +418,9 @@ class LocalApiUserServiceInstaller:
     def _wait_for_whisper_server(self, env_file: Path) -> None:
         env_values = self._read_simple_env(env_file)
         port = env_values.get("WHISPER_PORT", "9000")
-        timeout_seconds = float(env_values.get("WHISPER_STARTUP_TIMEOUT_SECONDS", "300"))
+        timeout_seconds = float(
+            env_values.get("WHISPER_STARTUP_TIMEOUT_SECONDS", "300")
+        )
         deadline = time.monotonic() + timeout_seconds
         url = f"http://127.0.0.1:{port}/v1/models"
         last_error = ""
@@ -323,6 +459,28 @@ class LocalApiUserServiceInstaller:
             f"URL: {url}. Ultimo error: {last_error or 'sin respuesta'}"
         )
 
+    def _wait_for_piper_tts_server(self, env_file: Path) -> None:
+        env_values = self._read_simple_env(env_file)
+        port = env_values.get("PIPER_TTS_PORT", "9010")
+        timeout_seconds = float(
+            env_values.get("PIPER_TTS_STARTUP_TIMEOUT_SECONDS", "180")
+        )
+        deadline = time.monotonic() + timeout_seconds
+        url = f"http://127.0.0.1:{port}/health"
+        last_error = ""
+        while time.monotonic() < deadline:
+            try:
+                with urlopen(url, timeout=2) as response:
+                    if 200 <= response.status < 300:
+                        return
+            except (HTTPError, URLError, TimeoutError, OSError) as exc:
+                last_error = str(exc)
+            time.sleep(2)
+        raise ToolRunnerConfigurationError(
+            "El servidor Piper TTS no estuvo listo a tiempo. "
+            f"URL: {url}. Ultimo error: {last_error or 'sin respuesta'}"
+        )
+
     @staticmethod
     def _read_simple_env(env_file: Path) -> dict[str, str]:
         values: dict[str, str] = {}
@@ -333,6 +491,17 @@ class LocalApiUserServiceInstaller:
             key, value = stripped.split("=", 1)
             values[key.strip()] = value.strip().strip('"').strip("'")
         return values
+
+    @staticmethod
+    def _ensure_env_key_exists(env_file: Path, key: str, value: str) -> None:
+        lines = env_file.read_text(encoding="utf-8").splitlines()
+        if any(line.strip().startswith(f"{key}=") for line in lines):
+            return
+        suffix = "\n" if lines else ""
+        env_file.write_text(
+            "\n".join(lines) + suffix + f"{key}={value}\n",
+            encoding="utf-8",
+        )
 
     def _remove_gsettings_array_values(
         self,
@@ -366,7 +535,9 @@ class LocalApiUserServiceInstaller:
             parsed = ast.literal_eval(raw)
         except (SyntaxError, ValueError):
             return None
-        if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
+        if not isinstance(parsed, list) or not all(
+            isinstance(item, str) for item in parsed
+        ):
             return None
         return parsed
 

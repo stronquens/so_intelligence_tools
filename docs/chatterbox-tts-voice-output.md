@@ -2,6 +2,10 @@
 
 Status: experimental GPU-backed Spanish voice output for Codex and OpenClaw.
 
+Chatterbox is the automatic Windows TTS backend and an explicit Linux GPU
+option. Linux `LOCAL_TTS_BACKEND=auto` uses Piper instead so login does not
+allocate GPU memory unexpectedly.
+
 This service wraps `ResembleAI/Chatterbox-Multilingual-es-es` behind a local HTTP API. It keeps the model warm while voice output is enabled, exposes health and metrics endpoints, and can be stopped to release GPU memory.
 
 Platform status:
@@ -373,7 +377,7 @@ If OpenClaw runs inside another container, route to the host according to that e
 
 ## GPU Notes
 
-Chatterbox es-ES is the retained TTS backend after removing earlier Piper/Kokoro/Qwen/NeuTTS experiment paths. On the current RTX 3070 benchmark, model load used roughly 3.3 GiB additional VRAM and generation peaked around 3.8 to 4.0 GiB above baseline.
+Chatterbox es-ES is the retained Windows and optional Linux GPU backend. Piper remains the Linux CPU default; the earlier Kokoro/Qwen/NeuTTS experiment paths are not active. On the current RTX 3070 benchmark, model load used roughly 3.3 GiB additional VRAM and generation peaked around 3.8 to 4.0 GiB above baseline.
 
 Windows RTX 3070 measurements on 2026-07-02:
 
