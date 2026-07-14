@@ -92,11 +92,13 @@ poetry run so-intelligence-tools install-linux-desktop-integration
 This creates:
 
 - `~/.config/systemd/user/so-intelligence-tools-api.service`
+- `~/.config/systemd/user/so-intelligence-tools-voice-runtimes.service`
 - `~/.config/systemd/user/so-intelligence-tools-push-to-talk-dictation.service`
 - `~/.config/autostart/so-intelligence-tools-desktop-health.desktop`
 - GNOME shortcuts for stable desktop tools
 - `docker/whisper-server/.env` from `.env.example` if it does not exist
 - a running `docker/whisper-server` faster-whisper container through `docker compose up -d`
+- a running `docker/piper-tts` Piper container through `docker compose up -d --build`
 
 The default Whisper container profile is CPU-oriented (`WHISPER_DEVICE=cpu`, `WHISPER_COMPUTE_TYPE=int8`). Machines with NVIDIA GPU support can opt into the CUDA override documented in [Faster-Whisper Docker Server](whisper-docker.md).
 
@@ -172,6 +174,16 @@ poetry run so-intelligence-tools check-push-to-talk-dictation-runtime
 See [Faster-Whisper Docker Server](whisper-docker.md) for GPU and CPU porting notes.
 
 Linux dictation records while the shortcut is held, then sends the captured utterance to `/v1/audio/transcriptions` after release. The Docker server is warm, so the first dictation avoids model startup, but CPU transcription can still add a visible delay after release.
+
+The user service `so-intelligence-tools-voice-runtimes.service` starts the local
+voice runtimes after login. If Docker was left on the Docker Desktop context or
+the runtimes are not reachable after reboot, recover with:
+
+```bash
+docker context use default
+so-ai ensure-linux-voice-runtimes
+systemctl --user restart so-intelligence-tools-push-to-talk-dictation.service
+```
 
 ## Chatterbox TTS Voice Output
 

@@ -19,6 +19,11 @@ The system SHALL provide a local Dockerized Chatterbox TTS runtime that loads th
 - **THEN** GPU-backed voice output SHALL be considered disabled
 - **AND** normal text-only assistant workflows SHALL continue without blocking.
 
+#### Scenario: Linux user logs in after reboot
+- **WHEN** the Linux user session starts after reboot
+- **THEN** the system SHALL run a user-level voice runtime startup service
+- **AND** that service SHALL ensure the Piper TTS Docker runtime is started for Codex voice output.
+
 ### Requirement: Local Speech API
 The system SHALL expose a local HTTP API for converting visible text to speech audio.
 

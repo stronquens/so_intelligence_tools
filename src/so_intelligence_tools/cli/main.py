@@ -118,6 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     voice_shortcut_parser.add_argument("--binding", default=None)
     subparsers.add_parser("install-push-to-talk-dictation-service")
+    subparsers.add_parser("install-linux-voice-runtimes-service")
+    subparsers.add_parser("ensure-linux-voice-runtimes")
     subparsers.add_parser("ensure-whisper-docker-server")
     subparsers.add_parser("ensure-chatterbox-tts-server")
     subparsers.add_parser("stop-chatterbox-tts-server")
@@ -359,14 +361,41 @@ def main(argv: list[str] | None = None) -> int:
                 enable_now=True
             )
             print(
-                "Faster-whisper Docker server ensured: "
-                f"{Path.cwd() / 'docker' / 'whisper-server' / '.env'}"
+                "Linux voice runtimes service ensured: "
+                f"{Path.home() / '.config' / 'systemd' / 'user' / installer.voice_runtimes_service_name}"
             )
             print(f"Push-to-talk dictation service installed: {service_path}")
             print(
                 "Push-to-talk dictation service state: "
                 + ("enabled and started now" if started_now else "enabled for next login")
             )
+            return 0
+
+        if args.command == "install-linux-voice-runtimes-service":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            service_path, started_now = installer.install_voice_runtimes_service(
+                enable_now=True
+            )
+            print(f"Linux voice runtimes service installed: {service_path}")
+            print(
+                "Linux voice runtimes service state: "
+                + ("enabled and started now" if started_now else "enabled for next login")
+            )
+            return 0
+
+        if args.command == "ensure-linux-voice-runtimes":
+            installer = LocalApiUserServiceInstaller(
+                project_dir=Path.cwd(),
+                host=settings.local_inference_api_host,
+                port=settings.local_inference_api_port,
+            )
+            whisper_env_path, piper_env_path = installer.ensure_voice_runtimes()
+            print(f"Faster-whisper Docker server ensured: {whisper_env_path}")
+            print(f"Piper TTS Docker server ensured: {piper_env_path}")
             return 0
 
         if args.command == "ensure-whisper-docker-server":
@@ -512,6 +541,8 @@ def main(argv: list[str] | None = None) -> int:
             dictation_service_path, dictation_service_started_now = (
                 installer.install_push_to_talk_dictation_service(enable_now=True)
             )
+            voice_runtimes_path = installer.voice_runtimes_service_path
+            voice_runtimes_started_now = dictation_service_started_now
             autostart_path = installer.install_desktop_health_autostart()
             manager = GnomeShortcutManager(project_dir=Path.cwd())
             binding = args.binding or settings.gnome_selected_text_correction_binding
@@ -526,6 +557,7 @@ def main(argv: list[str] | None = None) -> int:
                 binding=settings.gnome_voice_translation_binding,
             )
             print(f"User service installed: {service_path}")
+            print(f"Linux voice runtimes service installed: {voice_runtimes_path}")
             print(
                 "Faster-whisper Docker server ensured: "
                 f"{Path.cwd() / 'docker' / 'whisper-server' / '.env'}"
@@ -560,6 +592,14 @@ def main(argv: list[str] | None = None) -> int:
                 + (
                     "enabled and started now"
                     if dictation_service_started_now
+                    else "enabled for next login"
+                )
+            )
+            print(
+                "Linux voice runtimes service state: "
+                + (
+                    "enabled and started now"
+                    if voice_runtimes_started_now
                     else "enabled for next login"
                 )
             )

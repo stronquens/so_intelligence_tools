@@ -39,12 +39,20 @@ class LocalApiUserServiceInstaller:
         return "so-intelligence-tools-push-to-talk-dictation.service"
 
     @property
+    def voice_runtimes_service_name(self) -> str:
+        return "so-intelligence-tools-voice-runtimes.service"
+
+    @property
     def service_path(self) -> Path:
         return self._service_dir / self.service_name
 
     @property
     def dictation_service_path(self) -> Path:
         return self._service_dir / self.dictation_service_name
+
+    @property
+    def voice_runtimes_service_path(self) -> Path:
+        return self._service_dir / self.voice_runtimes_service_name
 
     @property
     def autostart_path(self) -> Path:
@@ -75,7 +83,7 @@ class LocalApiUserServiceInstaller:
                 "No se encontró `.venv/bin/so-intelligence-tools`. Ejecuta `poetry install` antes de instalar el servicio."
             )
 
-        self.ensure_whisper_server()
+        self.install_voice_runtimes_service(enable_now=True)
         self.release_linux_ctrl_space_conflicts()
         self._service_dir.mkdir(parents=True, exist_ok=True)
         self.dictation_service_path.write_text(
@@ -90,6 +98,32 @@ class LocalApiUserServiceInstaller:
         else:
             self._run_systemctl(["--user", "enable", self.dictation_service_name])
         return self.dictation_service_path, enable_now
+
+    def install_voice_runtimes_service(self, *, enable_now: bool = True) -> tuple[Path, bool]:
+        cli = self._project_dir / ".venv" / "bin" / "so-intelligence-tools"
+        if not cli.exists():
+            raise ToolRunnerConfigurationError(
+                "No se encontró `.venv/bin/so-intelligence-tools`. Ejecuta `poetry install` antes de instalar el servicio."
+            )
+
+        self._service_dir.mkdir(parents=True, exist_ok=True)
+        self.voice_runtimes_service_path.write_text(
+            self._build_voice_runtimes_service_contents(),
+            encoding="utf-8",
+        )
+
+        self._run_systemctl(["--user", "daemon-reload"])
+        if enable_now:
+            self._run_systemctl(["--user", "enable", self.voice_runtimes_service_name])
+            self._run_systemctl(["--user", "restart", self.voice_runtimes_service_name])
+        else:
+            self._run_systemctl(["--user", "enable", self.voice_runtimes_service_name])
+        return self.voice_runtimes_service_path, enable_now
+
+    def ensure_voice_runtimes(self) -> tuple[Path, Path]:
+        whisper_env_path = self.ensure_whisper_server()
+        piper_env_path = self.ensure_piper_tts_server()
+        return whisper_env_path, piper_env_path
 
     def install_desktop_health_autostart(self) -> Path:
         script_path = self._project_dir / "scripts" / "ensure-linux-desktop-integration.sh"
@@ -130,6 +164,7 @@ class LocalApiUserServiceInstaller:
                     "No se encontro `docker/whisper-server/.env.example`."
                 )
             env_file.write_text(env_example.read_text(encoding="utf-8"), encoding="utf-8")
+        self._ensure_env_key_exists(env_file, "WHISPER_API_KEY", "")
         self._run_docker_compose(compose_dir, ["up", "-d"])
         self._wait_for_whisper_server(env_file)
         return env_file
@@ -238,8 +273,8 @@ class LocalApiUserServiceInstaller:
             [
                 "[Unit]",
                 "Description=so_intelligence_tools push-to-talk dictation listener",
-                "After=graphical-session.target",
-                "Wants=graphical-session.target",
+                f"After=graphical-session.target {self.voice_runtimes_service_name}",
+                f"Wants=graphical-session.target {self.voice_runtimes_service_name}",
                 "",
                 "[Service]",
                 "Type=simple",
@@ -247,6 +282,32 @@ class LocalApiUserServiceInstaller:
                 f"ExecStart={cli} run-push-to-talk-dictation-service",
                 "Restart=on-failure",
                 "RestartSec=2",
+                "",
+                "[Install]",
+                "WantedBy=default.target",
+                "",
+            ]
+        )
+
+    def _build_voice_runtimes_service_contents(self) -> str:
+        project_dir = self._project_dir
+        cli = project_dir / ".venv" / "bin" / "so-intelligence-tools"
+        return "\n".join(
+            [
+                "[Unit]",
+                "Description=so_intelligence_tools local voice runtimes",
+                "After=graphical-session.target docker.service snap.docker.dockerd.service",
+                "Wants=graphical-session.target",
+                "",
+                "[Service]",
+                "Type=oneshot",
+                "RemainAfterExit=yes",
+                f"WorkingDirectory={project_dir}",
+                "Environment=DOCKER_CONTEXT=default",
+                f"ExecStart={cli} ensure-linux-voice-runtimes",
+                "TimeoutStartSec=420",
+                "Restart=on-failure",
+                "RestartSec=10",
                 "",
                 "[Install]",
                 "WantedBy=default.target",
@@ -333,6 +394,17 @@ class LocalApiUserServiceInstaller:
             key, value = stripped.split("=", 1)
             values[key.strip()] = value.strip().strip('"').strip("'")
         return values
+
+    @staticmethod
+    def _ensure_env_key_exists(env_file: Path, key: str, value: str) -> None:
+        lines = env_file.read_text(encoding="utf-8").splitlines()
+        if any(line.strip().startswith(f"{key}=") for line in lines):
+            return
+        suffix = "\n" if lines else ""
+        env_file.write_text(
+            "\n".join(lines) + suffix + f"{key}={value}\n",
+            encoding="utf-8",
+        )
 
     def _remove_gsettings_array_values(
         self,

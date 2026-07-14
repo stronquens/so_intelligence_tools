@@ -142,13 +142,31 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
 
     assert started_now is True
     assert service_path == service_dir / "so-intelligence-tools-push-to-talk-dictation.service"
-    assert (whisper_dir / ".env").read_text(encoding="utf-8") == "WHISPER_MODEL=large-v3-turbo\n"
     service_text = service_path.read_text(encoding="utf-8")
     assert "push-to-talk dictation listener" in service_text
     assert f"WorkingDirectory={project_dir}" in service_text
+    assert "so-intelligence-tools-voice-runtimes.service" in service_text
     assert "run-push-to-talk-dictation-service" in service_text
     assert calls == [
-        (["docker", "compose", "up", "-d"], str(whisper_dir)),
+        (["systemctl", "--user", "daemon-reload"], None),
+        (
+            [
+                "systemctl",
+                "--user",
+                "enable",
+                "so-intelligence-tools-voice-runtimes.service",
+            ],
+            None,
+        ),
+        (
+            [
+                "systemctl",
+                "--user",
+                "restart",
+                "so-intelligence-tools-voice-runtimes.service",
+            ],
+            None,
+        ),
         (["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "trigger"], None),
         (["gsettings", "get", "org.freedesktop.ibus.general.hotkey", "triggers"], None),
         (["gsettings", "get", "org.gnome.desktop.wm.keybindings", "switch-input-source"], None),
@@ -180,6 +198,85 @@ def test_install_push_to_talk_dictation_service_writes_unit(tmp_path, monkeypatc
             ],
             None,
         ),
+    ]
+
+
+def test_install_voice_runtimes_service_writes_unit(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    service_dir = tmp_path / "systemd-user"
+    (project_dir / ".venv" / "bin").mkdir(parents=True)
+    (project_dir / ".venv" / "bin" / "so-intelligence-tools").write_text("", encoding="utf-8")
+
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    installer = LocalApiUserServiceInstaller(
+        project_dir=project_dir,
+        service_dir=service_dir,
+        user_systemctl_bin="systemctl",
+    )
+
+    service_path, started_now = installer.install_voice_runtimes_service(enable_now=True)
+
+    assert started_now is True
+    assert service_path == service_dir / "so-intelligence-tools-voice-runtimes.service"
+    service_text = service_path.read_text(encoding="utf-8")
+    assert "Type=oneshot" in service_text
+    assert "Environment=DOCKER_CONTEXT=default" in service_text
+    assert "ensure-linux-voice-runtimes" in service_text
+    assert "Restart=on-failure" in service_text
+    assert "RestartSec=10" in service_text
+    assert calls == [
+        ["systemctl", "--user", "daemon-reload"],
+        [
+            "systemctl",
+            "--user",
+            "enable",
+            "so-intelligence-tools-voice-runtimes.service",
+        ],
+        [
+            "systemctl",
+            "--user",
+            "restart",
+            "so-intelligence-tools-voice-runtimes.service",
+        ],
+    ]
+
+
+def test_ensure_voice_runtimes_starts_whisper_and_piper(tmp_path, monkeypatch):
+    project_dir = tmp_path / "project"
+    whisper_dir = project_dir / "docker" / "whisper-server"
+    piper_dir = project_dir / "docker" / "piper-tts"
+    whisper_dir.mkdir(parents=True)
+    piper_dir.mkdir(parents=True)
+    (whisper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (piper_dir / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    (whisper_dir / ".env.example").write_text("WHISPER_MODEL=large-v3-turbo\n", encoding="utf-8")
+    (piper_dir / ".env.example").write_text("PIPER_TTS_PORT=9010\n", encoding="utf-8")
+    calls: list[tuple[list[str], str | None]] = []
+
+    def fake_run(command: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        cwd = kwargs.get("cwd")
+        calls.append((command, str(cwd) if cwd is not None else None))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    installer = LocalApiUserServiceInstaller(project_dir=project_dir)
+    monkeypatch.setattr(installer, "_wait_for_whisper_server", lambda _env_file: None)
+    monkeypatch.setattr(installer, "_wait_for_piper_tts_server", lambda _env_file: None)
+
+    whisper_env, piper_env = installer.ensure_voice_runtimes()
+
+    assert whisper_env == whisper_dir / ".env"
+    assert piper_env == piper_dir / ".env"
+    assert "WHISPER_API_KEY=\n" in whisper_env.read_text(encoding="utf-8")
+    assert calls == [
+        (["docker", "compose", "up", "-d"], str(whisper_dir)),
+        (["docker", "compose", "up", "-d", "--build"], str(piper_dir)),
     ]
 
 

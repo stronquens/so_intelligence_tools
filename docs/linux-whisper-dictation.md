@@ -55,7 +55,10 @@ Docker Whisper `.env` on a CPU-only machine:
 WHISPER_DEVICE=cpu
 WHISPER_COMPUTE_TYPE=int8
 WHISPER_STARTUP_TIMEOUT_SECONDS=300
+WHISPER_API_KEY=
 ```
+
+`WHISPER_API_KEY=` is intentionally present and empty for the localhost-only Docker service. Recent `hwdsl2/whisper-server` images autogenerate an API key when the variable is absent on a fresh mounted volume; this project client expects the local server on `127.0.0.1` to be open.
 
 ## Start The Whisper Server
 
@@ -65,10 +68,18 @@ The Linux bootstrap now ensures the Docker backend during desktop setup:
 poetry run so-intelligence-tools install-linux-desktop-integration
 ```
 
+That installer also enables `so-intelligence-tools-voice-runtimes.service`, a user-level oneshot service that starts both local voice Docker runtimes after login.
+
 You can also start only the Whisper server:
 
 ```bash
 poetry run so-intelligence-tools ensure-whisper-docker-server
+```
+
+Or start all local voice runtimes used by dictation and Codex audio:
+
+```bash
+so-ai ensure-linux-voice-runtimes
 ```
 
 Manual Docker route:
@@ -111,6 +122,7 @@ Or check the installed Linux user service:
 
 ```bash
 systemctl --user status so-intelligence-tools-push-to-talk-dictation.service
+systemctl --user status so-intelligence-tools-voice-runtimes.service
 ```
 
 ## Switching From Nemotron To Whisper
@@ -130,3 +142,4 @@ systemctl --user restart so-intelligence-tools-push-to-talk-dictation.service
 - CPU-only machines are supported by the default compose profile and should expect higher latency than CUDA machines.
 - CUDA machines can use `compose.cuda.yaml` plus `.env.cuda.example`.
 - If `Ctrl + Space` still opens a desktop search/input UI, restart the Linux dictation service and check IBus/GNOME/Ulauncher bindings; the listener cannot reliably prevent every shell-level shortcut.
+- If Docker Desktop is selected but not running after reboot, switch back to the normal Linux engine with `docker context use default` and run `so-ai ensure-linux-voice-runtimes`.
