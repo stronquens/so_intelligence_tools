@@ -108,10 +108,19 @@ def test_parse_codex_event_announces_tool_lifecycle_without_arguments():
 
 
 def test_minimal_detail_only_speaks_task_boundaries():
-    extractor = CodexVisibleEventExtractor(include_progress=True, speech_detail="minimal")
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="minimal"
+    )
 
-    assert extractor.feed({"method": "turn/started", "params": {}}) == ["Inicio de tarea."]
-    assert extractor.feed({"method": "item/agentMessage/delta", "params": {"delta": "Hola."}}) == []
+    assert extractor.feed({"method": "turn/started", "params": {}}) == [
+        "Inicio de tarea."
+    ]
+    assert (
+        extractor.feed(
+            {"method": "item/agentMessage/delta", "params": {"delta": "Hola."}}
+        )
+        == []
+    )
     assert (
         extractor.feed(
             {
@@ -121,24 +130,81 @@ def test_minimal_detail_only_speaks_task_boundaries():
         )
         == []
     )
+    assert (
+        extractor.feed(
+            {
+                "method": "item/completed",
+                "params": {"item": {"type": "agent_message", "text": "Hola."}},
+            }
+        )
+        == []
+    )
     assert extractor.feed({"method": "turn/completed", "params": {}}) == [
         "Fin de tarea."
     ]
 
 
-def test_actions_detail_speaks_boundaries_and_tool_calls_not_messages():
-    extractor = CodexVisibleEventExtractor(include_progress=True, speech_detail="actions")
+def test_extractor_deduplicates_repeated_turn_start_events():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
 
+    assert extractor.feed({"method": "turn/started", "params": {}}) == [
+        "Inicio de tarea."
+    ]
+    assert extractor.feed({"method": "turn/started", "params": {}}) == []
+    assert extractor.feed({"type": "turn.started"}) == []
+
+
+def test_actions_detail_speaks_boundaries_and_tool_calls_not_messages():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed(
+        {
+            "type": "item.started",
+            "item": {"type": "tool_call", "name": "functions.exec_command"},
+        }
+    ) == ["Usando herramienta functions.exec_command."]
     assert (
         extractor.feed(
-            {
-                "type": "item.started",
-                "item": {"type": "tool_call", "name": "functions.exec_command"},
-            }
+            {"method": "item/agentMessage/delta", "params": {"delta": "Hola."}}
         )
-        == ["Usando herramienta functions.exec_command."]
+        == []
     )
-    assert extractor.feed({"method": "item/agentMessage/delta", "params": {"delta": "Hola."}}) == []
+
+
+def test_extractor_does_not_end_turn_for_premature_completion_before_tool_call():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed({"method": "turn/started", "params": {}}) == [
+        "Inicio de tarea."
+    ]
+    assert extractor.feed({"method": "turn/completed", "params": {}}) == []
+    assert extractor.feed(
+        {
+            "method": "item/started",
+            "params": {"item": {"type": "tool_call", "name": "functions.exec_command"}},
+        }
+    ) == ["Usando herramienta functions.exec_command."]
+    assert extractor.feed(
+        {
+            "method": "item/completed",
+            "params": {"item": {"type": "tool_call", "name": "functions.exec_command"}},
+        }
+    ) == ["Herramienta terminada."]
+    assert (
+        extractor.feed(
+            {"method": "item/agentMessage/delta", "params": {"delta": "He terminado."}}
+        )
+        == []
+    )
+    assert extractor.feed({"method": "turn/completed", "params": {}}) == [
+        "Fin de tarea."
+    ]
 
 
 def test_no_code_detail_drops_code_blocks():
@@ -171,10 +237,15 @@ def test_full_detail_preserves_code_and_full_urls():
 def test_extractor_speaks_app_server_deltas_when_sentence_completes():
     extractor = CodexVisibleEventExtractor()
 
-    assert extractor.feed({"method": "item/agentMessage/delta", "params": {"delta": "Hola"}}) == []
-    assert extractor.feed({"method": "item/agentMessage/delta", "params": {"delta": " mundo."}}) == [
-        "Hola mundo."
-    ]
+    assert (
+        extractor.feed(
+            {"method": "item/agentMessage/delta", "params": {"delta": "Hola"}}
+        )
+        == []
+    )
+    assert extractor.feed(
+        {"method": "item/agentMessage/delta", "params": {"delta": " mundo."}}
+    ) == ["Hola mundo."]
 
 
 def test_extractor_does_not_repeat_completed_message_after_deltas():
@@ -197,9 +268,15 @@ def test_extractor_does_not_repeat_completed_message_after_deltas():
 def test_extractor_flushes_unfinished_delta_on_completed_message():
     extractor = CodexVisibleEventExtractor()
 
-    assert extractor.feed(
-        {"method": "item/agentMessage/delta", "params": {"delta": "Hola sin punto final"}}
-    ) == []
+    assert (
+        extractor.feed(
+            {
+                "method": "item/agentMessage/delta",
+                "params": {"delta": "Hola sin punto final"},
+            }
+        )
+        == []
+    )
     assert extractor.feed(
         {
             "method": "item/completed",
@@ -216,7 +293,12 @@ def test_extractor_flushes_unfinished_delta_on_completed_message():
 def test_extractor_announces_turn_completion_when_progress_enabled():
     extractor = CodexVisibleEventExtractor(include_progress=True)
 
-    assert extractor.feed({"method": "item/agentMessage/delta", "params": {"delta": "Listo"}}) == []
+    assert (
+        extractor.feed(
+            {"method": "item/agentMessage/delta", "params": {"delta": "Listo"}}
+        )
+        == []
+    )
     assert extractor.feed({"method": "turn/completed", "params": {}}) == [
         "Listo",
         "Fin de tarea.",
@@ -278,12 +360,21 @@ def test_extractor_speaks_complete_lines_without_waiting_for_periods():
 def test_extractor_waits_for_closing_code_fence_before_speaking_bash_block():
     extractor = CodexVisibleEventExtractor()
 
-    assert extractor.feed(
-        {"method": "item/agentMessage/delta", "params": {"delta": "```bash\n"}}
-    ) == []
-    assert extractor.feed(
-        {"method": "item/agentMessage/delta", "params": {"delta": "poetry run pytest\n"}}
-    ) == []
+    assert (
+        extractor.feed(
+            {"method": "item/agentMessage/delta", "params": {"delta": "```bash\n"}}
+        )
+        == []
+    )
+    assert (
+        extractor.feed(
+            {
+                "method": "item/agentMessage/delta",
+                "params": {"delta": "poetry run pytest\n"},
+            }
+        )
+        == []
+    )
     assert extractor.feed(
         {"method": "item/agentMessage/delta", "params": {"delta": "```\n"}}
     ) == ["Bloque de código bash omitido."]
