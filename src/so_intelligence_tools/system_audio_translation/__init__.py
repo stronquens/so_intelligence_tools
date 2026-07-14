@@ -10,4 +10,16 @@ def run_system_audio_translation_toggle(*args: Any, **kwargs: Any) -> str:
 
     return _run(*args, **kwargs)
 
-__all__ = ["run_system_audio_translation_toggle"]
+
+def run_system_audio_translation_desktop_bridge(*args: Any, **kwargs: Any) -> None:
+    from so_intelligence_tools.system_audio_translation.desktop_bridge import (
+        run_system_audio_translation_desktop_bridge as _run,
+    )
+
+    _run(*args, **kwargs)
+
+
+__all__ = [
+    "run_system_audio_translation_desktop_bridge",
+    "run_system_audio_translation_toggle",
+]

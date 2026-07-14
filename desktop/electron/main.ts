@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, screen } from "electron";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,12 +14,17 @@ const appIconPath = path.join(
   process.platform === "win32" ? "app-icon.ico" : "app-icon.png",
 );
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const translatorMockMode = process.env.SO_AI_TRANSLATOR_MOCK === "1";
 
 app.setAppUserModelId("so_intelligence_tools");
 
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 let translatorWindow: BrowserWindow | null = null;
+let translatorProcess: ChildProcessWithoutNullStreams | null = null;
+let translatorRendererReady = false;
+let translatorProcessStopping = false;
+let translatorEventBuffer: UiEvent[] = [];
 
 const launcherWindowSize = {
   width: 680,
@@ -77,6 +83,40 @@ interface DesktopCommandResult {
   details?: string;
   settings?: DesktopSettings;
 }
+
+type SessionMode = "translate_es_openai_realtime" | "translate_es_chunked";
+
+type UiEvent =
+  | { type: "session_state"; state: string; message: string }
+  | { type: "partial"; kind: "original" | "translation"; text: string }
+  | {
+      type: "block";
+      id: string;
+      sourceText?: string;
+      translatedText: string;
+      timestamp: string;
+      speakerLabel?: string;
+    }
+  | { type: "mode"; mode: SessionMode }
+  | { type: "voice_translation_state"; active: boolean; message: string; state?: string }
+  | { type: "voice_translation_output"; chunks: number; bytes: number }
+  | { type: "audio_level"; source: "system" | "microphone"; level: number }
+  | {
+      type: "session_config";
+      sourceLanguage: string;
+      targetLanguage: string;
+      languages: Array<{ code: string; label: string }>;
+    }
+  | { type: "error"; message: string };
+
+type UiCommand =
+  | { type: "pause" }
+  | { type: "resume" }
+  | { type: "reset" }
+  | { type: "stop" }
+  | { type: "toggle_voice_translation" }
+  | { type: "change_mode"; mode: SessionMode }
+  | { type: "change_languages"; sourceLanguage: string; targetLanguage: string };
 
 const defaultDesktopSettings: DesktopSettings = {
   shortcuts: [
@@ -191,6 +231,7 @@ function createSettingsWindow() {
 
 function createTranslatorWindow() {
   if (translatorWindow && !translatorWindow.isDestroyed()) {
+    if (!translatorMockMode) startTranslatorBridge();
     translatorWindow.show();
     translatorWindow.focus();
     return translatorWindow;
@@ -199,8 +240,8 @@ function createTranslatorWindow() {
   const window = new BrowserWindow({
     width: translatorWindowSize.width,
     height: translatorWindowSize.height,
-    minWidth: 1080,
-    minHeight: 680,
+    minWidth: 900,
+    minHeight: 600,
     backgroundColor: "#f8fafc",
     frame: false,
     show: false,
@@ -214,6 +255,7 @@ function createTranslatorWindow() {
   });
 
   loadAppView(window, "translator");
+  if (!translatorMockMode) startTranslatorBridge();
   window.once("ready-to-show", () => {
     centerWindowOnActiveDisplay(window);
     window.show();
@@ -221,6 +263,9 @@ function createTranslatorWindow() {
   });
 
   window.on("closed", () => {
+    stopTranslatorBridge();
+    translatorRendererReady = false;
+    translatorEventBuffer = [];
     if (translatorWindow === window) {
       translatorWindow = null;
     }
@@ -230,12 +275,34 @@ function createTranslatorWindow() {
   return window;
 }
 
+function toggleTranslatorWindow() {
+  if (!translatorWindow || translatorWindow.isDestroyed()) {
+    createTranslatorWindow();
+    return;
+  }
+
+  if (translatorWindow.isVisible() && !translatorWindow.isMinimized()) {
+    translatorWindow.close();
+    return;
+  }
+
+  if (!translatorMockMode) startTranslatorBridge();
+  if (translatorWindow.isMinimized()) {
+    translatorWindow.restore();
+  }
+  translatorWindow.show();
+  translatorWindow.focus();
+}
+
 function loadAppView(window: BrowserWindow, view: "overlay" | "settings" | "translator") {
   const devServerUrl = process.env.SO_AI_DESKTOP_DEV_SERVER_URL;
   if (devServerUrl) {
     const url = new URL(devServerUrl);
     if (view !== "overlay") {
       url.searchParams.set("view", view);
+    }
+    if (view === "translator" && translatorMockMode) {
+      url.searchParams.set("mock", "1");
     }
 
     window.loadURL(url.toString());
@@ -248,7 +315,10 @@ function loadAppView(window: BrowserWindow, view: "overlay" | "settings" | "tran
   }
 
   window.loadFile(path.join(__dirname, "../dist/index.html"), {
-    query: { view },
+    query: {
+      view,
+      ...(view === "translator" && translatorMockMode ? { mock: "1" } : {}),
+    },
   });
 }
 
@@ -274,26 +344,47 @@ function positionSettingsWindow(window: BrowserWindow) {
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
+  app.on("second-instance", (_event, commandLine) => {
+    if (commandLine.includes("--translator")) {
+      toggleTranslatorWindow();
+      return;
+    }
     toggleMainWindow();
   });
 
   app.whenReady().then(() => {
-    createWindow();
+    if (process.argv.includes("--translator")) {
+      createTranslatorWindow();
+    } else {
+      createWindow();
+    }
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        if (process.argv.includes("--translator")) {
+          createTranslatorWindow();
+        } else {
+          createWindow();
+        }
         return;
       }
 
-      showMainWindow();
+      if (translatorWindow && !translatorWindow.isDestroyed()) {
+        translatorWindow.show();
+        translatorWindow.focus();
+      } else {
+        showMainWindow();
+      }
     });
   });
 }
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    if (translatorProcess && !translatorProcess.killed) {
+      stopTranslatorBridge();
+      return;
+    }
     app.quit();
   }
 });
@@ -363,12 +454,62 @@ function closeSettingsWindow() {
   settingsWindow = null;
 }
 
-ipcMain.handle("ui-command", (_event, command) => {
-  return {
-    accepted: true,
-    command,
-    handledBy: "electron-mock-bridge",
-  };
+ipcMain.handle("translator-ready", (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window || window !== translatorWindow) {
+    return { accepted: false, events: [] };
+  }
+  translatorRendererReady = true;
+  const events = [...translatorEventBuffer];
+  translatorEventBuffer = [];
+  return { accepted: true, events };
+});
+
+ipcMain.handle("translator-window-action", (event, action: unknown) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window || window !== translatorWindow) {
+    return { accepted: false };
+  }
+  if (action === "close") {
+    window.close();
+  } else if (action === "minimize") {
+    window.minimize();
+  } else if (action === "toggle-maximize") {
+    if (window.isMaximized()) window.unmaximize();
+    else window.maximize();
+  } else {
+    return { accepted: false };
+  }
+  return { accepted: true };
+});
+
+ipcMain.handle("ui-command", (event, command: unknown) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const parsedCommand = parseUiCommand(command);
+  if (!window || window !== translatorWindow || !parsedCommand) {
+    return { accepted: false, message: "Comando de traduccion no valido." };
+  }
+
+  if (translatorMockMode) {
+    return { accepted: true, message: "Mock visual: backend desactivado." };
+  }
+
+  if (parsedCommand.type === "stop") {
+    stopTranslatorBridge();
+    return { accepted: true };
+  }
+
+  if (!translatorProcess || translatorProcess.killed) {
+    startTranslatorBridge();
+  }
+
+  const child = translatorProcess;
+  if (!child || child.stdin.destroyed) {
+    return { accepted: false, message: "El backend de traduccion no esta disponible." };
+  }
+
+  child.stdin.write(`${JSON.stringify(parsedCommand)}\n`);
+  return { accepted: true };
 });
 
 ipcMain.handle("desktop-command", async (event, command: unknown): Promise<DesktopCommandResult> => {
@@ -498,6 +639,48 @@ function parseDesktopCommand(command: unknown): DesktopCommand | null {
     };
   }
 
+  return null;
+}
+
+function parseUiCommand(command: unknown): UiCommand | null {
+  if (!command || typeof command !== "object") {
+    return null;
+  }
+  const candidate = command as Partial<UiCommand>;
+  if (
+    candidate.type === "pause" ||
+    candidate.type === "resume" ||
+    candidate.type === "reset" ||
+    candidate.type === "stop" ||
+    candidate.type === "toggle_voice_translation"
+  ) {
+    return { type: candidate.type };
+  }
+  if (
+    candidate.type === "change_mode" &&
+    (candidate.mode === "translate_es_openai_realtime" ||
+      candidate.mode === "translate_es_chunked")
+  ) {
+    return { type: "change_mode", mode: candidate.mode };
+  }
+  if (candidate.type === "change_languages") {
+    const languageCommand = candidate as Partial<{
+      sourceLanguage: string;
+      targetLanguage: string;
+    }>;
+    if (
+      typeof languageCommand.sourceLanguage === "string" &&
+      typeof languageCommand.targetLanguage === "string" &&
+      languageCommand.sourceLanguage.length <= 12 &&
+      languageCommand.targetLanguage.length <= 12
+    ) {
+      return {
+        type: "change_languages",
+        sourceLanguage: languageCommand.sourceLanguage,
+        targetLanguage: languageCommand.targetLanguage,
+      };
+    }
+  }
   return null;
 }
 
@@ -726,6 +909,171 @@ function runProjectCli(args: string[]): Promise<{ exitCode: number | null; stdou
       });
     });
   });
+}
+
+function startTranslatorBridge() {
+  if (translatorProcess && !translatorProcess.killed) {
+    return;
+  }
+
+  translatorProcessStopping = false;
+  const child = spawn(projectCliPath(), ["run-system-audio-translation-desktop-bridge"], {
+    cwd: projectRoot,
+    shell: false,
+    windowsHide: true,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  translatorProcess = child;
+
+  const lines = createInterface({ input: child.stdout });
+  lines.on("line", (line) => {
+    try {
+      const event = parseUiEvent(JSON.parse(line));
+      if (event) {
+        publishTranslatorEvent(event);
+      }
+    } catch (error) {
+      console.error(
+        `[translator-python] Ignorada una linea stdout no JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  });
+
+  child.stderr.on("data", (chunk: Buffer) => {
+    const message = chunk.toString("utf8").trim();
+    if (message) {
+      console.error(`[translator-python] ${message}`);
+    }
+  });
+
+  child.on("error", (error) => {
+    publishTranslatorEvent({
+      type: "error",
+      message: `No se pudo iniciar el backend de traduccion: ${error.message}`,
+    });
+  });
+
+  child.on("close", (exitCode) => {
+    if (translatorProcess === child) {
+      translatorProcess = null;
+    }
+    if (translatorProcessStopping) {
+      publishTranslatorEvent({
+        type: "session_state",
+        state: "inactive",
+        message: "Sesion detenida.",
+      });
+    } else if (exitCode !== 0) {
+      publishTranslatorEvent({
+        type: "error",
+        message: `El backend de traduccion termino con codigo ${exitCode ?? "desconocido"}.`,
+      });
+    }
+    translatorProcessStopping = false;
+    if (process.platform !== "darwin" && BrowserWindow.getAllWindows().length === 0) {
+      app.quit();
+    }
+  });
+}
+
+function stopTranslatorBridge() {
+  const child = translatorProcess;
+  if (!child || child.killed) {
+    translatorProcess = null;
+    return;
+  }
+
+  translatorProcessStopping = true;
+  if (!child.stdin.destroyed) {
+    child.stdin.write('{"type":"stop"}\n');
+  }
+  const forceStop = setTimeout(() => {
+    if (translatorProcess === child && !child.killed) {
+      child.kill();
+    }
+  }, 4500);
+  forceStop.unref();
+  child.once("close", () => clearTimeout(forceStop));
+}
+
+function publishTranslatorEvent(event: UiEvent) {
+  if (
+    translatorRendererReady &&
+    translatorWindow &&
+    !translatorWindow.isDestroyed()
+  ) {
+    translatorWindow.webContents.send("ui-event", event);
+    return;
+  }
+  translatorEventBuffer.push(event);
+  translatorEventBuffer = translatorEventBuffer.slice(-200);
+}
+
+function parseUiEvent(value: unknown): UiEvent | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const event = value as Partial<UiEvent>;
+  if (
+    event.type === "session_state" &&
+    typeof event.state === "string" &&
+    typeof event.message === "string"
+  ) {
+    return event as UiEvent;
+  }
+  if (
+    event.type === "partial" &&
+    (event.kind === "original" || event.kind === "translation") &&
+    typeof event.text === "string"
+  ) {
+    return event as UiEvent;
+  }
+  if (
+    event.type === "block" &&
+    typeof event.id === "string" &&
+    typeof event.translatedText === "string" &&
+    typeof event.timestamp === "string"
+  ) {
+    return event as UiEvent;
+  }
+  if (
+    event.type === "mode" &&
+    (event.mode === "translate_es_openai_realtime" ||
+      event.mode === "translate_es_chunked")
+  ) {
+    return event as UiEvent;
+  }
+  if (
+    event.type === "voice_translation_state" &&
+    typeof event.active === "boolean" &&
+    typeof event.message === "string"
+  ) {
+    return event as UiEvent;
+  }
+  if (
+    event.type === "voice_translation_output" &&
+    typeof event.chunks === "number" &&
+    typeof event.bytes === "number"
+  ) {
+    return event as UiEvent;
+  }
+  if (
+    event.type === "audio_level" &&
+    (event.source === "system" || event.source === "microphone") &&
+    typeof event.level === "number"
+  ) {
+    return event as UiEvent;
+  }
+  if (event.type === "error" && typeof event.message === "string") {
+    return event as UiEvent;
+  }
+  return null;
+}
+
+function projectCliPath() {
+  return process.platform === "win32"
+    ? path.join(projectRoot, ".venv", "Scripts", "so-intelligence-tools.exe")
+    : path.join(projectRoot, ".venv", "bin", "so-intelligence-tools");
 }
 
 function commandForPlatform(command: string) {

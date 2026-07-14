@@ -17,5 +17,5 @@ Este índice ordena las capabilities por prioridad de ejecución recomendada y a
 | 11 | `overlay-agent-chat` | No | `text` | `local` | Agente conversacional dentro del overlay con acceso a herramientas y búsqueda en archivos. |
 | 12 | `system-audio-transcription` | Si | `audio` | `local/remote` | Traducción en vivo del audio de salida del sistema en una ventana dedicada, con primera iteración validada sobre proveedor remoto y apertura futura a rutas locales. |
 | 13 | `overlay-launcher-desktop-ui` | No | `system-ui` | `none` | Implementación Electron/Vue del overlay principal con superficie translúcida, catálogo de herramientas y ventanas independientes para ajustes y traductor. |
-| 14 | `realtime-translation-desktop-ui` | Si | `audio/system-ui` | `none` | Interfaz Electron/Vue futura para visualizar y controlar la traducción en vivo del audio del sistema sin reemplazar todavía la capa funcional Python. |
+| 14 | `realtime-translation-desktop-ui` | Si | `audio/system-ui` | `none` | Interfaz Electron/Vue funcional para traducción en vivo, historial alineado, controles de sesión, niveles PCM y salida de voz traducida, manteniendo Python como backend y Tkinter como fallback. |
 | 15 | `voice-translation-virtual-microphone` | Si | `audio` | `remote` | Micrófono virtual para traducir la voz del usuario en tiempo real con streaming remoto. |

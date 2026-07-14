@@ -9,10 +9,12 @@
     "build": "vite build && tsc -p tsconfig.electron.json",
     "preview": "vite preview --host 127.0.0.1",
     "electron:dev": "SO_AI_DESKTOP_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "translator:mock": "env -u ELECTRON_RUN_AS_NODE SO_AI_TRANSLATOR_MOCK=1 electron . --translator",
     "test": "vitest run"
   },
   "dependencies": {
     "@lucide/vue": "^1.17.0",
+    "flag-icons": "^7.5.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {

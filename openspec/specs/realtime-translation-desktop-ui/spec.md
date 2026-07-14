@@ -1,8 +1,8 @@
 # Purpose
 
-Definir una interfaz de escritorio Electron + Vue.js para visualizar y controlar la traduccion en tiempo real del audio del sistema, reutilizando como backend funcional la capability `system-audio-transcription`.
+Definir la interfaz de escritorio Electron + Vue.js que visualiza y controla la traduccion en tiempo real del audio del sistema y la traduccion de voz hacia un microfono virtual, reutilizando los controladores Python de `system-audio-transcription`.
 
-Esta capability es una mejora visual futura. No reemplaza automaticamente la ventana actual ni modifica la captura de audio, el proveedor realtime, los logs, los shortcuts o el ciclo de vida del controlador Python hasta que un change posterior lo valide.
+La interfaz es la superficie funcional predeterminada de `Ctrl+Alt+Y` en Linux. Electron conserva captura, proveedores, credenciales y logs fuera del renderer; la ventana Tkinter sigue disponible como fallback manual.
 
 ## Requirements
 
@@ -22,15 +22,20 @@ La interfaz SHALL actuar como capa visual sobre la capability `system-audio-tran
 ### Requirement: Aplicacion Electron + Vue.js
 La interfaz SHALL estar implementada como aplicacion de escritorio con Electron y Vue.js.
 
-#### Scenario: Arranque de la aplicacion
-- **WHEN** el usuario lance la UI avanzada desde el flujo de traduccion en tiempo real
-- **THEN** el sistema SHALL abrir una ventana de escritorio Electron
-- **AND** el render principal SHALL estar implementado con Vue.js
+#### Scenario: Arranque funcional desde el atajo Linux
+- **WHEN** el usuario pulse `Ctrl+Alt+Y` en Linux
+- **THEN** el sistema SHALL abrir o alternar la ventana Electron/Vue del traductor
+- **AND** SHALL iniciar una sesion Python real sin abrir simultaneamente la ventana Tkinter
+
+#### Scenario: Render aislado de desarrollo
+- **WHEN** el render Vue se abra sin el bridge Electron
+- **THEN** SHALL poder mostrar datos mock para revisar layout y estados
+- **AND** SHALL identificar ese estado como una previsualizacion no conectada
 
 #### Scenario: Convivencia con la ventana actual
-- **WHEN** se implemente la primera version de esta capability
-- **THEN** la UI Electron/Vue SHALL poder convivir como alternativa seleccionable
-- **AND** SHALL evitar eliminar la ventana `tkinter` hasta que la nueva UI quede validada manualmente
+- **WHEN** la UI Electron se convierta en la superficie predeterminada del atajo
+- **THEN** la ventana `tkinter` SHALL permanecer disponible como fallback manual
+- **AND** ambas superficies SHALL reutilizar el mismo controlador Python
 
 ### Requirement: Layout principal moderno
 La UI SHALL presentar una experiencia visual moderna, limpia y orientada a una app de traduccion en vivo.
@@ -51,18 +56,18 @@ La UI SHALL presentar una experiencia visual moderna, limpia y orientada a una a
 - **AND** `Pause/Resume` y `Stop` SHALL enviar comandos funcionales al controlador Python
 - **AND** los controles mockeados SHALL verse presentes pero no deberan prometer funcionalidad real si todavia no la tienen
 
-### Requirement: Visualizacion agrupada EN/ES
+### Requirement: Visualizacion agrupada por idioma
 La UI SHALL agrupar cada transcripcion original con su traduccion asociada para que la correspondencia sea inmediata.
 
 #### Scenario: Bloque finalizado
 - **WHEN** el backend emite un bloque final con texto original y traduccion
-- **THEN** la UI SHALL mostrar una burbuja azul `EN` con el texto original
-- **AND** SHALL mostrar justo debajo una burbuja verde `ES` con la traduccion
+- **THEN** la UI SHALL mostrar una celda azul con el idioma de origen efectivo
+- **AND** SHALL mostrar en la misma fila una celda verde con el idioma de destino efectivo
 - **AND** ambas burbujas SHALL compartir el mismo contenedor logico
 
 #### Scenario: Evitar scrolls independientes
 - **WHEN** hay multiples segmentos acumulados
-- **THEN** la UI SHALL usar un unico flujo principal de scroll para los pares EN/ES
+- **THEN** la UI SHALL usar un unico flujo principal de scroll para los pares origen/destino
 - **AND** SHALL evitar que original y traduccion se desalineen por vivir en paneles desplazables independientes
 
 #### Scenario: Segmento en progreso
@@ -73,50 +78,36 @@ La UI SHALL agrupar cada transcripcion original con su traduccion asociada para 
 ### Requirement: Contrato de eventos con Python
 La UI SHALL comunicarse con el backend Python mediante un contrato estable de eventos y comandos.
 
-#### Scenario: Eventos desde Python hacia la UI
-- **WHEN** el backend Python cambia de estado o produce contenido
-- **THEN** SHALL emitir eventos compatibles con este contrato minimo:
+#### Scenario: Bridge conectado al controlador real
+- **WHEN** la ventana Electron inicia una sesion
+- **THEN** SHALL recibir eventos JSON Lines de un proceso Python hijo
+- **AND** SHALL enviar comandos validados al mismo proceso mediante preload seguro
+- **AND** SHALL mantener captura, proveedores y credenciales fuera del renderer
 
-```ts
-type UiEvent =
-  | { type: "session_state"; state: string; message: string }
-  | { type: "partial"; kind: "original" | "translation"; text: string }
-  | { type: "block"; id: string; sourceText?: string; translatedText: string; timestamp: string; speakerLabel?: string }
-  | { type: "mode"; mode: "translate_es_openai_realtime" | "translate_es_chunked" }
-  | { type: "error"; message: string };
-```
+#### Scenario: Eventos tempranos
+- **WHEN** Python emite estado antes de que Vue termine de montarse
+- **THEN** Electron SHALL conservar esos eventos en un buffer acotado
+- **AND** SHALL entregarlos cuando el renderer anuncie que esta listo
 
-#### Scenario: Comandos desde la UI hacia Python
-- **WHEN** el usuario interactua con controles funcionales
-- **THEN** la UI SHALL enviar comandos compatibles con este contrato minimo:
+#### Scenario: Diagnóstico fuera del canal de eventos
+- **WHEN** el backend informa estados operativos o escribe diagnóstico
+- **THEN** `stdout` SHALL contener exclusivamente eventos JSON Lines válidos
+- **AND** el texto de diagnóstico SHALL escribirse en `stderr` o en el log de sesión
+- **AND** Electron SHALL descartar y registrar una línea no JSON sin convertir la sesión activa en error
 
-```ts
-type UiCommand =
-  | { type: "pause" }
-  | { type: "resume" }
-  | { type: "reset" }
-  | { type: "stop" }
-  | { type: "change_mode"; mode: "translate_es_openai_realtime" | "translate_es_chunked" };
-```
-
-#### Scenario: Transporte no congelado en spec base
-- **WHEN** se implemente el primer change de esta capability
-- **THEN** el change SHALL elegir y documentar el transporte concreto, como JSON Lines por proceso hijo o socket local
-- **AND** la spec base SHALL exigir estabilidad del contrato, no una tecnologia de transporte especifica antes de validarla
-
-### Requirement: Selector de modelo visual
-La UI SHALL mostrar un selector de modelo o backend de transcripcion integrado en la sidebar.
+### Requirement: Selector de modo soportado
+La UI SHALL mostrar un selector de modo de transcripcion integrado en la sidebar.
 
 #### Scenario: Opciones visibles
 - **WHEN** el usuario abre el selector
-- **THEN** SHALL poder ver opciones como `Whisper Tiny (Local)`, `Whisper Large v3 (Local)`, `OpenAI Realtime API` y `Deepgram API`
-- **AND** SHALL distinguir visualmente modelos locales y APIs remotas
+- **THEN** SHALL ver unicamente modos implementados por el backend Python
+- **AND** SHALL distinguir visualmente el modo realtime del modo por segmentos
 - **AND** SHALL marcar el modo activo
 
-#### Scenario: Opciones mockeadas
-- **WHEN** una opcion todavia no este conectada al backend real
-- **THEN** la UI MAY mostrarla como mockeada, deshabilitada o no funcional en esta fase
-- **AND** SHALL mantener funcional el modo principal conectado a `system-audio-transcription`
+#### Scenario: Opciones no implementadas
+- **WHEN** un proveedor o modelo no tenga una ruta funcional en Python
+- **THEN** la UI SHALL evitar presentarlo como opcion seleccionable
+- **AND** SHALL mantener funcionales los modos publicados por `system-audio-transcription`
 
 ### Requirement: Estados visuales de conexion y streaming
 La UI SHALL reflejar de forma clara el estado operativo de la sesion.
@@ -131,42 +122,173 @@ La UI SHALL reflejar de forma clara el estado operativo de la sesion.
 - **THEN** SHALL mostrar un estado visible como `Reconnecting`, `Poor network` o `Disconnected`
 - **AND** SHALL conservar el historial ya mostrado cuando sea posible
 
-### Requirement: Funcionalidad parcial aceptada
-La primera version de la UI SHALL permitir elementos visuales no funcionales mientras la parte principal de visualizacion y control este conectada.
+### Requirement: Funcionalidad declarada
+La UI SHALL distinguir claramente los controles funcionales de las acciones todavia no implementadas.
 
 #### Scenario: Elementos mockeados
-- **WHEN** la UI muestre ajustes, swap de idiomas, microfono, modelos alternativos o señal avanzada de red
-- **THEN** esos elementos MAY estar mockeados o fijos en esta fase
-- **AND** SHALL evitar bloquear la validacion de la UI principal por funcionalidades secundarias
+- **WHEN** la UI muestre una accion todavia no conectada
+- **THEN** SHALL deshabilitarla o mostrar feedback pendiente claro
+- **AND** SHALL evitar simular exito sobre una funcionalidad inexistente
 
 #### Scenario: Controles funcionales minimos
 - **WHEN** el usuario pulse pausa, reanudar o detener
 - **THEN** esos controles SHALL comunicarse con el controlador Python real
 - **AND** SHALL afectar a la sesion activa de traduccion
 
-### Requirement: No bloquear cierre de capability actual
-La nueva capability SHALL poder planificarse e implementarse despues de cerrar la capability actual de traduccion de audio.
-
-#### Scenario: system-audio-transcription aun requiere ajustes
-- **WHEN** queden pendientes mejoras de rendimiento, latencia o fiabilidad en `system-audio-transcription`
-- **THEN** esta capability SHALL permanecer como trabajo futuro
-- **AND** SHALL evitar introducir cambios que distraigan o impidan cerrar la base funcional actual
-
 ### Requirement: Validacion de la UI y del contrato
 La implementacion futura SHALL validar por separado el contrato Python/UI, el render frontend y la integracion con el flujo real.
 
-#### Scenario: Validacion del contrato Python
-- **WHEN** se implemente el serializador de eventos hacia la UI
-- **THEN** SHALL existir cobertura de tests Python para eventos `session_state`, `partial`, `block`, `mode` y `error`
-- **AND** SHALL existir cobertura para comandos `pause`, `resume`, `reset`, `stop` y `change_mode`
+#### Scenario: Validacion visual inicial
+- **WHEN** la interfaz Electron/Vue este disponible con datos mock
+- **THEN** SHALL poder capturarse una screenshot local para revisar layout, sidebar, burbujas EN/ES y controles
+- **AND** SHALL completar tests frontend y build de escritorio sin errores
 
-#### Scenario: Validacion frontend
-- **WHEN** se implemente la interfaz Electron/Vue
-- **THEN** SHALL existir cobertura frontend para renderizar pares agrupados EN/ES
-- **AND** SHALL validar segmentos parciales, bloques finales, errores y estado de sesion
-- **AND** el build `npm --prefix desktop run build` SHALL completarse correctamente
+#### Scenario: Smoke test funcional
+- **WHEN** se valide la integracion final en Linux
+- **THEN** `Ctrl+Alt+Y` SHALL abrir la ventana Electron conectada
+- **AND** una sesion real SHALL poder publicar estado, parciales o bloques y responder a pausa, reanudacion y parada
 
-#### Scenario: Smoke test manual
-- **WHEN** la UI avanzada este disponible
-- **THEN** SHALL poder abrirse con datos mock para revisar layout y estados visuales
-- **AND** SHALL poder abrirse conectada al flujo real de `system-audio-transcription`
+### Requirement: Movimiento y estados profesionales
+La UI SHALL usar animaciones discretas y estados operativos claros para mejorar la comprension sin reducir la legibilidad.
+
+#### Scenario: Llega un bloque o parcial
+- **WHEN** llega un bloque final o cambia el segmento en progreso
+- **THEN** la UI SHALL actualizar el mismo flujo agrupado sin parpadeos ni saltos de columnas
+- **AND** MAY animar brevemente la entrada o el indicador de progreso
+
+#### Scenario: Pausa, reconexion o error
+- **WHEN** la sesion cambia a pausa, reconexion o error
+- **THEN** la UI SHALL reflejarlo mediante texto, color y disponibilidad de controles
+- **AND** SHALL conservar los bloques completados ya visibles
+
+#### Scenario: Movimiento reducido
+- **WHEN** el sistema solicita `prefers-reduced-motion`
+- **THEN** la UI SHALL desactivar las animaciones no esenciales
+
+### Requirement: Controles de ventana accesibles
+La ventana SHALL permitir cerrar, minimizar y maximizar o restaurar mediante controles visibles, animados y faciles de accionar.
+
+#### Scenario: Accion de ventana
+- **WHEN** el usuario active uno de los tres controles de ventana
+- **THEN** Electron SHALL ejecutar la accion nativa correspondiente
+- **AND** el control SHALL ofrecer un objetivo de puntero y foco mayor que su marca visual
+
+#### Scenario: Hover fiel al control circular
+- **WHEN** el puntero pase sobre cerrar, minimizar o maximizar
+- **THEN** el fondo del objetivo interactivo SHALL permanecer transparente
+- **AND** la sombra SHALL quedar ceñida a la marca circular visible
+- **AND** la apariencia nativa del botón SHALL NOT dibujar un halo alrededor del objetivo
+
+### Requirement: Idiomas configurables desde la sesion
+La UI SHALL construir sus selectores desde el catalogo de idiomas que publica el backend y aplicar cambios reales a la sesion.
+
+#### Scenario: Cambio de idioma
+- **WHEN** el usuario seleccione otro origen o destino soportado
+- **THEN** Vue SHALL enviar un comando validado con ambos codigos
+- **AND** Python SHALL reiniciar el controlador activo con esos idiomas
+- **AND** la UI SHALL conservar el historial ya mostrado
+
+#### Scenario: Catalogo y deteccion automatica
+- **WHEN** el backend publique la configuracion de sesion
+- **THEN** la UI SHALL mostrar solo opciones declaradas por ese catalogo
+- **AND** SHALL ofrecer deteccion automatica unicamente como idioma de origen
+
+#### Scenario: Seleccion pendiente de confirmacion
+- **WHEN** el usuario cambie un idioma soportado
+- **THEN** el selector SHALL reflejar inmediatamente la nueva eleccion sin rebotar al valor anterior
+- **AND** SHALL conservarla mientras espera la configuracion confirmada por Python
+- **AND** SHALL restaurar la ultima configuracion confirmada si el comando falla
+
+#### Scenario: Identidad visual del catalogo completo
+- **WHEN** el usuario abra cualquiera de los selectores de idioma
+- **THEN** cada idioma publicado SHALL mostrar su nombre y una bandera o icono explicito
+- **AND** el menu SHALL mostrarse fuera del recorte del sidebar y seguir siendo utilizable con teclado
+
+### Requirement: Conversacion densa y alineada
+La UI SHALL mostrar original y traduccion como columnas correspondientes para aumentar la cantidad de contexto visible.
+
+#### Scenario: Ventana con espacio horizontal
+- **WHEN** haya anchura suficiente
+- **THEN** cada turno SHALL renderizar original a la izquierda y traduccion a la derecha en la misma fila
+- **AND** las cabeceras SHALL identificar los idiomas efectivos
+
+#### Scenario: Preferencia de densidad
+- **WHEN** el usuario cambie entre densidad compacta y comoda
+- **THEN** SHALL ajustarse espaciado y tipografia sin ocultar texto
+- **AND** la preferencia SHALL persistir para la siguiente apertura
+
+### Requirement: Layout responsive sin contenido perdido
+La ventana SHALL mantener contenido y acciones disponibles al cambiar anchura o altura.
+
+#### Scenario: Ventana estrecha o baja
+- **WHEN** el usuario redimensione la ventana dentro de sus limites permitidos
+- **THEN** sidebar, cabecera, transcript y controles SHALL reajustarse sin desaparecer
+- **AND** los selectores abiertos SHALL permanecer utilizables sin quedar recortados
+- **AND** las columnas MAY apilarse cuando ya no exista anchura legible
+
+### Requirement: Estado de pausa sincronizado
+El chip de estado, el lateral y el control principal SHALL derivar de una unica maquina de estados de sesion.
+
+#### Scenario: Pausa o reanudacion pendiente
+- **WHEN** el usuario solicite pausar o reanudar
+- **THEN** la UI SHALL mostrar el estado transitorio correspondiente
+- **AND** SHALL evitar solicitudes duplicadas hasta recibir confirmacion del backend
+
+### Requirement: Medidor de audio real
+El medidor SHALL representar amplitud PCM capturada y no una secuencia decorativa fija.
+
+#### Scenario: Audio del sistema activo
+- **WHEN** el controlador reciba chunks del monitor de salida
+- **THEN** SHALL publicar niveles normalizados y acotados hacia Electron
+- **AND** las barras SHALL responder a esos niveles y decaer al silencio si dejan de llegar
+
+#### Scenario: Voz traducida activa
+- **WHEN** el micrófono traducido esté activo
+- **THEN** el medidor SHALL priorizar el nivel del micrófono físico
+- **AND** SHALL identificar visualmente que está mostrando entrada de micrófono
+
+### Requirement: Micrófono traducido estable
+El botón de micrófono SHALL controlar la ruta física → traducción realtime → micrófono virtual seleccionable por una videollamada.
+
+#### Scenario: Endpoint virtual existente
+- **WHEN** `so_ai_translated_mic` ya exista por una ejecución anterior
+- **THEN** la canalización SHALL reutilizar el sink y la fuente exactos
+- **AND** SHALL evitar publicar un endpoint alternativo con sufijo
+
+#### Scenario: Estado pendiente del botón
+- **WHEN** el usuario active o desactive la traducción de voz
+- **THEN** la UI SHALL bloquear solicitudes duplicadas hasta recibir confirmación
+- **AND** SHALL exponer el mensaje operativo que indica qué micrófono seleccionar
+
+#### Scenario: Salida traducida visible
+- **WHEN** la traducción de voz esté apagada, conectando, activa o deteniéndose
+- **THEN** la interfaz SHALL mostrar de forma persistente el estado de la salida traducida
+- **AND** SHALL mostrar visiblemente el mensaje del backend que identifica el micrófono virtual
+- **AND** cuando se escriba audio traducido SHALL mostrar contadores confirmados por Python
+
+#### Scenario: Spinner sobre superficie estable
+- **WHEN** el botón grande de micrófono o pausa espere confirmación
+- **THEN** SHALL girar únicamente el indicador de carga
+- **AND** el recuadro o círculo que contiene el indicador SHALL permanecer inmóvil
+
+#### Scenario: Parada confirmada del traductor de voz
+- **WHEN** el usuario desactive la traducción de voz
+- **THEN** el controlador SHALL cerrar o cancelar de forma acotada las tareas realtime
+- **AND** SHALL publicar el estado inactivo solo después de que el worker haya terminado
+
+### Requirement: Fidelidad visual al mock aprobado
+La interfaz SHALL conservar el lenguaje y las proporciones del mock original salvo en los cambios funcionales expresamente solicitados.
+
+#### Scenario: Ventana amplia
+- **WHEN** la ventana disponga del viewport de referencia
+- **THEN** controles de ventana, sidebar, banderas, cabecera y barra inferior SHALL mantener apariencia y proporciones equivalentes al mock
+- **AND** la zona de clic de un control MAY ser mayor que su marca visible
+
+#### Scenario: Excepciones funcionales
+- **WHEN** se comparen mock e implementacion
+- **THEN** las diferencias intencionadas SHALL limitarse al transcript horizontal, densidad configurable, selectores funcionales y comportamiento responsive
+
+#### Scenario: Selector de modelo
+- **WHEN** el usuario abra el modelo de transcripción
+- **THEN** SHALL conservar el tratamiento visual de botón y menú del mock
+- **AND** SHALL listar únicamente modos realmente soportados por el backend

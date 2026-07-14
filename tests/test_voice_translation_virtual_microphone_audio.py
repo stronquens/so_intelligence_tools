@@ -5,6 +5,7 @@ import subprocess
 from so_intelligence_tools.voice_translation_virtual_microphone.audio import (
     MicrophonePassthroughToVirtualMicrophone,
     PulseAudioMonitorWavRecorder,
+    PulseAudioPcmPlayback,
     PulseAudioVirtualMicrophone,
     detect_default_source,
     limit_pcm_s16le,
@@ -108,6 +109,8 @@ def test_virtual_microphone_loads_internal_sink_and_public_source(monkeypatch):
 
     def fake_run(command, **_kwargs):
         run_calls.append(command)
+        if command[:3] == ["pactl", "list", "short"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
         if command[:3] == ["pactl", "load-module", "module-null-sink"]:
             return subprocess.CompletedProcess(
                 args=command,
@@ -152,12 +155,13 @@ def test_virtual_microphone_loads_internal_sink_and_public_source(monkeypatch):
     virtual_mic.write(b"\x00\x01")
     virtual_mic.stop()
 
-    assert run_calls[0][:3] == ["pactl", "load-module", "module-null-sink"]
-    assert "sink_name=so_ai_test_mic_sink" in run_calls[0]
-    assert "rate=24000" in run_calls[0]
-    assert run_calls[1][:3] == ["pactl", "load-module", "module-remap-source"]
-    assert "master=so_ai_test_mic_sink.monitor" in run_calls[1]
-    assert "source_name=so_ai_test_mic" in run_calls[1]
+    load_calls = [call for call in run_calls if call[:2] == ["pactl", "load-module"]]
+    assert load_calls[0][:3] == ["pactl", "load-module", "module-null-sink"]
+    assert "sink_name=so_ai_test_mic_sink" in load_calls[0]
+    assert "rate=24000" in load_calls[0]
+    assert load_calls[1][:3] == ["pactl", "load-module", "module-remap-source"]
+    assert "master=so_ai_test_mic_sink.monitor" in load_calls[1]
+    assert "source_name=so_ai_test_mic" in load_calls[1]
     assert popen_calls[0][:4] == [
         "pacat",
         "--device",
@@ -170,11 +174,47 @@ def test_virtual_microphone_loads_internal_sink_and_public_source(monkeypatch):
     ]
 
 
+def test_virtual_microphone_reuses_existing_exact_endpoint(monkeypatch):
+    run_calls: list[list[str]] = []
+
+    def fake_run(command, **_kwargs):
+        run_calls.append(command)
+        if command == ["pactl", "list", "short", "sinks"]:
+            return subprocess.CompletedProcess(
+                command, 0, stdout="3\tso_ai_test_mic_sink\tmodule-null-sink.c\n", stderr=""
+            )
+        if command == ["pactl", "list", "short", "sources"]:
+            return subprocess.CompletedProcess(
+                command, 0, stdout="4\tso_ai_test_mic\tmodule-remap-source.c\n", stderr=""
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        "so_intelligence_tools.voice_translation_virtual_microphone.audio.which",
+        lambda name: f"/usr/bin/{name}",
+    )
+    monkeypatch.setattr(PulseAudioPcmPlayback, "start", lambda self: None)
+    monkeypatch.setattr(PulseAudioPcmPlayback, "stop", lambda self: None)
+
+    virtual_mic = PulseAudioVirtualMicrophone(
+        sink_name="so_ai_test_mic",
+        sample_rate_hz=24000,
+    )
+    virtual_mic.start()
+    virtual_mic.stop()
+
+    assert all("load-module" not in call for call in run_calls)
+    assert all("unload-module" not in call for call in run_calls)
+
+
 def test_virtual_microphone_unloads_sink_when_public_source_fails(monkeypatch):
     run_calls: list[list[str]] = []
 
     def fake_run(command, **_kwargs):
         run_calls.append(command)
+        if command[:3] == ["pactl", "list", "short"]:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
         if command[:3] == ["pactl", "load-module", "module-null-sink"]:
             return subprocess.CompletedProcess(
                 args=command,

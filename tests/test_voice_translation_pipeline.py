@@ -92,6 +92,7 @@ def test_pipeline_ducks_passthrough_while_translation_is_active():
 
     pipeline.start()
     pipeline.start_translation()
+    assert translation_controller.on_output_audio is pipeline.on_translation_output
     pipeline.stop_translation()
     pipeline.stop()
 

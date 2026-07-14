@@ -45,6 +45,50 @@ def test_controller_can_leave_session_log_ownership_to_pipeline(tmp_path):
     assert controller.last_log_path is None
 
 
+def test_state_diagnostics_never_contaminate_jsonl_stdout(tmp_path, capsys):
+    controller = make_controller(tmp_path)
+
+    controller._set_state("active", "Traducción de voz activa.")
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "Traducción de voz activa.\n"
+
+
+def test_output_audio_callback_reports_confirmed_virtual_microphone_bytes(tmp_path):
+    controller = make_controller(tmp_path)
+    outputs: list[tuple[int, int]] = []
+    controller.on_output_audio = lambda chunks, byte_count: outputs.append(
+        (chunks, byte_count)
+    )
+
+    controller._record_output_audio_chunk(3840)
+    for _ in range(24):
+        controller._record_output_audio_chunk(3840)
+
+    assert outputs == [(1, 3840), (25, 96000)]
+
+
+def test_stop_does_not_publish_inactive_while_worker_is_still_alive(tmp_path):
+    class StuckThread:
+        def join(self, timeout: float) -> None:
+            assert timeout == 10.0
+
+        def is_alive(self) -> bool:
+            return True
+
+    controller = make_controller(tmp_path)
+    controller.state = "active"
+    controller._worker_thread = StuckThread()  # type: ignore[assignment]
+    states: list[str] = []
+    controller.on_state_changed = lambda state, _message: states.append(state)
+
+    controller.stop()
+
+    assert states == ["stopping", "error"]
+    assert controller.state == "error"
+
+
 def test_decode_audio_delta_accepts_ga_and_legacy_names():
     encoded = base64.b64encode(b"pcm").decode("ascii")
 
@@ -186,6 +230,31 @@ def test_stop_translation_connection_sends_close_and_waits_for_receiver(tmp_path
 
     assert json.loads(messages[0]) == {"type": "session.close"}
     assert receiver_done is True
+
+
+def test_stop_translation_connection_cancels_receiver_after_bounded_drain(tmp_path):
+    import asyncio
+
+    class FakeConnection:
+        async def send(self, message: str) -> None:
+            assert json.loads(message) == {"type": "session.close"}
+
+    async def neverending_task() -> None:
+        await asyncio.sleep(60)
+
+    async def run_stop() -> bool:
+        controller = make_controller(tmp_path)
+        controller.close_drain_timeout_seconds = 0.01
+        sender = asyncio.create_task(neverending_task())
+        receiver = asyncio.create_task(neverending_task())
+        await controller._stop_translation_connection(
+            connection=FakeConnection(),
+            sender=sender,
+            receiver=receiver,
+        )
+        return receiver.cancelled()
+
+    assert asyncio.run(run_stop()) is True
 
 
 def test_normalize_translation_language_maps_names_to_codes():

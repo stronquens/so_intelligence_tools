@@ -1,0 +1,55 @@
+# Tasks
+
+- [x] Scaffold Electron + Vue app in `desktop/`.
+- [x] Implement topbar, sidebar, transcript panel and bottom controls.
+- [x] Render grouped EN/ES transcript pairs in a single scroll flow.
+- [x] Show streaming indicators and completed-block checks.
+- [x] Define `UiEvent` and `UiCommand` TypeScript contract.
+- [x] Add Electron preload bridge for UI commands.
+- [x] Add frontend tests for grouped rendering and pause command emission.
+- [x] Validate Vite/Electron build.
+- [x] Capture and review a screenshot against the visual reference.
+- [x] Connect Electron bridge to the real Python controller.
+- [x] Add end-to-end smoke test against a live `system-audio-transcription` session.
+- [x] Route `Ctrl+Alt+Y` and the overlay translator action to the connected Electron window while retaining Tkinter fallback.
+- [x] Replace production mock data with live session, partial, block, mode, error and voice-translation events.
+- [x] Add polished connected/paused/reconnecting/error states and reduced-motion-safe animations.
+- [x] Add Python and frontend coverage for the JSONL contract, event buffering and functional controls.
+- [x] Update desktop, shortcut and translation documentation for the new default UI and fallback.
+- [x] Capture final visual evidence and record functional validation.
+- [x] Audit the connected translator at normal and minimum supported window sizes.
+- [x] Publish supported languages and effective session configuration through the JSONL bridge.
+- [x] Apply validated source/target language changes to the active Python controller.
+- [x] Replace clipped custom menus with functional native selectors.
+- [x] Render transcript pairs as aligned horizontal columns with persistent density controls.
+- [x] Synchronize pending pause/resume feedback across status surfaces.
+- [x] Make window controls easier to target and preserve native close/minimize/maximize behavior.
+- [x] Make sidebar, transcript header and bottom controls responsive to width and height.
+- [x] Add Python and Vue regression coverage for language changes, state transitions and compact layout.
+- [x] Capture responsive before/after evidence and update validation and documentation.
+- [x] Add an explicit Electron mock mode that cannot start the paid provider bridge during visual QA.
+- [x] Audit the current 1680 x 946 mock render against the original visual reference.
+- [x] Restore original window-control marks, language flags, wide-layout proportions and header treatment.
+- [x] Revalidate fidelity at reference and minimum viewports using provider-safe mock mode.
+- [x] Reproduce and fix language selector rollback while backend confirmation is pending.
+- [x] Replace native language menus with unclipped accessible menus containing an icon for every backend language.
+- [x] Add frontend regression coverage for optimistic selection, stale configuration events and the full flag catalog.
+- [x] Revalidate selector fidelity and responsive placement in provider-safe mock mode.
+- [x] Restore the transcription-model popover treatment using only backend-supported modes.
+- [x] Remove the white window-control hover halo while retaining the enlarged hit target.
+- [x] Publish throttled PCM levels for system and microphone capture through the desktop bridge.
+- [x] Drive the Vue waveform from real audio-level events with mock-only synthetic preview data.
+- [x] Reuse an existing exact PulseAudio virtual endpoint instead of creating suffixed duplicates.
+- [x] Synchronize pending voice-translation controls and verify the physical-mic-to-virtual-mic route without paid visual QA.
+- [x] Add Python and Vue regression coverage and preserve validation evidence.
+- [x] Reproduce the live-test JSONL contamination and delayed voice-worker shutdown from session logs.
+- [x] Reserve backend stdout for JSONL and make Electron ignore isolated non-JSON diagnostics without collapsing the UI.
+- [x] Bound realtime voice shutdown and publish inactive only after the worker has terminated.
+- [x] Add provider-free regressions and preserve evidence for the live-test fixes.
+- [x] Remove the remaining native white halo from all window-control interaction states.
+- [x] Keep large control surfaces stationary while only the pending glyph spins.
+- [x] Expose translated-voice output state and backend routing message persistently in the UI.
+- [x] Add frontend regressions and provider-safe visual validation for these corrections.
+- [x] Pass real audio-level and translated-output events through the Electron parser.
+- [x] Show confirmed translated chunks and bytes written to the virtual microphone.
+- [x] Add provider-free Python, JSONL and Vue regressions for output confirmation.

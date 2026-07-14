@@ -6,6 +6,7 @@ LOG_FILE="$LOG_DIR/system_audio_shortcut.log"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI="$PROJECT_DIR/.venv/bin/so-intelligence-tools"
+ELECTRON="$PROJECT_DIR/desktop/node_modules/.bin/electron"
 
 mkdir -p "$LOG_DIR"
 
@@ -19,6 +20,7 @@ BINDING="$(
   printf '\n[%s] gnome-shortcut-wrapper invoked\n' "$(date -Is)"
   printf 'project_dir=%s\n' "$PROJECT_DIR"
   printf 'cli=%s\n' "$CLI"
+  printf 'electron=%s\n' "$ELECTRON"
   printf 'pwd=%s\n' "$(pwd)"
   printf 'XDG_SESSION_TYPE=%s\n' "${XDG_SESSION_TYPE:-}"
   printf 'WAYLAND_DISPLAY=%s\n' "${WAYLAND_DISPLAY:-}"
@@ -26,15 +28,16 @@ BINDING="$(
   printf 'binding=%s\n' "${BINDING:-}"
 } >> "$LOG_FILE" 2>&1
 
-if [[ ! -x "$CLI" ]]; then
+if [[ ! -x "$ELECTRON" ]]; then
   {
-    printf '[%s] ERROR cli-not-executable\n' "$(date -Is)"
-    ls -l "$PROJECT_DIR/.venv/bin" 2>&1 | sed -n '1,80p'
+    printf '[%s] WARN electron-not-executable; using-tkinter-fallback\n' "$(date -Is)"
+    ls -l "$PROJECT_DIR/desktop/node_modules/.bin" 2>&1 | sed -n '1,80p'
   } >> "$LOG_FILE" 2>&1
-  exit 1
+  "$CLI" run-system-audio-translation-toggle >> "$LOG_FILE" 2>&1
+  exit $?
 fi
 
-"$CLI" run-system-audio-translation-toggle >> "$LOG_FILE" 2>&1
+env -u ELECTRON_RUN_AS_NODE "$ELECTRON" "$PROJECT_DIR/desktop" --translator >> "$LOG_FILE" 2>&1
 STATUS=$?
 
 {

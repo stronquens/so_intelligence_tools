@@ -28,6 +28,9 @@ class VoiceTranslationVirtualMicrophonePipeline:
     max_ducked_passthrough_volume: float = 0.12
     session_logger: TranscriptSessionLogger | None = None
     debug_recorder: PulseAudioMonitorWavRecorder | None = None
+    on_audio_level: Callable[[float], None] | None = None
+    on_translation_state: Callable[[str, str], None] | None = None
+    on_translation_output: Callable[[int, int], None] | None = None
     _translation_controller: OpenAIRealtimeVoiceTranslationController | None = field(
         init=False,
         default=None,
@@ -69,6 +72,7 @@ class VoiceTranslationVirtualMicrophonePipeline:
                 monitor_source=self.monitor_source_name,
             )
         self.passthrough.on_audio_forwarded = self._record_passthrough_audio
+        self.passthrough.on_audio_level = self.on_audio_level
         self.passthrough.set_volume(self.passthrough_volume)
         self.passthrough.start()
         self._record_event(
@@ -83,6 +87,8 @@ class VoiceTranslationVirtualMicrophonePipeline:
             return
         self.start()
         controller = self.translation_controller_factory(self.virtual_microphone)
+        controller.on_state_changed = self.on_translation_state
+        controller.on_output_audio = self.on_translation_output
         applied_ducked_volume = self._safe_ducked_passthrough_volume()
         self._record_event(
             "voice_translation_starting",

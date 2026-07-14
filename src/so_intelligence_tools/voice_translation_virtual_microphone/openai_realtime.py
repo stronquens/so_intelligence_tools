@@ -3,9 +3,11 @@ from __future__ import annotations
 import asyncio
 import base64
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import sys
 import threading
 from urllib.parse import urlencode
 
@@ -42,6 +44,8 @@ class OpenAIRealtimeVoiceTranslationController:
     output_limiter_ceiling: float = 0.92
     owns_virtual_microphone: bool = True
     write_session_log_on_stop: bool = True
+    on_state_changed: Callable[[str, str], None] | None = None
+    on_output_audio: Callable[[int, int], None] | None = None
     state: str = field(init=False, default="inactive")
     last_log_path: Path | None = field(init=False, default=None)
     _pending_audio: deque[bytes] = field(init=False)
@@ -64,6 +68,8 @@ class OpenAIRealtimeVoiceTranslationController:
             return
         self.session_logger.reset()
         self._pending_audio.clear()
+        self._output_audio_chunks = 0
+        self._output_audio_bytes = 0
         self._stop_event.clear()
         self._reconnect_request.clear()
         self.session_logger.record_event(
@@ -92,7 +98,6 @@ class OpenAIRealtimeVoiceTranslationController:
         )
         self._worker_thread.start()
         self.capture.start(self._on_audio_chunk)
-        self._set_state("active", "Traduciendo tu voz en tiempo real…")
 
     def stop(self) -> None:
         if self.state == "inactive":
@@ -105,7 +110,17 @@ class OpenAIRealtimeVoiceTranslationController:
             self._condition.notify_all()
         thread = self._worker_thread
         if thread is not None:
-            thread.join(timeout=4.0)
+            thread.join(timeout=self.close_drain_timeout_seconds + 2.0)
+            if thread.is_alive():
+                self.session_logger.record_event(
+                    "worker_stop_timeout",
+                    timeout_seconds=self.close_drain_timeout_seconds + 2.0,
+                )
+                self._set_state(
+                    "error",
+                    "No se pudo detener por completo la traducción de voz.",
+                )
+                return
         self._worker_thread = None
         if self.owns_virtual_microphone:
             self.virtual_microphone.stop()
@@ -146,6 +161,7 @@ class OpenAIRealtimeVoiceTranslationController:
                 "OpenAI-Safety-Identifier": "so-intelligence-tools-local-user",
             },
             max_size=None,
+            close_timeout=1.0,
         ) as connection:
             await connection.send(json.dumps(self._build_session_update_payload()))
             self.session_logger.record_event("realtime_connected", model=self.model)
@@ -268,7 +284,9 @@ class OpenAIRealtimeVoiceTranslationController:
     def _set_state(self, state: str, message: str) -> None:
         self.state = state
         self.session_logger.record_event("state_changed", state=state, message=message)
-        print(message, flush=True)
+        print(message, file=sys.stderr, flush=True)
+        if self.on_state_changed is not None:
+            self.on_state_changed(state, message)
 
     def _build_session_update_payload(self) -> dict[str, object]:
         return {
@@ -301,6 +319,8 @@ class OpenAIRealtimeVoiceTranslationController:
                 virtual_microphone=self.virtual_microphone.virtual_source_name,
                 monitor_source=self.virtual_microphone.monitor_source_name,
             )
+            if self.on_output_audio is not None:
+                self.on_output_audio(self._output_audio_chunks, self._output_audio_bytes)
 
     def _record_event_type(self, event_type: str) -> None:
         if not event_type or event_type in self._seen_event_types:

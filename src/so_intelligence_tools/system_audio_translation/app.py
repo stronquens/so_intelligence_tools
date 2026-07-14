@@ -1,25 +1,41 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections.abc import Callable
 from typing import Protocol
 
 from so_intelligence_tools.domain.errors import ToolRunnerConfigurationError
 from so_intelligence_tools.domain.models import SystemAudioSessionMode
-from so_intelligence_tools.infrastructure.config import ToolRunnerSettings, get_tool_runner_settings
+from so_intelligence_tools.infrastructure.config import (
+    ToolRunnerSettings,
+    get_tool_runner_settings,
+)
 from so_intelligence_tools.infrastructure.inference_client import LocalInferenceClient
-from so_intelligence_tools.system_audio_translation.audio_capture import LinuxParecAudioCapture
-from so_intelligence_tools.system_audio_translation.modes import normalize_system_audio_mode
+from so_intelligence_tools.system_audio_translation.audio_capture import (
+    LinuxParecAudioCapture,
+)
+from so_intelligence_tools.system_audio_translation.modes import (
+    normalize_system_audio_mode,
+)
+from so_intelligence_tools.system_audio_translation.languages import (
+    language_catalog,
+    validate_language_pair,
+)
 from so_intelligence_tools.system_audio_translation.openai_realtime import (
     OpenAIRealtimeTranslationController,
 )
-from so_intelligence_tools.system_audio_translation.provider import ChunkedAudioTranslationProvider
+from so_intelligence_tools.system_audio_translation.provider import (
+    ChunkedAudioTranslationProvider,
+)
 from so_intelligence_tools.system_audio_translation.session import (
     SystemAudioTranslationController,
     ToggleSocketServer,
     TranscriptSessionLogger,
     send_toggle_command,
 )
-from so_intelligence_tools.system_audio_translation.window import SystemAudioTranslationWindow
+from so_intelligence_tools.system_audio_translation.window import (
+    SystemAudioTranslationWindow,
+)
 from so_intelligence_tools.voice_translation_virtual_microphone.app import (
     build_voice_translation_pipeline,
 )
@@ -31,7 +47,14 @@ from so_intelligence_tools.voice_translation_virtual_microphone.pipeline import 
 class SessionController(Protocol):
     state: str
 
-    def bind_callbacks(self, *, on_state_changed, on_block_ready, on_partial_text_changed=None) -> None: ...
+    def bind_callbacks(
+        self,
+        *,
+        on_state_changed,
+        on_block_ready,
+        on_partial_text_changed=None,
+        on_audio_level=None,
+    ) -> None: ...
     def start(self) -> None: ...
     def pause(self) -> None: ...
     def resume(self) -> None: ...
@@ -39,13 +62,42 @@ class SessionController(Protocol):
     def stop(self) -> None: ...
 
 
+class TranslationWindow(Protocol):
+    def run(self) -> None: ...
+    def set_state(self, state, message) -> None: ...
+    def add_block(self, block) -> None: ...
+    def set_partial_text(self, update) -> None: ...
+    def set_mode(self, mode) -> None: ...
+    def set_voice_translation_state(
+        self, active: bool, message: str, state: str | None = None
+    ) -> None: ...
+    def set_voice_translation_output(self, chunks: int, byte_count: int) -> None: ...
+    def set_audio_level(self, level: float, source: str = "system") -> None: ...
+    def set_session_config(
+        self, source_language: str, target_language: str, languages
+    ) -> None: ...
+    def close_from_controller(self) -> None: ...
+
+
+TranslationWindowFactory = Callable[..., TranslationWindow]
+
+
 class ModeAwareSystemAudioTranslationApp:
-    def __init__(self, settings: ToolRunnerSettings) -> None:
+    def __init__(
+        self,
+        settings: ToolRunnerSettings,
+        *,
+        window_factory: TranslationWindowFactory | None = None,
+    ) -> None:
         self.settings = settings
         self.mode: SystemAudioSessionMode = normalize_system_audio_mode(
             settings.system_audio_translation_mode
         )
-        self.window = SystemAudioTranslationWindow(
+        self._source_language = settings.system_audio_translation_source_language
+        self._target_language = settings.system_audio_translation_target_language
+        validate_language_pair(self._source_language, self._target_language)
+        resolved_window_factory = window_factory or SystemAudioTranslationWindow
+        self.window = resolved_window_factory(
             title=settings.system_audio_translation_window_title,
             initial_mode=self.mode,
             on_pause=self.pause,
@@ -54,14 +106,24 @@ class ModeAwareSystemAudioTranslationApp:
             on_close=self.stop,
             on_mode_changed=self.change_mode,
             on_voice_translation_toggle=self.toggle_voice_translation,
+            on_languages_changed=self.change_languages,
         )
-        self._socket_path = Path(settings.system_audio_translation_control_socket_path).expanduser()
+        self.window.set_session_config(
+            self._source_language,
+            self._target_language,
+            language_catalog(),
+        )
+        self._socket_path = Path(
+            settings.system_audio_translation_control_socket_path
+        ).expanduser()
         self._toggle_server = ToggleSocketServer(
             socket_path=self._socket_path,
             on_toggle=lambda: (self.stop(), self.window.close_from_controller()),
         )
         self._controller: SessionController | None = None
-        self._voice_translation_pipeline: VoiceTranslationVirtualMicrophonePipeline | None = None
+        self._voice_translation_pipeline: (
+            VoiceTranslationVirtualMicrophonePipeline | None
+        ) = None
 
     def run(self) -> str:
         self._toggle_server.start()
@@ -105,11 +167,17 @@ class ModeAwareSystemAudioTranslationApp:
             return
         try:
             pipeline = build_voice_translation_pipeline(self.settings)
+            pipeline.on_audio_level = lambda level: self.window.set_audio_level(
+                level, "microphone"
+            )
+            pipeline.on_translation_state = self._handle_voice_translation_state
+            pipeline.on_translation_output = self.window.set_voice_translation_output
             pipeline.start()
         except Exception as exc:
             self.window.set_voice_translation_state(
                 False,
                 f"Micrófono virtual: error - {exc}",
+                "error",
             )
             return
         self._voice_translation_pipeline = pipeline
@@ -119,6 +187,7 @@ class ModeAwareSystemAudioTranslationApp:
                 "Micrófono virtual activo en passthrough: selecciona "
                 f"{pipeline.virtual_source_name} como micrófono"
             ),
+            "passthrough",
         )
 
     def start_voice_translation(self) -> None:
@@ -126,20 +195,29 @@ class ModeAwareSystemAudioTranslationApp:
         pipeline = self._voice_translation_pipeline
         if pipeline is None:
             return
+        self.window.set_voice_translation_state(
+            False,
+            f"Conectando traducción realtime hacia {pipeline.virtual_source_name}…",
+            "starting",
+        )
         try:
             pipeline.start_translation()
         except Exception as exc:
             self.window.set_voice_translation_state(
                 False,
                 f"Micrófono traducido: error - {exc}",
+                "error",
             )
             return
+
+    def _handle_voice_translation_state(self, state: str, message: str) -> None:
+        pipeline = self._voice_translation_pipeline
+        virtual_source = pipeline.virtual_source_name if pipeline is not None else "so_ai_translated_mic"
+        active = state == "active"
         self.window.set_voice_translation_state(
-            True,
-            (
-                "Traducción activa: voz original bajada y voz inglesa superpuesta en "
-                f"{pipeline.virtual_source_name}"
-            ),
+            active,
+            f"{message} Selecciona {virtual_source} como micrófono en la videollamada.",
+            state,
         )
 
     def stop_voice_translation(self) -> None:
@@ -152,6 +230,7 @@ class ModeAwareSystemAudioTranslationApp:
                     "Micrófono virtual activo en passthrough: selecciona "
                     f"{pipeline.virtual_source_name} como micrófono"
                 ),
+                "passthrough",
             )
 
     def stop_voice_passthrough(self) -> None:
@@ -159,7 +238,7 @@ class ModeAwareSystemAudioTranslationApp:
         if pipeline is not None:
             pipeline.stop()
             self._voice_translation_pipeline = None
-        self.window.set_voice_translation_state(False, "Micrófono virtual: apagado")
+        self.window.set_voice_translation_state(False, "Micrófono virtual: apagado", "off")
 
     def change_mode(self, mode: SystemAudioSessionMode) -> None:
         canonical = normalize_system_audio_mode(mode)
@@ -173,12 +252,42 @@ class ModeAwareSystemAudioTranslationApp:
         self.window.set_partial_text("")
         self._start_mode(canonical)
 
+    def change_languages(self, source_language: str, target_language: str) -> None:
+        try:
+            validate_language_pair(source_language, target_language)
+        except ValueError as exc:
+            self.window.set_state("error", str(exc))
+            return
+        if (
+            source_language == self._source_language
+            and target_language == self._target_language
+        ):
+            return
+        previous = self._controller
+        if previous is not None:
+            previous.stop()
+        self._source_language = source_language
+        self._target_language = target_language
+        self.window.set_session_config(
+            source_language,
+            target_language,
+            language_catalog(),
+        )
+        self.window.set_partial_text("")
+        self._start_mode(self.mode)
+
     def _start_mode(self, mode: SystemAudioSessionMode) -> None:
-        controller = build_session_controller(self.settings, mode)
+        controller = build_session_controller(
+            self.settings,
+            mode,
+            source_language=self._source_language,
+            target_language=self._target_language,
+        )
         controller.bind_callbacks(
             on_state_changed=self.window.set_state,
             on_block_ready=self.window.add_block,
             on_partial_text_changed=self.window.set_partial_text,
+            on_audio_level=lambda level: self.window.set_audio_level(level, "system"),
         )
         self._controller = controller
         controller.start()
@@ -188,7 +297,9 @@ def run_system_audio_translation_toggle(
     settings: ToolRunnerSettings | None = None,
 ) -> str:
     runtime_settings = settings or get_tool_runner_settings()
-    socket_path = Path(runtime_settings.system_audio_translation_control_socket_path).expanduser()
+    socket_path = Path(
+        runtime_settings.system_audio_translation_control_socket_path
+    ).expanduser()
     if send_toggle_command(socket_path):
         return "System audio translation toggle signal sent."
 
@@ -199,7 +310,17 @@ def run_system_audio_translation_toggle(
 def build_session_controller(
     settings: ToolRunnerSettings,
     mode: SystemAudioSessionMode,
+    *,
+    source_language: str | None = None,
+    target_language: str | None = None,
 ) -> SessionController:
+    effective_source_language = (
+        source_language or settings.system_audio_translation_source_language
+    )
+    effective_target_language = (
+        target_language or settings.system_audio_translation_target_language
+    )
+    validate_language_pair(effective_source_language, effective_target_language)
     if mode == "translate_es_openai_realtime":
         api_key = (
             settings.system_audio_translation_openai_realtime_api_key
@@ -221,8 +342,8 @@ def build_session_controller(
             base_url=settings.system_audio_translation_openai_realtime_base_url
             or settings.openai_base_url,
             model=settings.system_audio_translation_openai_realtime_model,
-            source_language=settings.system_audio_translation_source_language,
-            target_language=settings.system_audio_translation_target_language,
+            source_language=effective_source_language,
+            target_language=effective_target_language,
             reconnect_backoff_seconds=settings.system_audio_translation_reconnect_backoff_seconds,
             max_pending_audio_chunks=settings.system_audio_translation_pending_segment_limit,
             silence_duration_ms=settings.system_audio_translation_openai_realtime_silence_duration_ms,
@@ -241,10 +362,12 @@ def build_session_controller(
         )
 
     transcription_base_url = (
-        settings.system_audio_translation_transcription_base_url or settings.litellm_proxy_url
+        settings.system_audio_translation_transcription_base_url
+        or settings.litellm_proxy_url
     )
     transcription_api_key = (
-        settings.system_audio_translation_transcription_api_key or settings.litellm_virtual_key
+        settings.system_audio_translation_transcription_api_key
+        or settings.litellm_virtual_key
     )
     if not transcription_base_url or not transcription_api_key:
         raise ToolRunnerConfigurationError(
@@ -275,8 +398,8 @@ def build_session_controller(
         session_logger=TranscriptSessionLogger(
             logs_dir=Path(settings.system_audio_translation_logs_dir).expanduser()
         ),
-        source_language=settings.system_audio_translation_source_language,
-        target_language=settings.system_audio_translation_target_language,
+        source_language=effective_source_language,
+        target_language=effective_target_language,
         sample_rate_hz=settings.system_audio_translation_sample_rate_hz,
         segment_seconds=settings.system_audio_translation_segment_seconds,
         overlap_seconds=settings.system_audio_translation_overlap_seconds,

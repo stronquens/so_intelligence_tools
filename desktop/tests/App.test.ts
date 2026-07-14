@@ -1,7 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App.vue";
-import type { DesktopSettings } from "../src/types";
+import type { DesktopSettings, UiEvent } from "../src/types";
 
 function createSettings(): DesktopSettings {
   return {
@@ -21,8 +21,29 @@ function createSettings(): DesktopSettings {
   };
 }
 
+function createTranslatorBridge(initialEvents: UiEvent[] = []) {
+  let listener: ((event: UiEvent) => void) | undefined;
+  return {
+    sendCommand: vi.fn().mockResolvedValue({ accepted: true }),
+    windowAction: vi.fn().mockResolvedValue({ accepted: true }),
+    ready: vi.fn().mockResolvedValue({ accepted: true, events: initialEvents }),
+    onEvent: vi.fn((nextListener: (event: UiEvent) => void) => {
+      listener = nextListener;
+      return () => {
+        listener = undefined;
+      };
+    }),
+    emit(event: UiEvent) {
+      listener?.(event);
+    },
+  };
+}
+
 afterEach(() => {
+  document.querySelectorAll(".language-menu").forEach((menu) => menu.remove());
+  document.querySelectorAll(".model-menu").forEach((menu) => menu.remove());
   window.history.pushState({}, "", "/");
+  window.localStorage.removeItem("translator-density");
   delete window.desktopBridge;
   delete window.translatorBridge;
 });
@@ -270,18 +291,298 @@ describe("Real-Time Translator UI", () => {
 
     expect(wrapper.text()).toContain("Real-Time Translator");
     expect(wrapper.text()).toContain("Good morning everyone");
-    expect(wrapper.text()).toContain("Buenos dias a todos");
-    expect(wrapper.findAll(".timeline-pair").length).toBeGreaterThanOrEqual(4);
+    expect(wrapper.text()).toContain("Buenos días a todos");
+    expect(wrapper.findAll(".timeline-pair")).toHaveLength(4);
+    expect(wrapper.text()).toContain("Preview");
+    expect(wrapper.findAll(".language-flag")).toHaveLength(2);
+  });
+
+  it("keeps the Electron visual mock disconnected from the paid bridge", async () => {
+    window.history.pushState({}, "", "/?view=translator&mock=1");
+    const bridge = createTranslatorBridge([
+      { type: "session_state", state: "active", message: "Paid session" },
+    ]);
+    window.translatorBridge = bridge;
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Preview");
+    expect(wrapper.text()).toContain("Good morning everyone");
+    expect(wrapper.text()).not.toContain("Paid session");
+    expect(bridge.ready).not.toHaveBeenCalled();
   });
 
   it("sends pause commands through the desktop bridge", async () => {
     window.history.pushState({}, "", "/?view=translator");
-    const sendCommand = vi.fn().mockResolvedValue({ accepted: true });
-    window.translatorBridge = { sendCommand };
+    const bridge = createTranslatorBridge([
+      { type: "session_state", state: "active", message: "Escuchando" },
+    ]);
+    window.translatorBridge = bridge;
     const wrapper = mount(App);
 
+    await flushPromises();
     await wrapper.find(".control-button.primary").trigger("click");
 
-    expect(sendCommand).toHaveBeenCalledWith({ type: "pause" });
+    expect(bridge.sendCommand).toHaveBeenCalledWith({ type: "pause" });
+  });
+
+  it("renders buffered blocks and live partial updates from Python", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge([
+      { type: "session_state", state: "active", message: "Escuchando y traduciendo" },
+      {
+        type: "block",
+        id: "block-1",
+        sourceText: "Can everyone see my screen?",
+        translatedText: "¿Podéis ver todos mi pantalla?",
+        timestamp: "12:04:08",
+      },
+    ]);
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Can everyone see my screen?");
+    expect(wrapper.text()).toContain("¿Podéis ver todos mi pantalla?");
+    expect(wrapper.text()).not.toContain("Preview");
+
+    bridge.emit({ type: "partial", kind: "original", text: "The next point" });
+    bridge.emit({ type: "partial", kind: "translation", text: "El siguiente punto" });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("The next point");
+    expect(wrapper.text()).toContain("El siguiente punto");
+    expect(wrapper.find(".timeline-pair.streaming").exists()).toBe(true);
+  });
+
+  it("keeps completed history visible when the backend reconnects", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge([
+      {
+        type: "block",
+        id: "block-1",
+        sourceText: "Completed original",
+        translatedText: "Traducción completada",
+        timestamp: "12:05:00",
+      },
+    ]);
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    bridge.emit({ type: "session_state", state: "reconnecting", message: "Reconectando" });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Traducción completada");
+    expect(wrapper.text()).toContain("Reconnecting");
+  });
+
+  it("changes the real backend mode from the model menu", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge([
+      { type: "mode", mode: "translate_es_openai_realtime" },
+    ]);
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    const selector = wrapper.find<HTMLButtonElement>('.model-select-trigger[aria-label="Transcription model"]');
+    await selector.trigger("click");
+    expect(document.querySelectorAll(".model-menu .model-option")).toHaveLength(2);
+    document.querySelector<HTMLButtonElement>('.model-menu [data-model="translate_es_chunked"]')?.click();
+    await flushPromises();
+
+    expect(bridge.sendCommand).toHaveBeenCalledWith({
+      type: "change_mode",
+      mode: "translate_es_chunked",
+    });
+    expect(selector.text()).toContain("Chunked transcription");
+
+    bridge.emit({ type: "mode", mode: "translate_es_openai_realtime" });
+    await flushPromises();
+    expect(selector.text()).toContain("Chunked transcription");
+
+    bridge.emit({ type: "mode", mode: "translate_es_chunked" });
+    await flushPromises();
+    expect(selector.attributes("disabled")).toBeUndefined();
+  });
+
+  it("renders aligned transcript columns and persists compact density", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const wrapper = mount(App);
+
+    expect(wrapper.findAll(".bubble-grid")).toHaveLength(4);
+    expect(wrapper.find(".translator-shell").classes()).toContain("density-compact");
+
+    await wrapper.findAll(".density-control button")[1].trigger("click");
+
+    expect(wrapper.find(".translator-shell").classes()).toContain("density-comfortable");
+    expect(window.localStorage.getItem("translator-density")).toBe("comfortable");
+  });
+
+  it("builds language selectors from backend configuration and applies a change", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge([
+      {
+        type: "session_config",
+        sourceLanguage: "auto",
+        targetLanguage: "es",
+        languages: [
+          { code: "en", label: "English" },
+          { code: "es", label: "Spanish" },
+          { code: "fr", label: "French" },
+        ],
+      },
+    ]);
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    const targetSelector = wrapper.find<HTMLButtonElement>('.language-select[aria-label="Target language"]');
+    await targetSelector.trigger("click");
+    expect(document.querySelectorAll('.language-menu [role="option"]')).toHaveLength(3);
+    expect(document.querySelectorAll(".language-menu .language-flag")).toHaveLength(3);
+    document.querySelector<HTMLButtonElement>('.language-menu [data-language-code="fr"]')?.click();
+    await flushPromises();
+
+    expect(bridge.sendCommand).toHaveBeenCalledWith({
+      type: "change_languages",
+      sourceLanguage: "auto",
+      targetLanguage: "fr",
+    });
+    expect(targetSelector.text()).toContain("French");
+
+    bridge.emit({
+      type: "session_config",
+      sourceLanguage: "auto",
+      targetLanguage: "es",
+      languages: [
+        { code: "en", label: "English" },
+        { code: "es", label: "Spanish" },
+        { code: "fr", label: "French" },
+      ],
+    });
+    await flushPromises();
+    expect(targetSelector.text()).toContain("French");
+
+    bridge.emit({
+      type: "session_config",
+      sourceLanguage: "auto",
+      targetLanguage: "fr",
+      languages: [
+        { code: "en", label: "English" },
+        { code: "es", label: "Spanish" },
+        { code: "fr", label: "French" },
+      ],
+    });
+    await flushPromises();
+    expect(targetSelector.attributes("disabled")).toBeUndefined();
+  });
+
+  it("shows a flag for every language in the backend catalog", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const codes = ["en", "es", "fr", "de", "it", "pt", "ca", "gl", "eu", "nl", "pl", "ru", "uk", "ar", "hi", "ja", "ko", "zh"];
+    const bridge = createTranslatorBridge([{
+      type: "session_config",
+      sourceLanguage: "en",
+      targetLanguage: "es",
+      languages: codes.map((code) => ({ code, label: code.toUpperCase() })),
+    }]);
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    await wrapper.find('.language-select[aria-label="Target language"]').trigger("click");
+
+    expect(document.querySelectorAll(".language-menu .language-option")).toHaveLength(codes.length);
+    expect(document.querySelectorAll(".language-menu .language-flag")).toHaveLength(codes.length);
+  });
+
+  it("shows a single pending pause state until Python confirms it", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge([
+      { type: "session_state", state: "active", message: "Escuchando" },
+    ]);
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    await wrapper.find(".control-button.primary").trigger("click");
+    expect(wrapper.text()).toContain("Pausing…");
+    expect(wrapper.find(".control-button.primary").attributes("disabled")).toBeDefined();
+    expect(wrapper.find(".control-button.primary .control-icon-surface").exists()).toBe(true);
+    expect(wrapper.find(".control-button.primary .pending-control-icon").exists()).toBe(true);
+
+    bridge.emit({ type: "session_state", state: "paused", message: "Pausado" });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Resume");
+    expect(wrapper.text()).not.toContain("Pausing…");
+  });
+
+  it("drives the waveform from the selected real audio source", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge([
+      { type: "session_state", state: "active", message: "Escuchando" },
+    ]);
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    bridge.emit({ type: "audio_level", source: "system", level: 0.2 });
+    await flushPromises();
+    expect(wrapper.text()).toContain("Incoming system audio");
+    expect(wrapper.findAll(".waveform span").at(-1)?.attributes("style")).toContain("58px");
+
+    bridge.emit({ type: "voice_translation_state", active: true, message: "Selecciona so_ai_translated_mic" });
+    bridge.emit({ type: "voice_translation_output", chunks: 25, bytes: 96000 });
+    bridge.emit({ type: "audio_level", source: "microphone", level: 0.3 });
+    await flushPromises();
+    expect(wrapper.text()).toContain("Physical microphone level");
+    expect(wrapper.find(".voice-output-strip").text()).toContain("Selecciona so_ai_translated_mic");
+    expect(wrapper.find(".voice-output-strip").text()).toContain("Audio confirmed · 93.8 KB · 25 chunks");
+    expect(wrapper.find(".voice-output-strip").classes()).toContain("voice-active");
+  });
+
+  it("blocks duplicate translated-microphone commands until Python confirms", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge();
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    const microphoneButton = wrapper.findAll(".control-button")[0];
+    await microphoneButton.trigger("click");
+    await microphoneButton.trigger("click");
+    expect(wrapper.text()).toContain("Connecting…");
+    expect(wrapper.find(".voice-output-strip").text()).toContain("Conectando la salida de voz traducida");
+    expect(bridge.sendCommand).toHaveBeenCalledTimes(1);
+    expect(microphoneButton.find(".control-icon-surface").exists()).toBe(true);
+    expect(microphoneButton.find(".pending-control-icon").exists()).toBe(true);
+
+    bridge.emit({ type: "voice_translation_state", active: true, message: "Selecciona so_ai_translated_mic" });
+    await flushPromises();
+    expect(wrapper.text()).toContain("Translated mic");
+    expect(microphoneButton.attributes("disabled")).toBeUndefined();
+  });
+
+  it("dispatches native window controls from the titlebar", async () => {
+    window.history.pushState({}, "", "/?view=translator");
+    const bridge = createTranslatorBridge();
+    window.translatorBridge = bridge;
+    const wrapper = mount(App);
+    await flushPromises();
+
+    await wrapper.find(".dot.yellow").trigger("click");
+    await wrapper.find(".dot.green").trigger("click");
+    await wrapper.find(".dot.red").trigger("click");
+
+    expect(bridge.windowAction.mock.calls).toEqual([
+      ["minimize"],
+      ["toggle-maximize"],
+      ["close"],
+    ]);
+    expect(wrapper.findAll(".dot-mark")).toHaveLength(3);
   });
 });

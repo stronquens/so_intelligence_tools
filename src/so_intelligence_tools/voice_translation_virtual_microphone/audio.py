@@ -333,9 +333,17 @@ class PulseAudioVirtualMicrophone:
 
     def start(self) -> None:
         self._ensure_tooling()
-        if self._sink_module_id is None:
+        sink_exists = self._device_exists("sinks", self.playback_sink_name)
+        source_exists = self._device_exists("sources", self.virtual_source_name)
+        if source_exists and not sink_exists:
+            raise AudioCaptureError(
+                "El micrófono virtual existente no tiene su sink interno: "
+                f"{self.virtual_source_name}. Reinicia PipeWire/PulseAudio o elimina "
+                "la fuente huérfana antes de reintentarlo."
+            )
+        if self._sink_module_id is None and not sink_exists:
             self._sink_module_id = self._load_null_sink()
-        if self._source_module_id is None:
+        if self._source_module_id is None and not source_exists:
             try:
                 self._source_module_id = self._load_remap_source()
             except Exception:
@@ -355,6 +363,20 @@ class PulseAudioVirtualMicrophone:
             self._unload_source_module()
             self._unload_sink_module()
             raise
+
+    def _device_exists(self, kind: str, name: str) -> bool:
+        result = subprocess.run(
+            [self.pactl_bin, "list", "short", kind],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return False
+        return any(
+            len(parts := line.split()) >= 2 and parts[1] == name
+            for line in result.stdout.splitlines()
+        )
 
     def write(self, pcm_bytes: bytes) -> None:
         if self._playback is None:
@@ -455,6 +477,7 @@ class MicrophonePassthroughToVirtualMicrophone:
     playback: PulseAudioPcmPlayback
     volume: float = 1.0
     on_audio_forwarded: Callable[[int, int, float], None] | None = None
+    on_audio_level: Callable[[float], None] | None = None
     _lock: threading.Lock = field(init=False, default_factory=threading.Lock)
     _chunk_count: int = field(init=False, default=0)
     _byte_count: int = field(init=False, default=0)
@@ -481,6 +504,10 @@ class MicrophonePassthroughToVirtualMicrophone:
         with self._lock:
             volume = self.volume
         self.playback.write(scale_pcm_s16le(chunk, volume))
+        if self.on_audio_level is not None:
+            from so_intelligence_tools.audio_level import normalized_pcm_s16le_rms
+
+            self.on_audio_level(normalized_pcm_s16le_rms(chunk))
         self._chunk_count += 1
         self._byte_count += len(chunk)
         if self.on_audio_forwarded is not None:

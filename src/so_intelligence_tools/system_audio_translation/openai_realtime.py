@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 import threading
+import time
 
 from openai import AsyncOpenAI
 
@@ -92,6 +93,8 @@ class OpenAIRealtimeTranslationController:
         init=False,
         default=None,
     )
+    _on_audio_level: Callable[[float], None] | None = field(init=False, default=None)
+    _last_audio_level_at: float = field(init=False, default=0.0)
     _last_logged_original_partial: str = field(init=False, default="")
     _last_logged_translation_partial: str = field(init=False, default="")
 
@@ -107,10 +110,12 @@ class OpenAIRealtimeTranslationController:
         on_state_changed: Callable[[LiveSessionState, str], None],
         on_block_ready: Callable[[TranscriptBlock], None],
         on_partial_text_changed: Callable[[LivePartialUpdate], None] | None = None,
+        on_audio_level: Callable[[float], None] | None = None,
     ) -> None:
         self._on_state_changed = on_state_changed
         self._on_block_ready = on_block_ready
         self._on_partial_text_changed = on_partial_text_changed
+        self._on_audio_level = on_audio_level
 
     def start(self) -> None:
         if self.state not in {"inactive", "error"}:
@@ -186,6 +191,13 @@ class OpenAIRealtimeTranslationController:
     def _on_audio_chunk(self, chunk: bytes) -> None:
         if self.state not in {"active", "reconnecting"}:
             return
+        if self._on_audio_level is not None:
+            now = time.monotonic()
+            if now - self._last_audio_level_at >= 0.08:
+                from so_intelligence_tools.audio_level import normalized_pcm_s16le_rms
+
+                self._last_audio_level_at = now
+                self._on_audio_level(normalized_pcm_s16le_rms(chunk))
         with self._condition:
             if len(self._pending_audio) == self.max_pending_audio_chunks:
                 self._dropped_audio_chunks += 1
@@ -595,11 +607,17 @@ class OpenAIRealtimeTranslationController:
             self._last_logged_translation_partial = clean
 
     def _build_realtime_instructions(self) -> str:
+        from so_intelligence_tools.system_audio_translation.languages import language_name
+
+        target_language = language_name(self.target_language)
         return (
             "You are a real-time subtitle translator for system audio. "
-            "Output concise Spanish subtitles only. If the speaker is already speaking Spanish, "
-            "transcribe it naturally in Spanish instead of suppressing it. If the speaker is "
-            "speaking another language, translate it to Spanish. Do not explain, do not prefix "
+            f"Output concise {target_language} subtitles only. "
+            f"If the speaker is already speaking {target_language}, "
+            f"transcribe it naturally in {target_language} instead of suppressing it. "
+            "If the speaker is "
+            f"speaking another language, translate it to {target_language}. "
+            "Do not explain, do not prefix "
             "labels, and do not include the original language."
         )
 

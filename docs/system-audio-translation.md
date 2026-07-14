@@ -18,6 +18,10 @@ Manual command:
 poetry run so-intelligence-tools run-system-audio-translation-toggle
 ```
 
+The manual command retains the Tkinter window as a fallback. On Linux, the installed shortcut opens the connected Electron/Vue interface by default. It uses the same Python controller and logs, and supports live partials, side-by-side original/translation history, pause, resume, restart, stop, mode changes, source/target language changes and the translated-microphone toggle.
+
+Electron communicates with Python over local JSON Lines standard streams. Audio, provider credentials and model calls remain in Python and are not exposed to the renderer.
+
 ## Modes
 
 Common mode:
@@ -44,6 +48,14 @@ quickly the provider closes a spoken turn after silence. Lower values reduce
 latency but can produce shorter history blocks. Tune it conservatively because
 larger values delay every completed translation.
 
+The Electron selectors are populated by the language catalog published by the
+Python bridge. `Auto detect` is available only for the source. Changing either
+language stops the active controller and starts a new one with the selected
+codes while the renderer keeps the completed conversation visible. The current
+catalog includes English, Spanish, French, German, Italian, Portuguese,
+Catalan, Galician, Basque, Dutch, Polish, Russian, Ukrainian, Arabic, Hindi,
+Japanese, Korean and Chinese.
+
 ## Realtime History Behavior
 
 Realtime history is tracked by provider turn identity rather than translated
@@ -69,6 +81,8 @@ Implementation details:
 - The Linux adapter detects the default output sink with `pactl`.
 - It captures the sink monitor source, for example `<default-sink>.monitor`.
 - It reads mono `s16le` PCM chunks with `parec` and forwards those chunks to the translation pipeline.
+- It computes throttled normalized RMS levels from those same chunks for the Electron meter; production bars are not a decorative animation.
+- When translated voice is active, the meter switches to levels measured from the physical microphone passthrough.
 
 ## Windows Audio Plan
 
@@ -103,3 +117,4 @@ from history rendering.
 - Realtime translation can require a paid provider API key.
 - Speaker separation is not currently a polished feature.
 - Audio routing depends on the local Linux audio stack.
+- Dynamic audio-device selection is not exposed in the desktop UI yet.

@@ -127,6 +127,8 @@ class SystemAudioTranslationController:
         self._on_state_changed: Callable[[LiveSessionState, str], None] | None = None
         self._on_block_ready: Callable[[TranscriptBlock], None] | None = None
         self._on_partial_text_changed: Callable[[LivePartialUpdate], None] | None = None
+        self._on_audio_level: Callable[[float], None] | None = None
+        self._last_audio_level_at = 0.0
 
     def bind_callbacks(
         self,
@@ -134,10 +136,12 @@ class SystemAudioTranslationController:
         on_state_changed: Callable[[LiveSessionState, str], None],
         on_block_ready: Callable[[TranscriptBlock], None],
         on_partial_text_changed: Callable[[LivePartialUpdate], None] | None = None,
+        on_audio_level: Callable[[float], None] | None = None,
     ) -> None:
         self._on_state_changed = on_state_changed
         self._on_block_ready = on_block_ready
         self._on_partial_text_changed = on_partial_text_changed
+        self._on_audio_level = on_audio_level
 
     def start(self) -> None:
         if self.state not in {"inactive", "error"}:
@@ -195,6 +199,7 @@ class SystemAudioTranslationController:
     def _on_audio_chunk(self, chunk: bytes) -> None:
         if self.state not in {"active", "reconnecting"}:
             return
+        self._publish_audio_level(chunk)
         ready_segments = self._accumulator.add_chunk(chunk)
         if not ready_segments:
             return
@@ -202,6 +207,17 @@ class SystemAudioTranslationController:
             for segment in ready_segments:
                 self._pending_segments.append(segment)
             self._condition.notify_all()
+
+    def _publish_audio_level(self, chunk: bytes) -> None:
+        if self._on_audio_level is None:
+            return
+        now = time.monotonic()
+        if now - self._last_audio_level_at < 0.08:
+            return
+        from so_intelligence_tools.audio_level import normalized_pcm_s16le_rms
+
+        self._last_audio_level_at = now
+        self._on_audio_level(normalized_pcm_s16le_rms(chunk))
 
     def _worker_loop(self) -> None:
         while not self._stop_event.is_set():

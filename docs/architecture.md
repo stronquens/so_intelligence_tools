@@ -42,6 +42,8 @@ poetry run so-intelligence-tools listen-dictation-shortcut
 poetry run so-intelligence-tools show-shortcuts
 ```
 
+The system-audio command above is the retained Tkinter fallback. The Linux desktop shortcut opens Electron, which spawns `run-system-audio-translation-desktop-bridge` and exchanges typed JSON Lines events and commands while leaving capture and provider access in Python.
+
 ### Desktop Adapters
 
 Adapters isolate OS-specific behavior from shared application use cases.

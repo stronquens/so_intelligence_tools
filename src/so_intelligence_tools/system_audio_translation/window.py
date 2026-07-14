@@ -22,6 +22,7 @@ class SystemAudioTranslationWindow:
         on_close: Callable[[], None],
         on_mode_changed: Callable[[SystemAudioSessionMode], None],
         on_voice_translation_toggle: Callable[[], None],
+        on_languages_changed: Callable[[str, str], None],
     ) -> None:
         self._on_pause = on_pause
         self._on_resume = on_resume
@@ -29,6 +30,7 @@ class SystemAudioTranslationWindow:
         self._on_close = on_close
         self._on_mode_changed = on_mode_changed
         self._on_voice_translation_toggle = on_voice_translation_toggle
+        self._on_languages_changed = on_languages_changed
         self._ui_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self._closed = False
         self._mode_value_to_label = dict(SYSTEM_AUDIO_MODE_LABELS)
@@ -171,8 +173,27 @@ class SystemAudioTranslationWindow:
     def set_mode(self, mode: SystemAudioSessionMode) -> None:
         self._ui_queue.put(("mode", mode))
 
-    def set_voice_translation_state(self, active: bool, message: str) -> None:
+    def set_voice_translation_state(
+        self, active: bool, message: str, state: str | None = None
+    ) -> None:
+        _ = state
         self._ui_queue.put(("voice_translation", (active, message)))
+
+    def set_audio_level(self, level: float, source: str = "system") -> None:
+        _ = (level, source)
+
+    def set_voice_translation_output(self, chunks: int, byte_count: int) -> None:
+        _ = (chunks, byte_count)
+
+    def set_session_config(
+        self,
+        source_language: str,
+        target_language: str,
+        languages: list[dict[str, str]],
+    ) -> None:
+        # The legacy Tkinter fallback keeps its existing controls. Electron owns
+        # interactive language selection, but both surfaces share the controller.
+        _ = (source_language, target_language, languages)
 
     def close_from_controller(self) -> None:
         self._ui_queue.put(("close", None))

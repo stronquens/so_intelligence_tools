@@ -4,6 +4,14 @@ Status: Working, API-backed.
 
 The voice translation virtual microphone captures your physical microphone, sends your speech to a realtime translation backend, and exposes a virtual microphone named `so_ai_translated_mic` for call apps.
 
+The OpenAI path uses the dedicated `/v1/realtime/translations` session with
+`gpt-realtime-translate`, sends 24 kHz PCM16 continuously and configures the
+selected target language in `session.audio.output.language`. On shutdown it
+sends `session.close`, drains briefly for final translated output and cancels
+the receive task if the provider does not confirm closure within the bounded
+timeout. The UI is not told that translation is inactive while its worker is
+still running.
+
 ## Correct Call Setup
 
 In Slack, Meet, Zoom, or similar apps:
@@ -72,6 +80,12 @@ The Linux implementation creates the virtual microphone dynamically with PulseAu
 - `module-remap-source` exposes that sink monitor as the selectable microphone `so_ai_translated_mic`.
 - `pacat` writes passthrough and translated PCM into the internal sink.
 - Call apps should select `so_ai_translated_mic` as microphone and keep normal headphones or speakers as output.
+- If the exact sink and source already exist after an interrupted run, the app reuses them instead of creating a suffixed device such as `.2`.
+
+The internal sink behaves like a virtual speaker only inside the routing graph.
+For the videollamada, the user-facing endpoint remains the recording device
+`so_ai_translated_mic`; it must be selected as the call microphone, never as its
+speaker.
 
 ## Windows Audio Plan
 
@@ -105,3 +119,7 @@ VOICE_TRANSLATION_DUCKED_PASSTHROUGH_VOLUME=0.03
 VOICE_TRANSLATION_OUTPUT_VOLUME=0.75
 ```
 
+If the desktop UI reports an invalid backend JSON event, inspect the current
+checkout before retrying a paid session. Operational messages must go to
+`stderr`; any plain status text in bridge `stdout` indicates a protocol bug,
+not a translation-model response.

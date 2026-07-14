@@ -76,6 +76,7 @@ from so_intelligence_tools.push_to_talk_dictation import (
     run_push_to_talk_dictation_service,
 )
 from so_intelligence_tools.system_audio_translation import (
+    run_system_audio_translation_desktop_bridge,
     run_system_audio_translation_toggle,
 )
 from so_intelligence_tools.voice_translation_virtual_microphone import (
@@ -99,6 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     selected_parser.add_argument("--debug", action="store_true")
     selected_parser.add_argument("--debug-log-path", default=None)
     subparsers.add_parser("run-system-audio-translation-toggle")
+    subparsers.add_parser("run-system-audio-translation-desktop-bridge")
     subparsers.add_parser("run-voice-translation-virtual-mic-toggle")
     subparsers.add_parser("run-push-to-talk-dictation-service")
     subparsers.add_parser("check-push-to-talk-dictation-runtime")
@@ -252,6 +254,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "run-system-audio-translation-toggle":
             result = run_system_audio_translation_toggle(settings)
             print(result)
+            return 0
+
+        if args.command == "run-system-audio-translation-desktop-bridge":
+            run_system_audio_translation_desktop_bridge(settings)
             return 0
 
         if args.command == "run-voice-translation-virtual-mic-toggle":
