@@ -34,7 +34,7 @@ The production Docker server stayed warm at `http://127.0.0.1:9000`. Candidate m
 Benchmark script:
 
 ```bash
-poetry run python openspec/changes/archive/2026-07-01-benchmark-whisper-cpu-dictation-models/benchmark_whisper_cpu_models.py \
+poetry run python openspec/changes/archive/benchmark-whisper-cpu-dictation-models/benchmark_whisper_cpu_models.py \
   --sample /home/sciling/.cache/so_intelligence_tools/voice_translation_debug_audio/voice-translation-final-output-20260610-155636.wav \
   --models base small medium \
   --max-seconds 12 \
@@ -106,4 +106,4 @@ Keep `large-v3-turbo` as the default on this CPU-only Linux workstation for now.
 
 `small` and `base` are fast enough to reduce the post-release wait, but they lose too much Spanish content for quality-first dictation. `medium` is the only plausible lower-latency candidate, but on this sample it saved only about 1.6 seconds versus `large-v3-turbo` and still degraded the transcript. If this question comes up again, rerun the benchmark with two or three real dictated Spanish samples plus human reference transcripts before changing the default.
 
-Durable spike evidence lives under `openspec/changes/archive/2026-07-01-benchmark-whisper-cpu-dictation-models/`.
+Durable spike evidence lives under `openspec/changes/archive/benchmark-whisper-cpu-dictation-models/`.

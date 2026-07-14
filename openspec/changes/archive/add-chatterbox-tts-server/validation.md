@@ -120,8 +120,8 @@ Updated defaults and docs:
 Cleaned discarded TTS investigation artifacts:
 
 - Removed active workstation TTS benchmark change `openspec/changes/benchmark-current-workstation-tts-models`.
-- Removed archived Piper service change `openspec/changes/archive/2026-07-01-add-piper-tts-voice-output`.
-- Removed archived CPU TTS benchmark change `openspec/changes/archive/2026-07-01-benchmark-local-tts-cpu-models`.
+- Removed archived Piper service change `openspec/changes/archive/add-piper-tts-voice-output`.
+- Removed archived CPU TTS benchmark change `openspec/changes/archive/benchmark-local-tts-cpu-models`.
 - Removed Docker volume `so-ai-chatterbox-es-es-cache`.
 - No Piper/Kokoro/Qwen/NeuTTS/NutDD TTS containers or volumes remain.
 - Retained `chatterbox-tts-chatterbox-tts:latest` image and `chatterbox-tts_chatterbox-tts-data` volume because they belong to the deployed Chatterbox API.

@@ -53,6 +53,7 @@ Los nombres de capability deben describir la funciÃ³n y mantenerse estables en
 - `overlay-agent-chat`: barra de texto conversacional en el overlay con acceso a herramientas del sistema.
 - `system-audio-transcription`: captura de audio del sistema, transcripciÃ³n o traducciÃ³n en vivo y visualizaciÃ³n en una ventana propia.
 - `voice-translation-virtual-microphone`: micrÃ³fono virtual compatible con apps de videollamada que hace passthrough o traducciÃ³n de voz en streaming.
+- `openspec-change-lifecycle`: convenciones para identificar y archivar changes con rutas estables, sin prefijos de fecha ni sobrescritura de evidencia.
 
 ## Current Operational Status
 
@@ -87,7 +88,7 @@ Los nombres de capability deben describir la funciÃ³n y mantenerse estables en
 4. Implementar y marcar tareas completadas.
 5. Validar con evidencia.
 6. Sincronizar specs si corresponde.
-7. Archivar en `openspec/changes/archive/`.
+7. Archivar en `openspec/changes/archive/<change-name>/`, conservando el nombre original sin prefijo de fecha. Si el destino ya existe, detenerse y resolver la colisión sin sobrescribir evidencia.
 
 ## Notes
 

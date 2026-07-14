@@ -19,3 +19,4 @@ Este índice ordena las capabilities por prioridad de ejecución recomendada y a
 | 13 | `overlay-launcher-desktop-ui` | No | `system-ui` | `none` | Implementación Electron/Vue del overlay principal con superficie translúcida, catálogo de herramientas y ventanas independientes para ajustes y traductor. |
 | 14 | `realtime-translation-desktop-ui` | Si | `audio/system-ui` | `none` | Interfaz Electron/Vue funcional para traducción en vivo, historial alineado, controles de sesión, niveles PCM y salida de voz traducida, manteniendo Python como backend y Tkinter como fallback. |
 | 15 | `voice-translation-virtual-microphone` | Si | `audio` | `remote` | Micrófono virtual para traducir la voz del usuario en tiempo real con streaming remoto. |
+| 16 | `openspec-change-lifecycle` | No | `repository` | `none` | Convenciones estables para identificar, validar, sincronizar y archivar changes OpenSpec sin duplicar rutas por fecha ni perder evidencia. |

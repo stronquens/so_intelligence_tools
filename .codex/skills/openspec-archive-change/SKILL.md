@@ -1,11 +1,6 @@
 ---
 name: openspec-archive-change
 description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.
-license: MIT
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.4.1"
 ---
 
 Archive a completed change in the experimental workflow.
@@ -87,14 +82,17 @@ Archive a completed change in the experimental workflow.
    mkdir -p "<planningHome.changesDir>/archive"
    ```
 
-   Generate target name using current date: `YYYY-MM-DD-<change-name>`
+   Use the stable target name `<change-name>` without a date or other prefix.
 
    **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
+   - If yes: Stop before moving or overwriting anything
+   - Compare both directories to determine whether they represent the same change
+   - Consolidate only when every artifact and evidence file can be preserved without ambiguity or loss
+   - Otherwise require a distinct functional change name; never add a date to bypass the collision
    - If no: Move `changeRoot` to the archive directory
 
    ```bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
+   mv "<changeRoot>" "<planningHome.changesDir>/archive/<name>"
    ```
 
 7. **Display summary**
@@ -113,7 +111,7 @@ Archive a completed change in the experimental workflow.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from `planningHome.changesDir`/YYYY-MM-DD-<name>/
+**Archived to:** the archive path derived from `planningHome.changesDir`/archive/<name>/
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 
 All artifacts complete. All tasks complete.
@@ -124,6 +122,8 @@ All artifacts complete. All tasks complete.
 - Use artifact graph (openspec status --json) for completion checking
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
+- Preserve the change name exactly and never introduce a date prefix
+- Never overwrite an existing stable archive destination
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
