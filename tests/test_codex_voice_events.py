@@ -207,6 +207,132 @@ def test_extractor_does_not_end_turn_for_premature_completion_before_tool_call()
     ]
 
 
+def test_extractor_ignores_completion_for_another_correlated_turn():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed(_turn_started("thread-a", "turn-a")) == ["Inicio de tarea."]
+    assert extractor.feed(_agent_delta("thread-a", "turn-a", "Voy a revisarlo.")) == []
+    assert extractor.feed(_turn_completed("thread-b", "turn-b")) == []
+    assert extractor.feed(_turn_completed("thread-a", "turn-a")) == ["Fin de tarea."]
+
+
+def test_extractor_deduplicates_correlated_completion():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed(_turn_started("thread-a", "turn-a")) == ["Inicio de tarea."]
+    assert extractor.feed(_turn_completed("thread-a", "turn-a")) == ["Fin de tarea."]
+    assert extractor.feed(_turn_completed("thread-a", "turn-a")) == []
+
+
+def test_extractor_deduplicates_correlated_completion_without_start():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed(_turn_completed("thread-a", "turn-a")) == ["Fin de tarea."]
+    assert extractor.feed(_turn_completed("thread-a", "turn-a")) == []
+
+
+def test_extractor_ignores_background_progress_for_another_turn():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed(_turn_started("thread-a", "turn-a")) == ["Inicio de tarea."]
+    assert (
+        extractor.feed(
+            _item_started("thread-b", "turn-b", item_type="command_execution")
+        )
+        == []
+    )
+    assert extractor.feed(
+        _item_started("thread-a", "turn-a", item_type="command_execution")
+    ) == ["Ejecutando comando."]
+
+
+def test_extractor_does_not_flush_text_for_unrelated_completion():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="standard"
+    )
+
+    assert extractor.feed(_turn_started("thread-a", "turn-a")) == ["Inicio de tarea."]
+    assert (
+        extractor.feed(_agent_delta("thread-a", "turn-a", "Mensaje sin punto final"))
+        == []
+    )
+    assert extractor.feed(_turn_completed("thread-b", "turn-b")) == []
+    assert extractor.feed(_turn_completed("thread-a", "turn-a")) == [
+        "Mensaje sin punto final",
+        "Fin de tarea.",
+    ]
+
+
+def test_extractor_uses_terminal_turn_status_for_completion_speech():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed(_turn_started("thread-a", "turn-a")) == ["Inicio de tarea."]
+    assert extractor.feed(_turn_completed("thread-a", "turn-a", status="failed")) == [
+        "Fin de tarea con error."
+    ]
+
+
+def test_extractor_preserves_identifierless_legacy_fallback():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed({"method": "turn/started", "params": {}}) == [
+        "Inicio de tarea."
+    ]
+    assert extractor.feed({"method": "turn/completed", "params": {}}) == []
+    assert (
+        extractor.feed(
+            {"method": "item/agentMessage/delta", "params": {"delta": "Listo."}}
+        )
+        == []
+    )
+    assert extractor.feed({"method": "turn/completed", "params": {}}) == [
+        "Fin de tarea."
+    ]
+
+
+def test_extractor_correlates_snake_case_legacy_alias_identifiers():
+    extractor = CodexVisibleEventExtractor(
+        include_progress=True, speech_detail="actions"
+    )
+
+    assert extractor.feed(
+        {
+            "type": "codex/event/task_started",
+            "thread_id": "thread-a",
+            "turn_id": "turn-a",
+        }
+    ) == ["Inicio de tarea."]
+    assert (
+        extractor.feed(
+            {
+                "type": "codex/event/task_complete",
+                "thread_id": "thread-b",
+                "turn_id": "turn-b",
+            }
+        )
+        == []
+    )
+    assert extractor.feed(
+        {
+            "type": "codex/event/task_complete",
+            "thread_id": "thread-a",
+            "turn_id": "turn-a",
+        }
+    ) == ["Fin de tarea."]
+
+
 def test_no_code_detail_drops_code_blocks():
     extractor = CodexVisibleEventExtractor(speech_detail="no-code")
 
@@ -476,3 +602,74 @@ def test_listener_prioritizes_turn_completion_over_queued_message_segments():
     listener.join(timeout=2)
 
     assert client.spoken == ["Primer segmento.", "Fin de tarea."]
+
+
+def test_listener_does_not_clear_queue_for_unrelated_completion():
+    client = BlockingClient()
+    first_line = (
+        json.dumps(_agent_delta("thread-a", "turn-a", "Primer segmento.\n")) + "\n"
+    )
+    remaining_lines = [
+        json.dumps(_agent_delta("thread-a", "turn-a", "Segundo segmento.\n")) + "\n",
+        json.dumps(_turn_completed("thread-b", "turn-b")) + "\n",
+    ]
+
+    def line_source():
+        yield first_line
+        assert client.started.wait(timeout=2)
+        yield from remaining_lines
+
+    listener = threading.Thread(
+        target=run_codex_visible_event_listener,
+        kwargs={"lines": line_source(), "client": client, "include_progress": True},
+    )
+    listener.start()
+    assert client.started.wait(timeout=2)
+    client.release.set()
+    listener.join(timeout=2)
+
+    assert client.spoken == ["Primer segmento.", "Segundo segmento."]
+
+
+def _turn_started(thread_id: str, turn_id: str) -> dict:
+    return {
+        "method": "turn/started",
+        "params": {
+            "threadId": thread_id,
+            "turn": {"id": turn_id, "status": "inProgress", "items": []},
+        },
+    }
+
+
+def _turn_completed(thread_id: str, turn_id: str, *, status: str = "completed") -> dict:
+    return {
+        "method": "turn/completed",
+        "params": {
+            "threadId": thread_id,
+            "turn": {"id": turn_id, "status": status, "items": []},
+        },
+    }
+
+
+def _agent_delta(thread_id: str, turn_id: str, delta: str) -> dict:
+    return {
+        "method": "item/agentMessage/delta",
+        "params": {
+            "threadId": thread_id,
+            "turnId": turn_id,
+            "itemId": "message-1",
+            "delta": delta,
+        },
+    }
+
+
+def _item_started(thread_id: str, turn_id: str, *, item_type: str) -> dict:
+    return {
+        "method": "item/started",
+        "params": {
+            "threadId": thread_id,
+            "turnId": turn_id,
+            "startedAtMs": 1,
+            "item": {"id": "item-1", "type": item_type},
+        },
+    }

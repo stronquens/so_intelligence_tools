@@ -1,0 +1,28 @@
+Validation date: 2026-07-20 Europe/Madrid
+
+VS Code setting:
+8:    "chatgpt.cliExecutable": "/home/sciling/Escritorio/so_intelligence_tools/scripts/codex-tts-wrapper.py"
+
+Wrapper and backend:
+codex-cli 0.145.0-alpha.18
+Piper status: ready
+Wrapper mode: -rwxrwxr-x
+
+Focused automated tests:
+....................................                                     [100%]
+36 passed in 0.10s
+
+Isolated wrapper runtime smoke:
+PID       ON  DETAIL   VOICE    BASE_URL  UPDATED  CWD
+172470    on  actions  default  -         5s ago   /home/sciling/Escritorio/so_intelligence_tools
+
+Post-reload VS Code runtime observation:
+PID       ON  DETAIL   VOICE    BASE_URL  UPDATED  CWD
+174840    on  actions  default  -         3s ago   /home/sciling
+
+Speech smoke:
+Command submitted: speak-text --text "Prueba de voz de Codex restaurada."
+Result: spoken
+
+OpenSpec validation:
+Change 'restore-codex-tts-wrapper-configuration' is valid

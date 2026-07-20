@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 from urllib.parse import unquote, urlparse
@@ -33,6 +34,8 @@ SPEECH_DETAIL_ALIASES = {
     "exhaustive": "full",
 }
 SPEECH_DETAILS = {"minimal", "actions", "standard", "no-code", "full"}
+RECENT_COMPLETED_TURN_LIMIT = 32
+TurnKey = tuple[str, str]
 
 
 @dataclass(slots=True)
@@ -46,6 +49,11 @@ class CodexVisibleEventExtractor:
     _turn_active: bool = field(default=False, init=False)
     _turn_start_spoken: bool = field(default=False, init=False)
     _saw_agent_message_in_turn: bool = field(default=False, init=False)
+    _active_turn_key: TurnKey | None = field(default=None, init=False)
+    _recent_completed_turns: deque[TurnKey] = field(
+        default_factory=lambda: deque(maxlen=RECENT_COMPLETED_TURN_LIMIT),
+        init=False,
+    )
 
     def feed_line(self, line: str) -> list[str]:
         stripped = line.strip()
@@ -60,8 +68,10 @@ class CodexVisibleEventExtractor:
     def feed(self, payload: dict[str, Any]) -> list[str]:
         method = str(payload.get("method") or "")
         event_type = str(payload.get("type") or "")
+        turn_key = _extract_turn_key(payload)
         if _is_turn_start_event(method, event_type):
-            self._begin_turn()
+            if not self._accept_turn_start(turn_key):
+                return []
             if (
                 self.include_progress
                 and _detail_allows_lifecycle(self.speech_detail)
@@ -71,32 +81,41 @@ class CodexVisibleEventExtractor:
                 return self._prepare_text("Inicio de tarea.")
             return []
         if method == "item/agentMessage/delta":
-            self._mark_agent_message_seen()
+            if not self._accept_turn_event(turn_key):
+                return []
+            self._mark_agent_message_seen(turn_key)
             if not _detail_allows_messages(self.speech_detail):
                 return []
             return self._feed_delta(_extract_text(payload.get("params")))
         if _is_turn_completion_event(method, event_type):
+            if not self._accept_turn_completion(turn_key):
+                return []
             segments = self.flush()
             should_end_turn = self._should_end_turn(
-                method=method, event_type=event_type
+                method=method,
+                event_type=event_type,
+                turn_key=turn_key,
             )
             should_speak_completion = self._should_speak_turn_completion(
                 method=method,
                 event_type=event_type,
+                turn_key=turn_key,
             )
             if should_speak_completion:
-                completion_text = _turn_completion_text(method, event_type)
+                completion_text = _turn_completion_text(payload, method, event_type)
                 if completion_text:
                     segments.extend(self._prepare_text(completion_text))
             if should_end_turn:
-                self._end_turn()
+                self._end_turn(turn_key)
             return segments
 
+        if not self._accept_turn_event(turn_key):
+            return []
         if self._saw_agent_delta and _is_completed_agent_message(payload):
-            self._mark_agent_message_seen()
+            self._mark_agent_message_seen(turn_key)
             return self.flush()
         if _is_completed_agent_message(payload):
-            self._mark_agent_message_seen()
+            self._mark_agent_message_seen(turn_key)
         text = parse_visible_text_from_codex_event(
             payload,
             include_progress=self.include_progress,
@@ -136,32 +155,98 @@ class CodexVisibleEventExtractor:
             return []
         return list(chunk_text(cleaned, max_chars=self.max_segment_chars))
 
-    def _begin_turn(self) -> None:
-        if self._turn_active:
-            return
+    def _begin_turn(self, turn_key: TurnKey | None = None) -> None:
         self._turn_active = True
+        self._active_turn_key = turn_key
         self._turn_start_spoken = False
         self._saw_agent_message_in_turn = False
 
-    def _end_turn(self) -> None:
+    def _end_turn(self, turn_key: TurnKey | None = None) -> None:
+        completed_key = turn_key or self._active_turn_key
+        if (
+            completed_key is not None
+            and completed_key not in self._recent_completed_turns
+        ):
+            self._recent_completed_turns.append(completed_key)
         self._turn_active = False
+        self._active_turn_key = None
         self._turn_start_spoken = False
         self._saw_agent_message_in_turn = False
         self._saw_agent_delta = False
 
-    def _mark_agent_message_seen(self) -> None:
+    def _accept_turn_start(self, turn_key: TurnKey | None) -> bool:
+        if turn_key is not None and turn_key in self._recent_completed_turns:
+            return False
         if not self._turn_active:
-            self._begin_turn()
+            self._begin_turn(turn_key)
+            return True
+        if self._active_turn_key is None and turn_key is not None:
+            self._active_turn_key = turn_key
+            return True
+        if turn_key is None or turn_key == self._active_turn_key:
+            return True
+        return False
+
+    def _accept_turn_event(self, turn_key: TurnKey | None) -> bool:
+        if turn_key is not None and turn_key in self._recent_completed_turns:
+            return False
+        if not self._turn_active:
+            if turn_key is not None:
+                self._begin_turn(turn_key)
+            return True
+        if self._active_turn_key is None and turn_key is not None:
+            self._active_turn_key = turn_key
+            return True
+        return (
+            turn_key is None
+            or self._active_turn_key is None
+            or turn_key == self._active_turn_key
+        )
+
+    def _accept_turn_completion(self, turn_key: TurnKey | None) -> bool:
+        if turn_key is not None and turn_key in self._recent_completed_turns:
+            return False
+        if (
+            turn_key is not None
+            and self._active_turn_key is not None
+            and turn_key != self._active_turn_key
+        ):
+            return False
+        if self._turn_active and self._active_turn_key is None and turn_key is not None:
+            self._active_turn_key = turn_key
+        return True
+
+    def _mark_agent_message_seen(self, turn_key: TurnKey | None = None) -> None:
+        if not self._turn_active:
+            self._begin_turn(turn_key)
         self._saw_agent_message_in_turn = True
 
-    def _should_speak_turn_completion(self, *, method: str, event_type: str) -> bool:
+    def _should_speak_turn_completion(
+        self,
+        *,
+        method: str,
+        event_type: str,
+        turn_key: TurnKey | None,
+    ) -> bool:
         if not self.include_progress or not _detail_allows_lifecycle(
             self.speech_detail
         ):
             return False
-        return self._should_end_turn(method=method, event_type=event_type)
+        return self._should_end_turn(
+            method=method,
+            event_type=event_type,
+            turn_key=turn_key,
+        )
 
-    def _should_end_turn(self, *, method: str, event_type: str) -> bool:
+    def _should_end_turn(
+        self,
+        *,
+        method: str,
+        event_type: str,
+        turn_key: TurnKey | None,
+    ) -> bool:
+        if turn_key is not None:
+            return True
         if method in {"turn/failed", "codex/event/turn_aborted"} or event_type in {
             "turn.failed",
             "codex/event/turn_aborted",
@@ -287,6 +372,42 @@ def is_turn_completion_event(payload: dict[str, Any]) -> bool:
     return _is_turn_completion_event(method, event_type)
 
 
+def _extract_turn_key(payload: dict[str, Any]) -> TurnKey | None:
+    containers: list[dict[str, Any]] = []
+    params = payload.get("params")
+    if isinstance(params, dict):
+        containers.append(params)
+    containers.append(payload)
+    nested_payload = payload.get("payload")
+    if isinstance(nested_payload, dict):
+        containers.append(nested_payload)
+
+    thread_id = _first_nonempty_string(
+        *(container.get("threadId") for container in containers),
+        *(container.get("thread_id") for container in containers),
+    )
+    turn_id = _first_nonempty_string(
+        *(container.get("turnId") for container in containers),
+        *(container.get("turn_id") for container in containers),
+        *(
+            container.get("turn", {}).get("id")
+            if isinstance(container.get("turn"), dict)
+            else None
+            for container in containers
+        ),
+    )
+    if thread_id is None or turn_id is None:
+        return None
+    return thread_id, turn_id
+
+
+def _first_nonempty_string(*values: Any) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
+
+
 def _is_turn_start_event(method: str, event_type: str) -> bool:
     return method in {"turn/started", "codex/event/task_started"} or event_type in {
         "turn.started",
@@ -346,7 +467,12 @@ def _extract_progress_text(
     return None
 
 
-def _turn_completion_text(method: str, event_type: str) -> str | None:
+def _turn_completion_text(
+    payload: dict[str, Any], method: str, event_type: str
+) -> str | None:
+    status = _turn_status(payload)
+    if status in {"failed", "interrupted", "aborted", "error"}:
+        return "Fin de tarea con error."
     if method in {"turn/completed", "codex/event/task_complete"} or event_type in {
         "turn.completed",
         "codex/event/task_complete",
@@ -358,6 +484,21 @@ def _turn_completion_text(method: str, event_type: str) -> str | None:
     }:
         return "Fin de tarea con error."
     return None
+
+
+def _turn_status(payload: dict[str, Any]) -> str:
+    params = payload.get("params")
+    if isinstance(params, dict):
+        turn = params.get("turn")
+        if isinstance(turn, dict):
+            status = turn.get("status")
+            if isinstance(status, str):
+                return status.strip().lower()
+        status = params.get("status")
+        if isinstance(status, str):
+            return status.strip().lower()
+    status = payload.get("status")
+    return status.strip().lower() if isinstance(status, str) else ""
 
 
 def _started_progress_text(

@@ -164,25 +164,62 @@ The system SHALL provide client-side filtering and queueing so voice output rema
 - **AND** it SHALL NOT wait until turn completion to speak them.
 
 ### Requirement: Codex Turn Boundary Speech
-The system SHALL speak Codex task boundary cues exactly once per active turn and only for real terminal turn events.
+The system SHALL speak Codex task boundary cues exactly once per correlated active turn and only for terminal events belonging to that same Codex thread and turn.
 
 #### Scenario: Duplicate turn start events
 - **WHEN** a Codex voice listener receives repeated turn-start events for the same active turn
 - **THEN** it SHALL speak the task-start cue only once.
 
 #### Scenario: Tool call inside active turn
-- **WHEN** a Codex voice listener receives a tool, function, or command lifecycle event while a turn is active
+- **WHEN** a Codex voice listener receives a tool, function, or command lifecycle event belonging to the active turn
 - **THEN** it SHALL speak the configured lifecycle cue when the current detail mode allows it
 - **AND** it SHALL NOT speak the task-end cue for that intermediate event.
 
 #### Scenario: Real turn completion
-- **WHEN** a Codex voice listener receives a true turn completion event
+- **WHEN** a Codex voice listener receives a terminal turn event whose `threadId` and `turnId` match the active correlated turn
 - **THEN** it SHALL clear pending queued speech according to the configured completion behavior
 - **AND** it SHALL speak the task-end cue once.
 
+#### Scenario: Completion belongs to another turn
+- **WHEN** a terminal event identifies a different thread or turn from the active correlated turn
+- **THEN** the listener SHALL ignore that terminal event for speech purposes
+- **AND** it SHALL NOT flush active text, clear queued speech, or reset the active turn.
+
+#### Scenario: Duplicate correlated completion
+- **WHEN** the listener receives a repeated terminal event for a turn whose completion cue was already emitted
+- **THEN** it SHALL NOT emit another task-end cue.
+
 #### Scenario: Turn completion without explicit start
-- **WHEN** a Codex voice listener receives a true turn completion event without having observed a turn-start event first
-- **THEN** it SHALL still speak the task-end cue once when the current detail mode allows lifecycle speech.
+- **WHEN** a Codex voice listener receives a true terminal event without having observed a turn-start event first
+- **THEN** it SHALL speak the task-end cue once when the current detail mode allows lifecycle speech
+- **AND** it SHALL deduplicate subsequent terminal events carrying the same identifiers.
+
+#### Scenario: Identified background progress
+- **WHEN** message or action lifecycle events identify a different turn from the active correlated turn
+- **THEN** those events SHALL NOT mark the active turn as having assistant output
+- **AND** they SHALL NOT be read as progress for the active turn.
+
+#### Scenario: Legacy events lack identifiers
+- **WHEN** the listener receives supported legacy lifecycle events without usable thread and turn identifiers
+- **THEN** it SHALL apply the conservative order-based fallback
+- **AND** existing identifier-less integrations SHALL remain functional.
+
+### Requirement: VS Code Codex voice bridge activation
+The system SHALL configure the VS Code Codex extension to launch its app-server through the repository TTS wrapper when Codex task-boundary speech is enabled.
+
+#### Scenario: Voice bridge is enabled
+- **WHEN** the user enables Codex voice output in VS Code
+- **THEN** the user-level `chatgpt.cliExecutable` setting SHALL resolve to the executable repository TTS wrapper
+- **AND** a newly loaded Codex extension process SHALL register an active voice session and forward supported lifecycle events to the selected local TTS backend.
+
+#### Scenario: Existing VS Code process predates the setting
+- **WHEN** the wrapper setting is restored while VS Code already has a Codex app-server running
+- **THEN** the VS Code window SHALL be reloaded before runtime activation is considered complete.
+
+#### Scenario: Wrapper cannot be launched
+- **WHEN** the configured wrapper path is missing, non-executable, or cannot resolve a bundled Codex CLI
+- **THEN** validation SHALL report the bridge as inactive
+- **AND** the system SHALL NOT report a healthy TTS server alone as proof that Codex voice output is operational.
 
 ### Requirement: Ephemeral Generated Audio
 Generated speech audio SHALL be ephemeral by default.

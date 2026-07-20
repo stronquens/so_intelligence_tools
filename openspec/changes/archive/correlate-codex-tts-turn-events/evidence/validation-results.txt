@@ -1,0 +1,34 @@
+Validation date: 2026-07-20 Europe/Madrid
+
+Focused tests:
+.............................................                            [100%]
+45 passed in 0.21s
+
+Full test suite:
+........................................................................ [ 29%]
+........................................................................ [ 58%]
+........................................................................ [ 87%]
+..............................                                           [100%]
+246 passed, 1 pre-existing StarletteDeprecationWarning in 6.83s
+
+Ruff:
+All checks passed.
+All selected files formatted.
+
+Python compilation:
+codex_events.py, codex_voice.py, and codex-tts-wrapper.py compiled successfully.
+
+Strict OpenSpec validation:
+Change 'correlate-codex-tts-turn-events' is valid
+
+Reproduction after fix:
+turn/started current      => ['Inicio de tarea.']
+agent delta current       => []
+turn/completed background => []
+turn/completed current    => ['Fin de tarea.']
+duplicate current         => []
+
+Runtime activation:
+Old listener PIDs terminated: 178799, 180016
+Replacement listener PIDs: 192290, 192319
+Active wrapper sessions retained: 178596 (atlas), 179515 (so_intelligence_tools)
